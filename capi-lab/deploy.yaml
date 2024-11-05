@@ -1,0 +1,9 @@
+---
+- name: deploy cluster-api-provider-metal-stack
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  roles:
+    - name: ansible-common
+    - name: metal-roles
+    - name: cluster-api-provider-metal-stack

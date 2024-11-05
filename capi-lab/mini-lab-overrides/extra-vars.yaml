@@ -1,0 +1,6 @@
+---
+metal_check_api_health_endpoint: http://metal.{{ metal_control_plane_ingress_dns }}:8080/v1/health
+
+metal_api_base_path: "/"
+
+metal_ingress_dns: metal.{{ metal_control_plane_ingress_dns }}
