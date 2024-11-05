@@ -1,35 +1,23 @@
----
+# permissions for end users to view metalstackmachines.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: manager-role
+  labels:
+    app.kubernetes.io/name: cluster-api-provider-metal-stack
+    app.kubernetes.io/managed-by: kustomize
+  name: metalstackmachine-viewer-role
 rules:
 - apiGroups:
   - infrastructure.cluster.x-k8s.io
   resources:
-  - metalstackclusters
   - metalstackmachines
   verbs:
-  - create
-  - delete
   - get
   - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - infrastructure.cluster.x-k8s.io
   resources:
-  - metalstackclusters/finalizers
-  - metalstackmachines/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - infrastructure.cluster.x-k8s.io
-  resources:
-  - metalstackclusters/status
   - metalstackmachines/status
   verbs:
   - get
-  - patch
-  - update

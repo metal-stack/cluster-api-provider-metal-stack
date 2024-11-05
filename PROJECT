@@ -7,4 +7,23 @@ layout:
 - go.kubebuilder.io/v4
 projectName: cluster-api-provider-metal-stack
 repo: github.com/metal-stack/cluster-api-provider-metal-stack
+resources:
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: cluster.x-k8s.io
+  group: infrastructure
+  kind: MetalStackCluster
+  path: github.com/metal-stack/cluster-api-provider-metal-stack/api/v1alpha1
+  version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: cluster.x-k8s.io
+  group: infrastructure
+  kind: MetalStackMachine
+  path: github.com/metal-stack/cluster-api-provider-metal-stack/api/v1alpha1
+  version: v1alpha1
 version: "3"
