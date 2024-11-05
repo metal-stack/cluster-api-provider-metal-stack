@@ -6,4 +6,5 @@
   roles:
     - name: ansible-common
     - name: metal-roles
+    - name: cert-manager
     - name: cluster-api-provider-metal-stack

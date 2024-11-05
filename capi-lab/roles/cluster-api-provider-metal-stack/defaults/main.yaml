@@ -1,0 +1,8 @@
+---
+cluster_api_provider_metal_stack_namespace: cap-metal-stack
+
+cluster_api_provider_metal_stack_controller_image_name: cap-metal-stack-controller
+cluster_api_provider_metal_stack_controller_image_tag: latest
+
+cluster_api_provider_metal_stack_metal_api_url: http://metal-api.metal-control-plane.svc.cluster.local:8080
+cluster_api_provider_metal_stack_metal_api_hmac: metal-admin

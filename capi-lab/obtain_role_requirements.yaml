@@ -1,23 +1,18 @@
 ---
 - name: provide requirements.yaml
-  hosts: metal-stack-cloud
+  hosts: capi
   connection: local
   gather_facts: false
-  vars:
-    metal_stack_release_vector_url: https://raw.githubusercontent.com/metal-stack/releases/{{ metal_stack_release_version }}/release.yaml
-    metal_stack_cloud_release_vector_url: https://raw.githubusercontent.com/metal-stack-cloud/releases/{{ metal_stack_cloud_release_version }}/release.yaml
   tasks:
+    - name: include mini-lab release vars
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/mini-lab/inventories/group_vars/all/images.yaml"
+
     - name: download metal-stack release vector
       uri:
-        url: "{{ metal_stack_release_vector_url }}"
+        url: "https://raw.githubusercontent.com/metal-stack/releases/{{ metal_stack_release_version }}/release.yaml"
         return_content: yes
       register: metal_stack_release_vector
-
-    - name: download metal-stack-cloud release vector
-      uri:
-        url: "{{ metal_stack_cloud_release_vector_url }}"
-        return_content: yes
-      register: metal_stack_cloud_release_vector
 
     - name: write requirements.yaml from release vector
       copy:
@@ -27,9 +22,4 @@
           - src: {{ role_params.get('repository') }}
             name: {{ role_name }}
             version: {{ hostvars[inventory_hostname][role_name | lower | replace('-', '_') + '_version'] | default(role_params.get('version'), true) }}
-          {% endfor %}
-          {% for role_name, role_params in (metal_stack_cloud_release_vector.content | from_yaml).get('ansible-roles').items() %}
-          - src: {{ role_params.get('repository') }}
-            name: metal-stack-cloud-{{ role_name }}
-            version: {{ hostvars[inventory_hostname]['metal_stack_cloud_' + role_name | lower | replace('-', '_') + '_version'] | default(role_params.get('version'), true) }}
           {% endfor %}

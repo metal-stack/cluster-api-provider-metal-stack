@@ -4,7 +4,7 @@ services:
     image: ghcr.io/metal-stack/metal-deployment-base:${DEPLOYMENT_BASE_IMAGE_TAG}
     container_name: capi
     volumes:
-      - .:/deploy
+      - ..:/deploy
       # for developing role dependencies
       # TODO: make this a switch
       # - ${HOME}/.ansible/roles/ansible-common:/root/.ansible/roles/ansible-common:ro
@@ -13,12 +13,12 @@ services:
       # - ${HOME}/git/github.com/metal-stack/helm-charts:/helm-charts:ro
     environment:
       - ANSIBLE_CONFIG=ansible.cfg
-      - KUBECONFIG=/deploy/mini-lab/.kubeconfig
-      - K8S_AUTH_KUBECONFIG=/deploy/mini-lab/.kubeconfig
+      - KUBECONFIG=/deploy/capi-lab/mini-lab/.kubeconfig
+      - K8S_AUTH_KUBECONFIG=/deploy/capi-lab/mini-lab/.kubeconfig
     env_file:
       - .env
     network_mode: host
-    working_dir: /deploy
+    working_dir: /deploy/capi-lab
     entrypoint:
       - /bin/bash
       - -ce

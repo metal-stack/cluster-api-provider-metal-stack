@@ -1,4 +1,34 @@
 ---
-- name: Deploy
-  debug:
-    msg: "TODO"
+- name: Create namespace
+  k8s:
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: "{{ cluster_api_provider_metal_stack_namespace }}"
+        labels:
+          name: "{{ cluster_api_provider_metal_stack_namespace }}"
+
+- name: Deploy capi-operator
+  include_role:
+    name: ansible-common/roles/helm-chart
+  vars:
+    helm_repo: "https://kubernetes-sigs.github.io/cluster-api-operator"
+    helm_chart: cluster-api-operator
+    helm_target_namespace: "{{ cluster_api_provider_metal_stack_namespace }}"
+    helm_release_name: capi-operator
+    helm_chart_version: "0.14.0"
+    helm_value_file_template: "operator-values.yaml"
+
+- name: Deploy cap-provider-metal-stack backing resources
+  k8s:
+    definition: "{{ lookup('file', item) }}"
+    namespace: "{{ cluster_api_provider_metal_stack_namespace }}"
+  with_fileglob:
+    - "{{ playbook_dir }}/../config/crd/bases/*.yaml"
+    - "{{ playbook_dir }}/../config/rbac/*_role.yaml"
+
+- name: Deploy cap-provider-metal-stack
+  k8s:
+    definition: "{{ lookup('template', 'controller.yaml') }}"
+    namespace: "{{ cluster_api_provider_metal_stack_namespace }}"

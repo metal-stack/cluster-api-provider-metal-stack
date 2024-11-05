@@ -1,0 +1,30 @@
+---
+- name: Check mandatory variables for this role are set
+  assert:
+    fail_msg: "not all mandatory variables given, check role documentation"
+    quiet: yes
+    that:
+      - cert_manager_lets_encrypt_expiry_mail_address is not none
+
+- name: Create cert-manager namespace
+  k8s:
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: cert-manager
+        labels:
+          name: cert-manager
+          certmanager.k8s.io/disable-validation: "true"
+
+- name: Deploy cert-manager
+  include_role:
+    name: ansible-common/roles/helm-chart
+  vars:
+    helm_chart: cert-manager
+    helm_repo: https://charts.jetstack.io
+    helm_force: false
+    helm_release_name: cert-manager
+    helm_target_namespace: cert-manager
+    helm_chart_version: "{{ cert_manager_version }}"
+    helm_value_file_template: cert-manager-values.yaml

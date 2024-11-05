@@ -7,6 +7,3 @@
 - src: https://github.com/metal-stack/metal-roles
   name: metal-roles
   version: v0.14.2
-- src: https://github.com/metal-stack-cloud/ansible-roles
-  name: metal-stack-cloud-ansible-roles
-  version: v0.1.26

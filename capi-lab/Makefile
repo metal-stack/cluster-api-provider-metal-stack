@@ -31,5 +31,5 @@ dev-env:
 controller:
 	cd .. && make docker-build && cd -
 	kind --name metal-control-plane load docker-image $(IMG)
-	kubectl --kubeconfig=$(KUBECONFIG) patch deployments.apps -n cap-metal-stack controller --patch='{"spec":{"template":{"spec":{"containers":[{"name": "api-server","imagePullPolicy":"IfNotPresent","image":"$(IMG)"}]}}}}'
-	kubectl --kubeconfig=$(KUBECONFIG) delete pod -n cap-metal-stack -l app=controller
+	kubectl --kubeconfig=$(KUBECONFIG) patch deployments.apps -n cap-metal-stack metal-stack-controller-manager --patch='{"spec":{"template":{"spec":{"containers":[{"name": "manager","imagePullPolicy":"IfNotPresent","image":"$(IMG)"}]}}}}'
+	kubectl --kubeconfig=$(KUBECONFIG) delete pod -n cap-metal-stack -l control-plane=metal-stack-controller-manager
