@@ -1,7 +1,7 @@
 .DEFAULT_GOAL := up
 
 KUBECONFIG := $(shell pwd)/mini-lab/.kubeconfig
-IMG ?= cap-metal-stack-controller:latest
+IMG ?= capms-controller:latest
 
 .PHONY: up
 up: bake deploy-capi

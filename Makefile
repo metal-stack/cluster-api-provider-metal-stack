@@ -1,5 +1,5 @@
 # Image URL to use all building/pushing image targets
-IMG ?= cap-metal-stack-controller:latest
+IMG ?= capms-controller:latest
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.31.0
 
@@ -41,7 +41,23 @@ all: build
 help: ## Display this help.
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
+##@ Releases
+
+.PHONY: release-manifests
+release-manifests: $(KUSTOMIZE) ## Builds the manifests to publish with a release
+	$(KUSTOMIZE) build config/default > infrastructure-components.yaml
+	# cp metadata.yaml $(RELEASE_DIR)/metadata.yaml
+	# cp examples/clusterctl-templates/clusterctl-cluster.yaml $(RELEASE_DIR)/cluster-template.yaml
+	# cp examples/clusterctl-templates/example_variables.rc $(RELEASE_DIR)/example_variables.rc
+
 ##@ Development
+
+.PHONY: push-to-capi-lab
+push-to-capi-lab: build
+	docker build -t $(IMG) -f Dockerfile.dev .
+	kind --name metal-control-plane load docker-image capms-controller:latest
+	kubectl --kubeconfig=$(KUBECONFIG) patch deployments.apps -n capms-system capms-controller-manager --patch='{"spec":{"template":{"spec":{"containers":[{"name": "manager","imagePullPolicy":"IfNotPresent","image":"$(IMG)"}]}}}}'
+	kubectl --kubeconfig=$(KUBECONFIG) delete pod -n capms-system -l control-plane=controller-manager
 
 .PHONY: manifests
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
@@ -92,7 +108,7 @@ lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes
 
 .PHONY: build
 build: manifests generate fmt vet ## Build manager binary.
-	go build -o bin/manager cmd/main.go
+	CGO_ENABLED=0 go build -o bin/manager cmd/main.go
 
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
