@@ -51,6 +51,15 @@ func (r *MetalStackClusterReconciler) Reconcile(ctx context.Context, req ctrl.Re
 
 	logger.Info("reconciling cluster")
 
+	// TODO:
+	// - jump into deletion flow
+	// - check cluster owner
+	// - add finalizer
+	// - ensure node network
+	// - ensure firewall
+	// - set control plane endpoint --> probably we do not need to provide it because we do not have a classic load balancer
+	// - set ready in status
+
 	return ctrl.Result{}, nil
 }
 
@@ -58,6 +67,7 @@ func (r *MetalStackClusterReconciler) Reconcile(ctx context.Context, req ctrl.Re
 func (r *MetalStackClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&infrastructurev1alpha1.MetalStackCluster{}).
+		// TODO: add ResourceIsNotExternallyManaged predicate
 		Named("metalstackcluster").
 		Complete(r)
 }

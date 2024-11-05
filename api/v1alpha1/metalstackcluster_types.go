@@ -18,6 +18,8 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	capierrors "sigs.k8s.io/cluster-api/errors"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -25,6 +27,10 @@ import (
 
 // MetalStackClusterSpec defines the desired state of MetalStackCluster.
 type MetalStackClusterSpec struct {
+	// ControlPlaneEndpoint represents the endpoint used to communicate with the control plane.
+	// +optional
+	ControlPlaneEndpoint APIEndpoint `json:"controlPlaneEndpoint,omitempty"`
+
 	// ProjectID is the project id of the project in metal-stack in which the associated metal-stack resources are created
 	ProjectID string `json:"projectID,omitempty"`
 
@@ -32,10 +38,30 @@ type MetalStackClusterSpec struct {
 	Partition string `json:"partition,omitempty"`
 }
 
+// APIEndpoint represents a reachable Kubernetes API endpoint.
+type APIEndpoint struct {
+	// Host is the hostname on which the API server is serving.
+	Host string `json:"host"`
+
+	// Port is the port on which the API server is serving.
+	Port int `json:"port"`
+}
+
 // MetalStackClusterStatus defines the observed state of MetalStackCluster.
 type MetalStackClusterStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	// FailureReason indicates that there is a fatal problem reconciling the
+	// state, and will be set to a token value suitable for
+	// programmatic interpretation.
+	// +optional
+	FailureReason *capierrors.ClusterStatusError `json:"failureReason,omitempty"`
+
+	// FailureMessage indicates that there is a fatal problem reconciling the
+	// state, and will be set to a descriptive error message.
+	// +optional
+	FailureMessage *string `json:"failureMessage,omitempty"`
+
+	// Ready denotes that the cluster is ready.
+	Ready bool `json:"ready"`
 }
 
 // +kubebuilder:object:root=true

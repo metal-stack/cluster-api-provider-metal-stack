@@ -26,4 +26,5 @@ resources:
 - metalstackmachine_viewer_role.yaml
 - metalstackcluster_editor_role.yaml
 - metalstackcluster_viewer_role.yaml
-
+# this is because we are not sponsored yet :(
+- capi.yaml

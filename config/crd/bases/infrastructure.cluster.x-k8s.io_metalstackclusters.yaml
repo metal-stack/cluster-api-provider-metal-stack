@@ -39,6 +39,20 @@ spec:
           spec:
             description: MetalStackClusterSpec defines the desired state of MetalStackCluster.
             properties:
+              controlPlaneEndpoint:
+                description: ControlPlaneEndpoint represents the endpoint used to
+                  communicate with the control plane.
+                properties:
+                  host:
+                    description: Host is the hostname on which the API server is serving.
+                    type: string
+                  port:
+                    description: Port is the port on which the API server is serving.
+                    type: integer
+                required:
+                - host
+                - port
+                type: object
               partition:
                 description: Partition is the data center partition in which the resources
                   are created
@@ -50,6 +64,23 @@ spec:
             type: object
           status:
             description: MetalStackClusterStatus defines the observed state of MetalStackCluster.
+            properties:
+              failureMessage:
+                description: |-
+                  FailureMessage indicates that there is a fatal problem reconciling the
+                  state, and will be set to a descriptive error message.
+                type: string
+              failureReason:
+                description: |-
+                  FailureReason indicates that there is a fatal problem reconciling the
+                  state, and will be set to a token value suitable for
+                  programmatic interpretation.
+                type: string
+              ready:
+                description: Ready denotes that the cluster is ready.
+                type: boolean
+            required:
+            - ready
             type: object
         type: object
     served: true

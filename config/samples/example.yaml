@@ -1,0 +1,21 @@
+---
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: Cluster
+metadata:
+  name: metal-test
+spec:
+  clusterNetwork:
+    pods:
+      cidrBlocks: ["192.168.0.0/16"]
+  infrastructureRef:
+    apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+    kind: MetalStackCluster
+    name: metal-test
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+kind: MetalStackCluster
+metadata:
+  name: metal-test
+spec:
+  projectID: 00000000-0000-0000-0000-000000000001
+  partition: mini-lab
