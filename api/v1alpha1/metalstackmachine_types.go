@@ -25,11 +25,11 @@ import (
 
 // MetalStackMachineSpec defines the desired state of MetalStackMachine.
 type MetalStackMachineSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	// Image is the operating system to deploy on the machine
+	Image string `json:"image"`
 
-	// Foo is an example field of MetalStackMachine. Edit metalstackmachine_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	// Size is the size of the machine
+	Size string `json:"size"`
 }
 
 // MetalStackMachineStatus defines the observed state of MetalStackMachine.

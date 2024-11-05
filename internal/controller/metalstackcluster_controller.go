@@ -49,7 +49,7 @@ type MetalStackClusterReconciler struct {
 func (r *MetalStackClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
 
-	// TODO(user): your logic here
+	// TODO(gerrit91): your logic here
 
 	return ctrl.Result{}, nil
 }

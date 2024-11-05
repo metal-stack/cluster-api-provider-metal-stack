@@ -39,9 +39,13 @@ spec:
           spec:
             description: MetalStackClusterSpec defines the desired state of MetalStackCluster.
             properties:
-              foo:
-                description: Foo is an example field of MetalStackCluster. Edit metalstackcluster_types.go
-                  to remove/update
+              partition:
+                description: Partition is the data center partition in which the resources
+                  are created
+                type: string
+              projectID:
+                description: ProjectID is the project id of the project in metal-stack
+                  in which the associated metal-stack resources are created
                 type: string
             type: object
           status:

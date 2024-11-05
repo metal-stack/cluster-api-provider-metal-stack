@@ -39,10 +39,15 @@ spec:
           spec:
             description: MetalStackMachineSpec defines the desired state of MetalStackMachine.
             properties:
-              foo:
-                description: Foo is an example field of MetalStackMachine. Edit metalstackmachine_types.go
-                  to remove/update
+              image:
+                description: Image is the operating system to deploy on the machine
                 type: string
+              size:
+                description: Size is the size of the machine
+                type: string
+            required:
+            - image
+            - size
             type: object
           status:
             description: MetalStackMachineStatus defines the observed state of MetalStackMachine.

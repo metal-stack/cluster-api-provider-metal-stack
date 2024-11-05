@@ -25,11 +25,11 @@ import (
 
 // MetalStackClusterSpec defines the desired state of MetalStackCluster.
 type MetalStackClusterSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	// ProjectID is the project id of the project in metal-stack in which the associated metal-stack resources are created
+	ProjectID string `json:"projectID,omitempty"`
 
-	// Foo is an example field of MetalStackCluster. Edit metalstackcluster_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	// Partition is the data center partition in which the resources are created
+	Partition string `json:"partition,omitempty"`
 }
 
 // MetalStackClusterStatus defines the observed state of MetalStackCluster.
