@@ -138,7 +138,7 @@ spec:
             description: MetalStackClusterStatus defines the observed state of MetalStackCluster.
             properties:
               conditions:
-                description: Conditions defines current service state of the Metal3Cluster.
+                description: Conditions defines current service state of the MetalStackCluster.
                 items:
                   description: Condition defines an observation of a Cluster API resource
                     operational state.

@@ -18,6 +18,8 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	capierrors "sigs.k8s.io/cluster-api/errors"
 )
 
 const (
@@ -25,11 +27,12 @@ const (
 	MachineFinalizer = "metal-stack.infrastructure.cluster.x-k8s.io/machine"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
 // MetalStackMachineSpec defines the desired state of MetalStackMachine.
 type MetalStackMachineSpec struct {
+	// ProviderID points to the metal-stack machine ID.
+	// +optional
+	ProviderID string `json:"providerID"`
+
 	// Image is the operating system to deploy on the machine
 	Image string `json:"image"`
 
@@ -39,8 +42,26 @@ type MetalStackMachineSpec struct {
 
 // MetalStackMachineStatus defines the observed state of MetalStackMachine.
 type MetalStackMachineStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	// Ready denotes that the cluster is ready.
+	Ready bool `json:"ready"`
+
+	// FailureReason indicates that there is a fatal problem reconciling the
+	// state, and will be set to a token value suitable for
+	// programmatic interpretation.
+	// +optional
+	FailureReason *capierrors.ClusterStatusError `json:"failureReason,omitempty"`
+
+	// FailureMessage indicates that there is a fatal problem reconciling the
+	// state, and will be set to a descriptive error message.
+	// +optional
+	FailureMessage *string `json:"failureMessage,omitempty"`
+
+	// Conditions defines current service state of the MetalStackCluster.
+	// +optional
+	Conditions clusterv1.Conditions `json:"conditions,omitempty"`
+
+	// MachineAddresses contains all host names, external or internal IP addresses and external or internal DNS names.
+	Addresses clusterv1.MachineAddresses `json:"addresses,omitempty"`
 }
 
 // +kubebuilder:object:root=true

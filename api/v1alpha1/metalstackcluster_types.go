@@ -88,6 +88,9 @@ type Firewall struct {
 
 // MetalStackClusterStatus defines the observed state of MetalStackCluster.
 type MetalStackClusterStatus struct {
+	// Ready denotes that the cluster is ready.
+	Ready bool `json:"ready"`
+
 	// FailureReason indicates that there is a fatal problem reconciling the
 	// state, and will be set to a token value suitable for
 	// programmatic interpretation.
@@ -99,10 +102,7 @@ type MetalStackClusterStatus struct {
 	// +optional
 	FailureMessage *string `json:"failureMessage,omitempty"`
 
-	// Ready denotes that the cluster is ready.
-	Ready bool `json:"ready"`
-
-	// Conditions defines current service state of the Metal3Cluster.
+	// Conditions defines current service state of the MetalStackCluster.
 	// +optional
 	Conditions clusterv1.Conditions `json:"conditions,omitempty"`
 }
