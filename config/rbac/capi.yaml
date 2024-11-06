@@ -2,7 +2,7 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: capi-metal-stack-clusters
+  name: capi-metal-stack
   labels:
     cluster.x-k8s.io/aggregate-to-manager: "true"
 rules:
@@ -10,6 +10,7 @@ rules:
   - infrastructure.cluster.x-k8s.io
   resources:
   - metalstackclusters
+  - metalstackmachines
   verbs:
   - create
   - delete
