@@ -53,6 +53,74 @@ spec:
                 - host
                 - port
                 type: object
+              firewall:
+                description: Firewall describes the firewall for this cluster
+                properties:
+                  egressRules:
+                    description: EgressRules contains egress rules configured for
+                      this firewall.
+                    items:
+                      description: EgressRuleSNAT holds a Source-NAT rule
+                      properties:
+                        ips:
+                          description: IPs contains the ips used as source addresses
+                            for packets leaving the specified network.
+                          items:
+                            type: string
+                          type: array
+                        networkID:
+                          description: NetworkID is the network for which the egress
+                            rule will be configured.
+                          type: string
+                      required:
+                      - ips
+                      - networkID
+                      type: object
+                    type: array
+                  image:
+                    description: |-
+                      Image is the os image of the firewall.
+                      An update on this field requires the recreation of the physical firewall and can therefore lead to traffic interruption for the cluster.
+                    type: string
+                  logAcceptedConnections:
+                    description: LogAcceptedConnections if set to true, also log accepted
+                      connections in the droptailer log.
+                    type: boolean
+                  networks:
+                    description: |-
+                      AdditionalNetworks are the networks to which this firewall is connected.
+                      An update on this field requires the recreation of the physical firewall and can therefore lead to traffic interruption for the cluster.
+                    items:
+                      type: string
+                    type: array
+                  rateLimits:
+                    description: RateLimits allows configuration of rate limit rules
+                      for interfaces.
+                    items:
+                      description: RateLimit contains the rate limit rule for a network.
+                      properties:
+                        networkID:
+                          description: NetworkID specifies the network which should
+                            be rate limited.
+                          type: string
+                        rate:
+                          description: Rate is the input rate in MiB/s.
+                          format: int32
+                          type: integer
+                      required:
+                      - networkID
+                      - rate
+                      type: object
+                    type: array
+                  size:
+                    description: |-
+                      Size is the machine size of the firewall.
+                      An update on this field requires the recreation of the physical firewall and can therefore lead to traffic interruption for the cluster.
+                    type: string
+                required:
+                - image
+                - size
+                type: object
               partition:
                 description: Partition is the data center partition in which the resources
                   are created
@@ -61,10 +129,59 @@ spec:
                 description: ProjectID is the project id of the project in metal-stack
                   in which the associated metal-stack resources are created
                 type: string
+            required:
+            - firewall
+            - partition
+            - projectID
             type: object
           status:
             description: MetalStackClusterStatus defines the observed state of MetalStackCluster.
             properties:
+              conditions:
+                description: Conditions defines current service state of the Metal3Cluster.
+                items:
+                  description: Condition defines an observation of a Cluster API resource
+                    operational state.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        Last time the condition transitioned from one status to another.
+                        This should be when the underlying condition changed. If that is not known, then using the time when
+                        the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        A human readable message indicating details about the transition.
+                        This field may be empty.
+                      type: string
+                    reason:
+                      description: |-
+                        The reason for the condition's last transition in CamelCase.
+                        The specific API may choose whether or not this field is considered a guaranteed API.
+                        This field may not be empty.
+                      type: string
+                    severity:
+                      description: |-
+                        Severity provides an explicit classification of Reason code, so the users or machines can immediately
+                        understand the current situation and act accordingly.
+                        The Severity field MUST be set only when Status=False.
+                      type: string
+                    status:
+                      description: Status of the condition, one of True, False, Unknown.
+                      type: string
+                    type:
+                      description: |-
+                        Type of condition in CamelCase or in foo.example.com/CamelCase.
+                        Many .condition.type values are consistent across resources like Available, but because arbitrary conditions
+                        can be useful (see .node.status.conditions), the ability to deconflict is important.
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - status
+                  - type
+                  type: object
+                type: array
               failureMessage:
                 description: |-
                   FailureMessage indicates that there is a fatal problem reconciling the

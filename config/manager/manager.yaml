@@ -1,4 +1,12 @@
 ---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: controller-manager-config
+stringData:
+  api-url: ${METAL_API_URL}
+  api-hmac: ${METAL_API_HMAC}
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -25,7 +33,18 @@ spec:
         seccompProfile:
           type: RuntimeDefault
       containers:
-      - command:
+      - env:
+          - name: METAL_API_URL
+            valueFrom:
+              secretKeyRef:
+                name: controller-manager-config
+                key: api-url
+          - name: METAL_API_HMAC
+            valueFrom:
+              secretKeyRef:
+                name: controller-manager-config
+                key: api-hmac
+        command:
         - /manager
         args:
           - --leader-elect

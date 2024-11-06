@@ -18,6 +18,7 @@ package main
 
 import (
 	"crypto/tls"
+	"errors"
 	"flag"
 	"os"
 
@@ -37,6 +38,9 @@ import (
 
 	infrastructurev1alpha1 "github.com/metal-stack/cluster-api-provider-metal-stack/api/v1alpha1"
 	"github.com/metal-stack/cluster-api-provider-metal-stack/internal/controller"
+	fcmv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
+	metalgo "github.com/metal-stack/metal-go"
+	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -47,6 +51,8 @@ var (
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+	utilruntime.Must(clusterv1.AddToScheme(scheme))
+	utilruntime.Must(fcmv2.AddToScheme(scheme))
 
 	utilruntime.Must(infrastructurev1alpha1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
@@ -76,6 +82,12 @@ func main() {
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+
+	metalClient, err := newMetalClient()
+	if err != nil {
+		setupLog.Error(err, "unable to initialize metal-api client")
+		os.Exit(1)
+	}
 
 	// if the enable-http2 flag is false (the default), http/2 should be disabled
 	// due to its vulnerabilities. More specifically, disabling http/2 will
@@ -144,9 +156,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	ctx := ctrl.SetupSignalHandler()
+
 	if err = (&controller.MetalStackClusterReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		MetalClient: metalClient,
+		Client:      mgr.GetClient(),
+		Scheme:      mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "MetalStackCluster")
 		os.Exit(1)
@@ -170,8 +185,22 @@ func main() {
 	}
 
 	setupLog.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err := mgr.Start(ctx); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
+}
+
+func newMetalClient() (metalgo.Client, error) {
+	url := os.Getenv("METAL_API_URL")
+	if url == "" {
+		return nil, errors.New("METAL_API_URL environment variable must be set")
+	}
+
+	hmac := os.Getenv("METAL_API_HMAC")
+	if url == "" {
+		return nil, errors.New("METAL_API_HMAC environment variable must be set")
+	}
+
+	return metalgo.NewDriver(url, "", hmac)
 }

@@ -19,7 +19,18 @@ package v1alpha1
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	capierrors "sigs.k8s.io/cluster-api/errors"
+
+	fcmv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
+)
+
+const (
+	// ClusterFinalizer allows to clean up resources associated with before removing it from the apiserver.
+	ClusterFinalizer = "metal-stack.infrastructure.cluster.x-k8s.io/cluster"
+
+	ClusterNodeNetworkEnsured      clusterv1.ConditionType = "ClusterNodeNetworkEnsured"
+	ClusterFirewallDeploymentReady clusterv1.ConditionType = "ClusterFirewallDeploymentReady"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -32,10 +43,13 @@ type MetalStackClusterSpec struct {
 	ControlPlaneEndpoint APIEndpoint `json:"controlPlaneEndpoint,omitempty"`
 
 	// ProjectID is the project id of the project in metal-stack in which the associated metal-stack resources are created
-	ProjectID string `json:"projectID,omitempty"`
+	ProjectID string `json:"projectID"`
 
 	// Partition is the data center partition in which the resources are created
-	Partition string `json:"partition,omitempty"`
+	Partition string `json:"partition"`
+
+	// Firewall describes the firewall for this cluster
+	Firewall Firewall `json:"firewall"`
 }
 
 // APIEndpoint represents a reachable Kubernetes API endpoint.
@@ -45,6 +59,31 @@ type APIEndpoint struct {
 
 	// Port is the port on which the API server is serving.
 	Port int `json:"port"`
+}
+
+// Firewall defines parameters for the firewall creation along with configuration for the firewall-controller.
+type Firewall struct {
+	// Size is the machine size of the firewall.
+	// An update on this field requires the recreation of the physical firewall and can therefore lead to traffic interruption for the cluster.
+	Size string `json:"size"`
+	// Image is the os image of the firewall.
+	// An update on this field requires the recreation of the physical firewall and can therefore lead to traffic interruption for the cluster.
+	Image string `json:"image"`
+	// AdditionalNetworks are the networks to which this firewall is connected.
+	// An update on this field requires the recreation of the physical firewall and can therefore lead to traffic interruption for the cluster.
+	// +optional
+	AdditionalNetworks []string `json:"networks,omitempty"`
+
+	// RateLimits allows configuration of rate limit rules for interfaces.
+	// +optional
+	RateLimits []fcmv2.RateLimit `json:"rateLimits,omitempty"`
+	// EgressRules contains egress rules configured for this firewall.
+	// +optional
+	EgressRules []fcmv2.EgressRuleSNAT `json:"egressRules,omitempty"`
+
+	// LogAcceptedConnections if set to true, also log accepted connections in the droptailer log.
+	// +optional
+	LogAcceptedConnections *bool `json:"logAcceptedConnections,omitempty"`
 }
 
 // MetalStackClusterStatus defines the observed state of MetalStackCluster.
@@ -62,6 +101,10 @@ type MetalStackClusterStatus struct {
 
 	// Ready denotes that the cluster is ready.
 	Ready bool `json:"ready"`
+
+	// Conditions defines current service state of the Metal3Cluster.
+	// +optional
+	Conditions clusterv1.Conditions `json:"conditions,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -87,4 +130,14 @@ type MetalStackClusterList struct {
 
 func init() {
 	SchemeBuilder.Register(&MetalStackCluster{}, &MetalStackClusterList{})
+}
+
+// GetConditions returns the list of conditions.
+func (c *MetalStackCluster) GetConditions() clusterv1.Conditions {
+	return c.Status.Conditions
+}
+
+// SetConditions will set the given conditions.
+func (c *MetalStackCluster) SetConditions(conditions clusterv1.Conditions) {
+	c.Status.Conditions = conditions
 }

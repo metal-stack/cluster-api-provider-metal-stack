@@ -53,7 +53,7 @@ release-manifests: $(KUSTOMIZE) ## Builds the manifests to publish with a releas
 ##@ Development
 
 .PHONY: push-to-capi-lab
-push-to-capi-lab: build
+push-to-capi-lab: generate manifests build install deploy
 	docker build -t $(IMG) -f Dockerfile.dev .
 	kind --name metal-control-plane load docker-image capms-controller:latest
 	kubectl --kubeconfig=$(KUBECONFIG) patch deployments.apps -n capms-system capms-controller-manager --patch='{"spec":{"template":{"spec":{"containers":[{"name": "manager","imagePullPolicy":"IfNotPresent","image":"$(IMG)"}]}}}}'
@@ -154,6 +154,10 @@ ifndef ignore-not-found
   ignore-not-found = false
 endif
 
+# this is configured to work with the capi-lab
+export METAL_API_URL := "http://metal.172.17.0.1.nip.io:8080"
+export METAL_API_HMAC := "metal-admin"
+
 .PHONY: install
 install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/crd | $(KUBECTL) apply -f -
@@ -165,11 +169,11 @@ uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified 
 .PHONY: deploy
 deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	$(KUSTOMIZE) build config/default | $(KUBECTL) apply -f -
+	$(KUSTOMIZE) build config/default | envsubst | $(KUBECTL) apply -f -
 
 .PHONY: undeploy
 undeploy: kustomize ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
-	$(KUSTOMIZE) build config/default | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
+	$(KUSTOMIZE) build config/default | envsubst | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
 
 ##@ Dependencies
 
