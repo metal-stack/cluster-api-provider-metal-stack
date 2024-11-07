@@ -388,7 +388,7 @@ func (r *MetalStackClusterReconciler) status(ctx context.Context, infraCluster *
 
 		conditionUpdates <- func() {
 			if err != nil {
-				conditions.MarkFalse(infraCluster, v1alpha1.ClusterNodeNetworkEnsured, "InternalError", clusterv1.ConditionSeverityError, err.Error())
+				conditions.MarkFalse(infraCluster, v1alpha1.ClusterNodeNetworkEnsured, "InternalError", clusterv1.ConditionSeverityError, "%s", err.Error())
 				return
 			}
 
@@ -417,7 +417,7 @@ func (r *MetalStackClusterReconciler) status(ctx context.Context, infraCluster *
 
 		conditionUpdates <- func() {
 			if err != nil && !apierrors.IsNotFound(err) {
-				conditions.MarkFalse(infraCluster, v1alpha1.ClusterFirewallDeploymentReady, "InternalError", clusterv1.ConditionSeverityError, err.Error())
+				conditions.MarkFalse(infraCluster, v1alpha1.ClusterFirewallDeploymentReady, "InternalError", clusterv1.ConditionSeverityError, "%s", err.Error())
 				return
 			}
 

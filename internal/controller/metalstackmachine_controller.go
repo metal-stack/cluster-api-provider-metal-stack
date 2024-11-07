@@ -167,13 +167,13 @@ func (r *MetalStackMachineReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func (r *MetalStackMachineReconciler) create(ctx context.Context, log logr.Logger, infraMachine *v1alpha1.MetalStackMachine, infraCluster *v1alpha1.MetalStackCluster) error {
+func (r *MetalStackMachineReconciler) create(ctx context.Context, _ logr.Logger, infraMachine *v1alpha1.MetalStackMachine, infraCluster *v1alpha1.MetalStackCluster) error {
 	helper, err := patch.NewHelper(infraMachine, r.Client)
 	if err != nil {
 		return err
 	}
 
-	//TODO: Find any existing machine by tag first
+	// TODO: Find any existing machine by tag first
 	const TagInfraMachineID = "machine.metal-stack.infrastructure.cluster.x-k8s.io/id"
 	infraMachineOwnerTag := fmt.Sprintf("%s=%s", TagInfraMachineID, infraMachine.GetUID())
 
@@ -218,8 +218,8 @@ func (r *MetalStackMachineReconciler) create(ctx context.Context, log logr.Logge
 	return nil
 }
 
-func (r *MetalStackMachineReconciler) reconcile(ctx context.Context, log logr.Logger, infraMachine *v1alpha1.MetalStackMachine, infraCluster *v1alpha1.MetalStackCluster) error {
-	_, err := r.findProviderMachine(ctx, infraMachine, infraCluster)
+func (r *MetalStackMachineReconciler) reconcile(ctx context.Context, _ logr.Logger, infraMachine *v1alpha1.MetalStackMachine, infraCluster *v1alpha1.MetalStackCluster) error {
+	err := r.findProviderMachine(ctx, infraMachine, infraCluster)
 	if err != nil && !errors.Is(err, errProviderMachineNotFound) {
 		return err
 	}
@@ -231,7 +231,7 @@ func (r *MetalStackMachineReconciler) reconcile(ctx context.Context, log logr.Lo
 }
 
 func (r *MetalStackMachineReconciler) delete(ctx context.Context, log logr.Logger, infraMachine *v1alpha1.MetalStackMachine, infraCluster *v1alpha1.MetalStackCluster) error {
-	_, err := r.findProviderMachine(ctx, infraMachine, infraCluster)
+	err := r.findProviderMachine(ctx, infraMachine, infraCluster)
 	if errors.Is(err, errProviderMachineNotFound) {
 		// metal-stack machine already freed
 		return nil
@@ -248,27 +248,29 @@ func (r *MetalStackMachineReconciler) delete(ctx context.Context, log logr.Logge
 	return nil
 }
 
-func (r *MetalStackMachineReconciler) status(ctx context.Context, infraMachine *v1alpha1.MetalStackMachine, infraCluster *v1alpha1.MetalStackCluster) error {
+func (r *MetalStackMachineReconciler) status(_ context.Context, _ *v1alpha1.MetalStackMachine, _ *v1alpha1.MetalStackCluster) error {
 	return nil
 }
 
-func (r *MetalStackMachineReconciler) findProviderMachine(ctx context.Context, infraMachine *v1alpha1.MetalStackMachine, infraCluster *v1alpha1.MetalStackCluster) (*models.V1MachineResponse, error) {
+func (r *MetalStackMachineReconciler) findProviderMachine(ctx context.Context, infraMachine *v1alpha1.MetalStackMachine, infraCluster *v1alpha1.MetalStackCluster) error {
 	mfr := &models.V1MachineFindRequest{
 		ID:                infraMachine.Spec.ProviderID,
 		AllocationProject: infraCluster.Spec.ProjectID,
 		Tags:              []string{fmt.Sprintf("%s%s", tag.ClusterID, infraCluster.GetUID())},
 	}
+
 	resp, err := r.MetalClient.Machine().FindMachines(metalmachine.NewFindMachinesParamsWithContext(ctx).WithBody(mfr), nil)
 	if err != nil {
-		return nil, err
+		return err
 	}
+
 	switch len(resp.Payload) {
 	case 0:
 		// metal-stack machine already freed
-		return nil, errProviderMachineNotFound
+		return errProviderMachineNotFound
 	case 1:
-		return resp.Payload[0], nil
+		return nil
 	default:
-		return nil, errProviderMachineTooManyFound
+		return errProviderMachineTooManyFound
 	}
 }
