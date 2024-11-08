@@ -2,7 +2,11 @@ name: E2E Tests
 
 on:
   push:
+    branches:
+      - main
   pull_request:
+    branches:
+      - main
 
 jobs:
   test-e2e:
@@ -15,7 +19,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '~1.23'
+          go-version-file: 'go.mod'
 
       - name: Install the latest version of kind
         run: |

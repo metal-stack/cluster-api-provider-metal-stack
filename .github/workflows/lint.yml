@@ -2,7 +2,11 @@ name: Lint
 
 on:
   push:
+    branches:
+      - main
   pull_request:
+    branches:
+      - main
 
 jobs:
   lint:
@@ -15,9 +19,8 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '~1.23'
+          go-version-file: 'go.mod'
+          cache: false
 
-      - name: Run linter
+      - name: Run Linter
         uses: golangci/golangci-lint-action@v6
-        with:
-          version: v1.59
