@@ -40,6 +40,7 @@ import (
 	"github.com/metal-stack/cluster-api-provider-metal-stack/api/v1alpha1"
 	infrastructurev1alpha1 "github.com/metal-stack/cluster-api-provider-metal-stack/api/v1alpha1"
 	metalgo "github.com/metal-stack/metal-go"
+	ipmodels "github.com/metal-stack/metal-go/api/client/ip"
 	metalmachine "github.com/metal-stack/metal-go/api/client/machine"
 	"github.com/metal-stack/metal-go/api/models"
 	"github.com/metal-stack/metal-lib/pkg/tag"
@@ -57,6 +58,7 @@ type MetalStackMachineReconciler struct {
 	Scheme      *runtime.Scheme
 }
 
+// +kubebuilder:rbac:groups=cluster.x-k8s.io,resources=machines,verbs=get;list;watch
 // +kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=metalstackmachines,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=metalstackmachines/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=metalstackmachines/finalizers,verbs=update
@@ -118,7 +120,7 @@ func (r *MetalStackMachineReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	}
 
 	defer func() {
-		statusErr := r.status(ctx, infraMachine, infraCluster)
+		statusErr := r.status(ctx, infraCluster, machine, infraMachine)
 		if statusErr != nil {
 			err = errors.Join(err, fmt.Errorf("unable to update status: %w", statusErr))
 		}
@@ -130,7 +132,7 @@ func (r *MetalStackMachineReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		}
 
 		log.Info("reconciling resource deletion flow")
-		err := r.delete(ctx, log, infraMachine, infraCluster)
+		err := r.delete(ctx, log, infraCluster, infraMachine, machine)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
@@ -162,7 +164,11 @@ func (r *MetalStackMachineReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		return ctrl.Result{}, errors.New("waiting until node network id was set to cluster status")
 	}
 
-	err = r.reconcile(ctx, log, infraMachine, infraCluster)
+	if infraCluster.Spec.ControlPlaneEndpoint.Host == "" {
+		return ctrl.Result{}, errors.New("waiting until control plane ip was set to cluster spec")
+	}
+
+	err = r.reconcile(ctx, log, infraCluster, machine, infraMachine)
 
 	return ctrl.Result{}, err // remember to return err here and not nil because the defer func can influence this
 }
@@ -175,21 +181,21 @@ func (r *MetalStackMachineReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func (r *MetalStackMachineReconciler) reconcile(ctx context.Context, log logr.Logger, infraMachine *v1alpha1.MetalStackMachine, infraCluster *v1alpha1.MetalStackCluster) error {
-	m, err := r.findProviderMachine(ctx, infraCluster, infraMachine)
+func (r *MetalStackMachineReconciler) reconcile(ctx context.Context, log logr.Logger, infraCluster *v1alpha1.MetalStackCluster, clusterMachine *clusterv1.Machine, infraMachine *v1alpha1.MetalStackMachine) error {
+	m, err := r.findProviderMachine(ctx, infraCluster, infraMachine, util.IsControlPlaneMachine(clusterMachine))
 	if err != nil && !errors.Is(err, errProviderMachineNotFound) {
 		return err
 	}
 
 	if errors.Is(err, errProviderMachineNotFound) {
-		m, err = r.create(ctx, infraCluster, infraMachine)
+		m, err = r.create(ctx, infraCluster, infraMachine, util.IsControlPlaneMachine(clusterMachine))
 		if err != nil {
 			return fmt.Errorf("unable to create machine at provider: %w", err)
 		}
 	}
 
 	if m.ID == nil {
-		return errors.New("machine allocted but got no provider ID")
+		return errors.New("machine allocated but got no provider ID")
 	}
 
 	log.Info("setting provider id into machine resource")
@@ -209,14 +215,14 @@ func (r *MetalStackMachineReconciler) reconcile(ctx context.Context, log logr.Lo
 	return nil
 }
 
-func (r *MetalStackMachineReconciler) delete(ctx context.Context, log logr.Logger, infraMachine *v1alpha1.MetalStackMachine, infraCluster *v1alpha1.MetalStackCluster) error {
-	m, err := r.findProviderMachine(ctx, infraCluster, infraMachine)
+func (r *MetalStackMachineReconciler) delete(ctx context.Context, log logr.Logger, infraCluster *v1alpha1.MetalStackCluster, infraMachine *v1alpha1.MetalStackMachine, clusterMachine *clusterv1.Machine) error {
+	m, err := r.findProviderMachine(ctx, infraCluster, infraMachine, util.IsControlPlaneMachine(clusterMachine))
 	if errors.Is(err, errProviderMachineNotFound) {
 		// metal-stack machine already freed
 		return nil
 	}
 	if err != nil {
-		return fmt.Errorf("failed to delete provider machine: %w", err)
+		return fmt.Errorf("failed to find provider machine: %w", err)
 	}
 
 	_, err = r.MetalClient.Machine().FreeMachine(metalmachine.NewFreeMachineParamsWithContext(ctx).WithID(*m.ID), nil)
@@ -229,23 +235,43 @@ func (r *MetalStackMachineReconciler) delete(ctx context.Context, log logr.Logge
 	return nil
 }
 
-func (r *MetalStackMachineReconciler) create(ctx context.Context, infraCluster *v1alpha1.MetalStackCluster, infraMachine *v1alpha1.MetalStackMachine) (*models.V1MachineResponse, error) {
+func (r *MetalStackMachineReconciler) create(ctx context.Context, infraCluster *v1alpha1.MetalStackCluster, infraMachine *v1alpha1.MetalStackMachine, isControlPlaneMachine bool) (*models.V1MachineResponse, error) {
+	var (
+		ips []string
+		nws = []*models.V1MachineAllocationNetwork{
+			{
+				Autoacquire: ptr.To(true),
+				Networkid:   infraCluster.Status.NodeNetworkID,
+			},
+		}
+	)
+
+	if isControlPlaneMachine {
+		ips = append(ips, infraCluster.Spec.ControlPlaneEndpoint.Host)
+
+		resp, err := r.MetalClient.IP().FindIP(ipmodels.NewFindIPParams().WithID(infraCluster.Spec.ControlPlaneEndpoint.Host).WithContext(ctx), nil)
+		if err != nil {
+			return nil, fmt.Errorf("unable to lookup control plane ip: %w", err)
+		}
+
+		nws = append(nws, &models.V1MachineAllocationNetwork{
+			Autoacquire: ptr.To(false),
+			Networkid:   resp.Payload.Networkid,
+		})
+	}
+
 	resp, err := r.MetalClient.Machine().AllocateMachine(metalmachine.NewAllocateMachineParamsWithContext(ctx).WithBody(&models.V1MachineAllocateRequest{
 		Partitionid:   &infraCluster.Spec.Partition,
 		Projectid:     &infraCluster.Spec.ProjectID,
 		PlacementTags: []string{tag.New(tag.ClusterID, string(infraCluster.GetUID()))},
-		Tags:          machineTags(infraCluster, infraMachine),
+		Tags:          machineTags(infraCluster, infraMachine, isControlPlaneMachine),
 		Name:          infraMachine.Name,
 		Hostname:      infraMachine.Name,
 		Sizeid:        &infraMachine.Spec.Size,
 		Imageid:       &infraMachine.Spec.Image,
 		Description:   fmt.Sprintf("%s/%s for cluster %s/%s", infraMachine.Namespace, infraMachine.Name, infraCluster.Namespace, infraCluster.Name),
-		Networks: []*models.V1MachineAllocationNetwork{
-			{
-				Autoacquire: ptr.To(true),
-				Networkid:   infraCluster.Status.NodeNetworkID,
-			},
-		},
+		Networks:      nws,
+		Ips:           ips,
 		// TODO: UserData, SSHPubKeys, ...
 	}), nil)
 	if err != nil {
@@ -255,7 +281,7 @@ func (r *MetalStackMachineReconciler) create(ctx context.Context, infraCluster *
 	return resp.Payload, nil
 }
 
-func (r *MetalStackMachineReconciler) status(ctx context.Context, infraMachine *v1alpha1.MetalStackMachine, infraCluster *v1alpha1.MetalStackCluster) error {
+func (r *MetalStackMachineReconciler) status(ctx context.Context, infraCluster *v1alpha1.MetalStackCluster, clusterMachine *clusterv1.Machine, infraMachine *v1alpha1.MetalStackMachine) error {
 	var (
 		g, _             = errgroup.WithContext(ctx)
 		conditionUpdates = make(chan func())
@@ -277,7 +303,7 @@ func (r *MetalStackMachineReconciler) status(ctx context.Context, infraMachine *
 	}()
 
 	g.Go(func() error {
-		m, err := r.findProviderMachine(ctx, infraCluster, infraMachine)
+		m, err := r.findProviderMachine(ctx, infraCluster, infraMachine, util.IsControlPlaneMachine(clusterMachine))
 
 		conditionUpdates <- func() {
 			switch {
@@ -288,7 +314,11 @@ func (r *MetalStackMachineReconciler) status(ctx context.Context, infraMachine *
 				conditions.MarkFalse(infraMachine, v1alpha1.ProviderMachineCreated, "NotCreated", clusterv1.ConditionSeverityError, "%s", err.Error())
 				conditions.MarkFalse(infraMachine, v1alpha1.ProviderMachineHealthy, "NotHealthy", clusterv1.ConditionSeverityWarning, "machine not created")
 			default:
-				conditions.MarkTrue(infraMachine, v1alpha1.ProviderMachineCreated)
+				if infraMachine.Spec.ProviderID == *m.ID {
+					conditions.MarkTrue(infraMachine, v1alpha1.ProviderMachineCreated)
+				} else {
+					conditions.MarkFalse(infraMachine, v1alpha1.ProviderMachineCreated, "NotSet", clusterv1.ConditionSeverityWarning, "provider id was not yet patched into the machine's spec")
+				}
 
 				var errs []error
 
@@ -303,7 +333,7 @@ func (r *MetalStackMachineReconciler) status(ctx context.Context, infraMachine *
 						errs = append(errs, errors.New("machine is in a crash loop"))
 					}
 					if m.Events.FailedMachineReclaim != nil && *m.Events.FailedMachineReclaim {
-						errs = append(errs, errors.New("machine reclaimis failing"))
+						errs = append(errs, errors.New("machine reclaim is failing"))
 					}
 				}
 
@@ -362,11 +392,11 @@ func (r *MetalStackMachineReconciler) status(ctx context.Context, infraMachine *
 	return errors.Join(groupErr, err)
 }
 
-func (r *MetalStackMachineReconciler) findProviderMachine(ctx context.Context, infraCluster *v1alpha1.MetalStackCluster, infraMachine *v1alpha1.MetalStackMachine) (*models.V1MachineResponse, error) {
+func (r *MetalStackMachineReconciler) findProviderMachine(ctx context.Context, infraCluster *v1alpha1.MetalStackCluster, infraMachine *v1alpha1.MetalStackMachine, isControlPlaneMachine bool) (*models.V1MachineResponse, error) {
 	mfr := &models.V1MachineFindRequest{
 		ID:                infraMachine.Spec.ProviderID,
 		AllocationProject: infraCluster.Spec.ProjectID,
-		Tags:              machineTags(infraCluster, infraMachine),
+		Tags:              machineTags(infraCluster, infraMachine, isControlPlaneMachine),
 	}
 
 	resp, err := r.MetalClient.Machine().FindMachines(metalmachine.NewFindMachinesParamsWithContext(ctx).WithBody(mfr), nil)
@@ -385,9 +415,15 @@ func (r *MetalStackMachineReconciler) findProviderMachine(ctx context.Context, i
 	}
 }
 
-func machineTags(infraCluster *v1alpha1.MetalStackCluster, infraMachine *v1alpha1.MetalStackMachine) []string {
-	return []string{
+func machineTags(infraCluster *v1alpha1.MetalStackCluster, infraMachine *v1alpha1.MetalStackMachine, isControlPlaneMachine bool) []string {
+	tags := []string{
 		tag.New(tag.ClusterID, string(infraCluster.GetUID())),
 		tag.New(v1alpha1.TagInfraMachineID, string(infraMachine.GetUID())),
 	}
+
+	if isControlPlaneMachine {
+		tags = append(tags, v1alpha1.TagControlPlanePurpose)
+	}
+
+	return tags
 }

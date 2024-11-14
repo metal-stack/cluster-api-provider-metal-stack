@@ -29,8 +29,6 @@ type MetalStackMachineTemplateSpec struct {
 }
 
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:path=inframachinetemplates,scope=Namespaced,categories=cluster-api,shortName=imt
-// +kubebuilder:storageversion
 
 // MetalStackMachineTemplate is the Schema for the inframachinetemplates API.
 type MetalStackMachineTemplate struct {

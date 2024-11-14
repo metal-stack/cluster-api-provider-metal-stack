@@ -4,17 +4,13 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.16.4
-  name: inframachinetemplates.infrastructure.cluster.x-k8s.io
+  name: metalstackmachinetemplates.infrastructure.cluster.x-k8s.io
 spec:
   group: infrastructure.cluster.x-k8s.io
   names:
-    categories:
-    - cluster-api
     kind: MetalStackMachineTemplate
     listKind: MetalStackMachineTemplateList
-    plural: inframachinetemplates
-    shortNames:
-    - imt
+    plural: metalstackmachinetemplates
     singular: metalstackmachinetemplate
   scope: Namespaced
   versions:

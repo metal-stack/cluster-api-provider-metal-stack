@@ -4,6 +4,7 @@
 resources:
 - bases/infrastructure.cluster.x-k8s.io_metalstackclusters.yaml
 - bases/infrastructure.cluster.x-k8s.io_metalstackmachines.yaml
+- bases/infrastructure.cluster.x-k8s.io_metalstackmachinetemplates.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
 labels:

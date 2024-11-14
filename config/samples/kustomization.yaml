@@ -1,5 +1,6 @@
 ## Append samples of your project ##
+namespace: default
+
 resources:
-- infrastructure_v1alpha1_metalstackcluster.yaml
-- infrastructure_v1alpha1_metalstackmachine.yaml
+- example.yaml
 # +kubebuilder:scaffold:manifestskustomizesamples

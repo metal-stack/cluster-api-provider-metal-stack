@@ -7,6 +7,10 @@ spec:
   clusterNetwork:
     pods:
       cidrBlocks: ["192.168.0.0/16"]
+  controlPlaneRef:
+    apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+    kind: KubeadmControlPlane
+    name: metal-test-controlplane
   infrastructureRef:
     apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
     kind: MetalStackCluster
@@ -24,3 +28,27 @@ spec:
     image: firewall-ubuntu-3.0
     networks:
     - internet-mini-lab
+---
+kind: KubeadmControlPlane
+apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+metadata:
+  name: metal-test-controlplane
+spec:
+  machineTemplate:
+    nodeDrainTimeout: 10m
+    infrastructureRef:
+      kind: MetalStackMachineTemplate
+      apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+      name: metal-test-controlplane
+  replicas: 1
+  version: v1.30.6
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+kind: MetalStackMachineTemplate
+metadata:
+  name: metal-test-controlplane
+spec:
+  template:
+    spec:
+      image: ubuntu-24.04
+      size: v1-small-x86

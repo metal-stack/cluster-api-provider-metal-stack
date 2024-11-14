@@ -23,14 +23,22 @@ import (
 	capierrors "sigs.k8s.io/cluster-api/errors"
 
 	fcmv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
+	"github.com/metal-stack/metal-lib/pkg/tag"
 )
 
 const (
 	// ClusterFinalizer allows to clean up resources associated with before removing it from the apiserver.
 	ClusterFinalizer = "metal-stack.infrastructure.cluster.x-k8s.io/cluster"
 
-	ClusterNodeNetworkEnsured      clusterv1.ConditionType = "ClusterNodeNetworkEnsured"
-	ClusterFirewallDeploymentReady clusterv1.ConditionType = "ClusterFirewallDeploymentReady"
+	ClusterControlPlaneEndpointDefaultPort = 443
+
+	ClusterNodeNetworkEnsured          clusterv1.ConditionType = "ClusterNodeNetworkEnsured"
+	ClusterControlPlaneEndpointEnsured clusterv1.ConditionType = "ClusterControlPlaneEndpointEnsured"
+	ClusterFirewallDeploymentReady     clusterv1.ConditionType = "ClusterFirewallDeploymentReady"
+)
+
+var (
+	TagControlPlanePurpose = tag.New("metal-stack.infrastructure.cluster.x-k8s.io/purpose", "control-plane")
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
