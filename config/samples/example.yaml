@@ -34,6 +34,13 @@ apiVersion: controlplane.cluster.x-k8s.io/v1beta1
 metadata:
   name: metal-test-controlplane
 spec:
+  kubeadmConfigSpec:
+    format: ignition
+    initConfiguration:
+      nodeRegistration: {}
+    joinConfiguration:
+      controlPlane: {}
+      nodeRegistration: {}
   machineTemplate:
     nodeDrainTimeout: 10m
     infrastructureRef:

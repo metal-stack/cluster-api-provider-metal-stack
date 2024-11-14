@@ -143,6 +143,8 @@ func (r *MetalStackMachineReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		statusErr := reconciler.status()
 		if statusErr != nil {
 			err = errors.Join(err, fmt.Errorf("unable to update status: %w", statusErr))
+		} else if !reconciler.infraMachine.Status.Ready {
+			err = errors.New("machine is not yet ready, requeueing")
 		}
 	}()
 
@@ -186,6 +188,10 @@ func (r *MetalStackMachineReconciler) Reconcile(ctx context.Context, req ctrl.Re
 
 	if infraCluster.Spec.ControlPlaneEndpoint.Host == "" {
 		return ctrl.Result{}, errors.New("waiting until control plane ip was set to cluster spec")
+	}
+
+	if machine.Spec.Bootstrap.DataSecretName == nil {
+		return ctrl.Result{}, errors.New("waiting until bootstrap data secret was created")
 	}
 
 	err = reconciler.reconcile()
@@ -256,6 +262,17 @@ func (r *machineReconciler) delete() error {
 }
 
 func (r *machineReconciler) create() (*models.V1MachineResponse, error) {
+	bootstrapSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      *r.clusterMachine.Spec.Bootstrap.DataSecretName,
+			Namespace: r.infraMachine.Namespace,
+		},
+	}
+	err := r.client.Get(r.ctx, client.ObjectKeyFromObject(bootstrapSecret), bootstrapSecret)
+	if err != nil {
+		return nil, fmt.Errorf("unable to fetch bootstrap secret: %w", err)
+	}
+
 	var (
 		ips []string
 		nws = []*models.V1MachineAllocationNetwork{
@@ -292,7 +309,8 @@ func (r *machineReconciler) create() (*models.V1MachineResponse, error) {
 		Description:   fmt.Sprintf("%s/%s for cluster %s/%s", r.infraMachine.Namespace, r.infraMachine.Name, r.infraCluster.Namespace, r.infraCluster.Name),
 		Networks:      nws,
 		Ips:           ips,
-		// TODO: UserData, SSHPubKeys, ...
+		UserData:      string(bootstrapSecret.Data["value"]),
+		// TODO: SSHPubKeys, ...
 	}), nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to allocate machine: %w", err)
@@ -330,9 +348,11 @@ func (r *machineReconciler) status() error {
 			case err != nil && !errors.Is(err, errProviderMachineNotFound):
 				conditions.MarkFalse(r.infraMachine, v1alpha1.ProviderMachineCreated, "InternalError", clusterv1.ConditionSeverityError, "%s", err.Error())
 				conditions.MarkFalse(r.infraMachine, v1alpha1.ProviderMachineHealthy, "NotHealthy", clusterv1.ConditionSeverityWarning, "machine not created")
+				conditions.MarkFalse(r.infraMachine, v1alpha1.ProviderMachineReady, "NotReady", clusterv1.ConditionSeverityWarning, "machine not created")
 			case err != nil && errors.Is(err, errProviderMachineNotFound):
 				conditions.MarkFalse(r.infraMachine, v1alpha1.ProviderMachineCreated, "NotCreated", clusterv1.ConditionSeverityError, "%s", err.Error())
 				conditions.MarkFalse(r.infraMachine, v1alpha1.ProviderMachineHealthy, "NotHealthy", clusterv1.ConditionSeverityWarning, "machine not created")
+				conditions.MarkFalse(r.infraMachine, v1alpha1.ProviderMachineReady, "NotReady", clusterv1.ConditionSeverityWarning, "machine not created")
 			default:
 				if r.infraMachine.Spec.ProviderID == *m.ID {
 					conditions.MarkTrue(r.infraMachine, v1alpha1.ProviderMachineCreated)
@@ -355,6 +375,12 @@ func (r *machineReconciler) status() error {
 					if m.Events.FailedMachineReclaim != nil && *m.Events.FailedMachineReclaim {
 						errs = append(errs, errors.New("machine reclaim is failing"))
 					}
+				}
+
+				if m.Events != nil && len(m.Events.Log) > 0 && ptr.Deref(m.Events.Log[0].Event, "") == "Phoned Home" {
+					conditions.MarkTrue(r.infraMachine, v1alpha1.ProviderMachineReady)
+				} else {
+					conditions.MarkFalse(r.infraMachine, v1alpha1.ProviderMachineReady, "NotReady", clusterv1.ConditionSeverityWarning, "machine is not in phoned home state")
 				}
 
 				if len(errs) == 0 {

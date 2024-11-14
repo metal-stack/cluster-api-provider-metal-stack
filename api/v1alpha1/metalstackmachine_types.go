@@ -29,6 +29,7 @@ const (
 	TagInfraMachineID = "metal-stack.infrastructure.cluster.x-k8s.io/machine-id"
 
 	ProviderMachineCreated clusterv1.ConditionType = "MachineCreated"
+	ProviderMachineReady   clusterv1.ConditionType = "MachineReady"
 	ProviderMachineHealthy clusterv1.ConditionType = "MachineHealthy"
 )
 

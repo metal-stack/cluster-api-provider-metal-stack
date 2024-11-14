@@ -113,6 +113,8 @@ func (r *MetalStackClusterReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		statusErr := reconciler.status()
 		if statusErr != nil {
 			err = errors.Join(err, fmt.Errorf("unable to update status: %w", statusErr))
+		} else if !reconciler.infraCluster.Status.Ready {
+			err = errors.New("cluster is not yet ready, requeueing")
 		}
 	}()
 
