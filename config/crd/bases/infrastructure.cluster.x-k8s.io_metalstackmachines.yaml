@@ -75,7 +75,7 @@ spec:
                   type: object
                 type: array
               conditions:
-                description: Conditions defines current service state of the MetalStackCluster.
+                description: Conditions defines current service state of the MetalStackMachine.
                 items:
                   description: Condition defines an observation of a Cluster API resource
                     operational state.
@@ -131,7 +131,7 @@ spec:
                   programmatic interpretation.
                 type: string
               ready:
-                description: Ready denotes that the cluster is ready.
+                description: Ready denotes that the machine is ready.
                 type: boolean
             required:
             - ready

@@ -193,6 +193,13 @@ spec:
                   state, and will be set to a token value suitable for
                   programmatic interpretation.
                 type: string
+              nodeCIDR:
+                description: NodeCIDR is set as soon as the node network was created
+                type: string
+              nodeNetworkID:
+                description: NodeNetworkID is set as soon as the node network was
+                  created
+                type: string
               ready:
                 description: Ready denotes that the cluster is ready.
                 type: boolean

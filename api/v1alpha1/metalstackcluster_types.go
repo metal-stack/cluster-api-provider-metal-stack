@@ -105,6 +105,13 @@ type MetalStackClusterStatus struct {
 	// Conditions defines current service state of the MetalStackCluster.
 	// +optional
 	Conditions clusterv1.Conditions `json:"conditions,omitempty"`
+
+	// NodeCIDR is set as soon as the node network was created
+	// +optional
+	NodeCIDR *string `json:"nodeCIDR,omitempty"`
+	// NodeNetworkID is set as soon as the node network was created
+	// +optional
+	NodeNetworkID *string `json:"nodeNetworkID,omitempty"`
 }
 
 // +kubebuilder:object:root=true

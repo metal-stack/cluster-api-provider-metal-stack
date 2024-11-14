@@ -25,6 +25,11 @@ import (
 const (
 	// MachineFinalizer allows to clean up resources associated with before removing it from the apiserver.
 	MachineFinalizer = "metal-stack.infrastructure.cluster.x-k8s.io/machine"
+
+	TagInfraMachineID = "metal-stack.infrastructure.cluster.x-k8s.io/machine-id"
+
+	ProviderMachineCreated clusterv1.ConditionType = "MachineCreated"
+	ProviderMachineHealthy clusterv1.ConditionType = "MachineHealthy"
 )
 
 // MetalStackMachineSpec defines the desired state of MetalStackMachine.
@@ -42,21 +47,21 @@ type MetalStackMachineSpec struct {
 
 // MetalStackMachineStatus defines the observed state of MetalStackMachine.
 type MetalStackMachineStatus struct {
-	// Ready denotes that the cluster is ready.
+	// Ready denotes that the machine is ready.
 	Ready bool `json:"ready"`
 
 	// FailureReason indicates that there is a fatal problem reconciling the
 	// state, and will be set to a token value suitable for
 	// programmatic interpretation.
 	// +optional
-	FailureReason *capierrors.ClusterStatusError `json:"failureReason,omitempty"`
+	FailureReason *capierrors.MachineStatusError `json:"failureReason,omitempty"`
 
 	// FailureMessage indicates that there is a fatal problem reconciling the
 	// state, and will be set to a descriptive error message.
 	// +optional
 	FailureMessage *string `json:"failureMessage,omitempty"`
 
-	// Conditions defines current service state of the MetalStackCluster.
+	// Conditions defines current service state of the MetalStackMachine.
 	// +optional
 	Conditions clusterv1.Conditions `json:"conditions,omitempty"`
 
@@ -87,4 +92,14 @@ type MetalStackMachineList struct {
 
 func init() {
 	SchemeBuilder.Register(&MetalStackMachine{}, &MetalStackMachineList{})
+}
+
+// GetConditions returns the list of conditions.
+func (c *MetalStackMachine) GetConditions() clusterv1.Conditions {
+	return c.Status.Conditions
+}
+
+// SetConditions will set the given conditions.
+func (c *MetalStackMachine) SetConditions(conditions clusterv1.Conditions) {
+	c.Status.Conditions = conditions
 }

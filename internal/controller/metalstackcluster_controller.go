@@ -144,7 +144,6 @@ func (r *MetalStackClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 func (r *MetalStackClusterReconciler) reconcile(ctx context.Context, log logr.Logger, infraCluster *v1alpha1.MetalStackCluster) error {
-
 	nodeCIDR, err := r.ensureNodeNetwork(ctx, infraCluster)
 	if err != nil {
 		return fmt.Errorf("unable to ensure node network: %w", err)
@@ -361,15 +360,12 @@ func (r *MetalStackClusterReconciler) deleteFirewallDeployment(ctx context.Conte
 
 func (r *MetalStackClusterReconciler) status(ctx context.Context, infraCluster *v1alpha1.MetalStackCluster) error {
 	var (
-		g, _   = errgroup.WithContext(ctx)
-		status = &v1alpha1.MetalStackClusterStatus{
-			Ready: true,
-		}
+		g, _             = errgroup.WithContext(ctx)
 		conditionUpdates = make(chan func())
 
 		// TODO: probably there is a helper for this available somewhere?
 		allConditionsTrue = func() bool {
-			for _, c := range status.Conditions {
+			for _, c := range infraCluster.Status.Conditions {
 				if c.Status != corev1.ConditionTrue {
 					return false
 				}
@@ -396,6 +392,13 @@ func (r *MetalStackClusterReconciler) status(ctx context.Context, infraCluster *
 			case 0:
 				conditions.MarkFalse(infraCluster, v1alpha1.ClusterNodeNetworkEnsured, "NotCreated", clusterv1.ConditionSeverityError, "node network was not yet created")
 			case 1:
+				nw := nws[0]
+
+				if len(nw.Prefixes) > 0 {
+					infraCluster.Status.NodeCIDR = &nw.Prefixes[0]
+				}
+				infraCluster.Status.NodeNetworkID = nw.ID
+
 				conditions.MarkTrue(infraCluster, v1alpha1.ClusterNodeNetworkEnsured)
 			default:
 				conditions.MarkFalse(infraCluster, v1alpha1.ClusterNodeNetworkEnsured, "InternalError", clusterv1.ConditionSeverityError, "more than a single node network exists for this cluster, operator investigation is required")
@@ -445,7 +448,7 @@ func (r *MetalStackClusterReconciler) status(ctx context.Context, infraCluster *
 
 	groupErr := g.Wait()
 	if groupErr == nil && allConditionsTrue() {
-		status.Ready = true
+		infraCluster.Status.Ready = true
 	}
 
 	err := r.Client.Status().Update(ctx, infraCluster)
