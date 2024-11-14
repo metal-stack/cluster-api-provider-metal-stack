@@ -59,6 +59,15 @@ type MetalStackClusterReconciler struct {
 	Scheme      *runtime.Scheme
 }
 
+type clusterReconciler struct {
+	MetalClient  metalgo.Client
+	Client       client.Client
+	ctx          context.Context
+	log          logr.Logger
+	cluster      *clusterv1.Cluster
+	infraCluster *v1alpha1.MetalStackCluster
+}
+
 // +kubebuilder:rbac:groups=cluster.x-k8s.io,resources=clusters,verbs=get;list;watch
 // +kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=metalstackclusters,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=metalstackclusters/status,verbs=get;update;patch
@@ -91,8 +100,17 @@ func (r *MetalStackClusterReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		return ctrl.Result{}, nil
 	}
 
+	reconciler := &clusterReconciler{
+		MetalClient:  r.MetalClient,
+		Client:       r.Client,
+		ctx:          ctx,
+		log:          log,
+		cluster:      cluster,
+		infraCluster: infraCluster,
+	}
+
 	defer func() {
-		statusErr := r.status(ctx, infraCluster)
+		statusErr := reconciler.status()
 		if statusErr != nil {
 			err = errors.Join(err, fmt.Errorf("unable to update status: %w", statusErr))
 		}
@@ -104,7 +122,7 @@ func (r *MetalStackClusterReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		}
 
 		log.Info("reconciling resource deletion flow")
-		err := r.delete(ctx, log, infraCluster)
+		err := reconciler.delete(ctx, log, infraCluster)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
@@ -130,7 +148,7 @@ func (r *MetalStackClusterReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		return ctrl.Result{}, nil
 	}
 
-	err = r.reconcile(ctx, log, infraCluster)
+	err = reconciler.reconcile(ctx, log, infraCluster)
 
 	return ctrl.Result{}, err // remember to return err here and not nil because the defer func can influence this
 }
@@ -145,15 +163,15 @@ func (r *MetalStackClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func (r *MetalStackClusterReconciler) reconcile(ctx context.Context, log logr.Logger, infraCluster *v1alpha1.MetalStackCluster) error {
-	nodeCIDR, err := r.ensureNodeNetwork(ctx, infraCluster)
+func (r *clusterReconciler) reconcile(ctx context.Context, log logr.Logger, infraCluster *v1alpha1.MetalStackCluster) error {
+	nodeCIDR, err := r.ensureNodeNetwork()
 	if err != nil {
 		return fmt.Errorf("unable to ensure node network: %w", err)
 	}
 
 	log.Info("reconciled node network", "cidr", nodeCIDR)
 
-	ip, err := r.ensureControlPlaneIP(ctx, infraCluster)
+	ip, err := r.ensureControlPlaneIP()
 	if err != nil {
 		return fmt.Errorf("unable to ensure control plane ip: %w", err)
 	}
@@ -177,7 +195,7 @@ func (r *MetalStackClusterReconciler) reconcile(ctx context.Context, log logr.Lo
 		return fmt.Errorf("failed to update infra cluster control plane endpoint: %w", err)
 	}
 
-	fwdeploy, err := r.ensureFirewallDeployment(ctx, infraCluster, nodeCIDR)
+	fwdeploy, err := r.ensureFirewallDeployment(nodeCIDR)
 	if err != nil {
 		return fmt.Errorf("unable to ensure firewall deployment: %w", err)
 	}
@@ -187,30 +205,30 @@ func (r *MetalStackClusterReconciler) reconcile(ctx context.Context, log logr.Lo
 	return err
 }
 
-func (r *MetalStackClusterReconciler) delete(ctx context.Context, log logr.Logger, infraCluster *v1alpha1.MetalStackCluster) error {
+func (r *clusterReconciler) delete(ctx context.Context, log logr.Logger, infraCluster *v1alpha1.MetalStackCluster) error {
 	var err error
 	defer func() {
-		statusErr := r.status(ctx, infraCluster)
+		statusErr := r.status()
 		if statusErr != nil {
 			err = errors.Join(err, fmt.Errorf("unable to update status: %w", statusErr))
 		}
 	}()
 
-	err = r.deleteFirewallDeployment(ctx, infraCluster)
+	err = r.deleteFirewallDeployment()
 	if err != nil {
 		return fmt.Errorf("unable to delete firewall deployment: %w", err)
 	}
 
 	log.Info("deleted firewall deployment")
 
-	err = r.deleteControlPlaneIP(ctx, infraCluster)
+	err = r.deleteControlPlaneIP()
 	if err != nil {
 		return fmt.Errorf("unable to delete control plane ip: %w", err)
 	}
 
 	log.Info("deleted control plane ip")
 
-	err = r.deleteNodeNetwork(ctx, infraCluster)
+	err = r.deleteNodeNetwork()
 	if err != nil {
 		return fmt.Errorf("unable to delete node network: %w", err)
 	}
@@ -220,8 +238,8 @@ func (r *MetalStackClusterReconciler) delete(ctx context.Context, log logr.Logge
 	return err
 }
 
-func (r *MetalStackClusterReconciler) ensureNodeNetwork(ctx context.Context, infraCluster *v1alpha1.MetalStackCluster) (string, error) {
-	nws, err := r.findNodeNetwork(ctx, infraCluster)
+func (r *clusterReconciler) ensureNodeNetwork() (string, error) {
+	nws, err := r.findNodeNetwork()
 	if err != nil {
 		return "", err
 	}
@@ -229,12 +247,12 @@ func (r *MetalStackClusterReconciler) ensureNodeNetwork(ctx context.Context, inf
 	switch len(nws) {
 	case 0:
 		resp, err := r.MetalClient.Network().AllocateNetwork(network.NewAllocateNetworkParams().WithBody(&models.V1NetworkAllocateRequest{
-			Projectid:   infraCluster.Spec.ProjectID,
-			Partitionid: infraCluster.Spec.Partition,
-			Name:        infraCluster.GetName(),
-			Description: fmt.Sprintf("%s/%s", infraCluster.GetNamespace(), infraCluster.GetName()),
-			Labels:      map[string]string{tag.ClusterID: string(infraCluster.GetUID())},
-		}).WithContext(ctx), nil)
+			Projectid:   r.infraCluster.Spec.ProjectID,
+			Partitionid: r.infraCluster.Spec.Partition,
+			Name:        r.infraCluster.GetName(),
+			Description: fmt.Sprintf("%s/%s", r.infraCluster.GetNamespace(), r.infraCluster.GetName()),
+			Labels:      map[string]string{tag.ClusterID: string(r.infraCluster.GetUID())},
+		}).WithContext(r.ctx), nil)
 		if err != nil {
 			return "", fmt.Errorf("error creating node network: %w", err)
 		}
@@ -253,8 +271,8 @@ func (r *MetalStackClusterReconciler) ensureNodeNetwork(ctx context.Context, inf
 	}
 }
 
-func (r *MetalStackClusterReconciler) deleteNodeNetwork(ctx context.Context, infraCluster *v1alpha1.MetalStackCluster) error {
-	nws, err := r.findNodeNetwork(ctx, infraCluster)
+func (r *clusterReconciler) deleteNodeNetwork() error {
+	nws, err := r.findNodeNetwork()
 	if err != nil {
 		return err
 	}
@@ -269,7 +287,7 @@ func (r *MetalStackClusterReconciler) deleteNodeNetwork(ctx context.Context, inf
 			return fmt.Errorf("node network id not set")
 		}
 
-		_, err := r.MetalClient.Network().FreeNetwork(network.NewFreeNetworkParams().WithID(*nw.ID).WithContext(ctx), nil)
+		_, err := r.MetalClient.Network().FreeNetwork(network.NewFreeNetworkParams().WithID(*nw.ID).WithContext(r.ctx), nil)
 		if err != nil {
 			return err
 		}
@@ -280,12 +298,12 @@ func (r *MetalStackClusterReconciler) deleteNodeNetwork(ctx context.Context, inf
 	}
 }
 
-func (r *MetalStackClusterReconciler) findNodeNetwork(ctx context.Context, infraCluster *v1alpha1.MetalStackCluster) ([]*models.V1NetworkResponse, error) {
+func (r *clusterReconciler) findNodeNetwork() ([]*models.V1NetworkResponse, error) {
 	resp, err := r.MetalClient.Network().FindNetworks(network.NewFindNetworksParams().WithBody(&models.V1NetworkFindRequest{
-		Projectid:   infraCluster.Spec.ProjectID,
-		Partitionid: infraCluster.Spec.Partition,
-		Labels:      map[string]string{tag.ClusterID: string(infraCluster.GetUID())},
-	}).WithContext(ctx), nil)
+		Projectid:   r.infraCluster.Spec.ProjectID,
+		Partitionid: r.infraCluster.Spec.Partition,
+		Labels:      map[string]string{tag.ClusterID: string(r.infraCluster.GetUID())},
+	}).WithContext(r.ctx), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -293,8 +311,8 @@ func (r *MetalStackClusterReconciler) findNodeNetwork(ctx context.Context, infra
 	return resp.Payload, nil
 }
 
-func (r *MetalStackClusterReconciler) ensureControlPlaneIP(ctx context.Context, infraCluster *v1alpha1.MetalStackCluster) (*models.V1IPResponse, error) {
-	ips, err := r.findControlPlaneIP(ctx, infraCluster)
+func (r *clusterReconciler) ensureControlPlaneIP() (*models.V1IPResponse, error) {
+	ips, err := r.findControlPlaneIP(r.ctx, r.infraCluster)
 	if err != nil {
 		return nil, err
 	}
@@ -305,7 +323,7 @@ func (r *MetalStackClusterReconciler) ensureControlPlaneIP(ctx context.Context, 
 			Labels: map[string]string{
 				tag.NetworkDefault: "",
 			},
-		}).WithContext(ctx), nil)
+		}).WithContext(r.ctx), nil)
 		if err != nil {
 			return nil, fmt.Errorf("error finding default network: %w", err)
 		}
@@ -315,16 +333,16 @@ func (r *MetalStackClusterReconciler) ensureControlPlaneIP(ctx context.Context, 
 		}
 
 		resp, err := r.MetalClient.IP().AllocateIP(ipmodels.NewAllocateIPParams().WithBody(&models.V1IPAllocateRequest{
-			Description: fmt.Sprintf("%s/%s control plane ip", infraCluster.GetNamespace(), infraCluster.GetName()),
-			Name:        infraCluster.GetName() + "-control-plane",
+			Description: fmt.Sprintf("%s/%s control plane ip", r.infraCluster.GetNamespace(), r.infraCluster.GetName()),
+			Name:        r.infraCluster.GetName() + "-control-plane",
 			Networkid:   nwResp.Payload[0].ID,
-			Projectid:   &infraCluster.Spec.ProjectID,
+			Projectid:   &r.infraCluster.Spec.ProjectID,
 			Tags: []string{
-				tag.New(tag.ClusterID, string(infraCluster.GetUID())),
+				tag.New(tag.ClusterID, string(r.infraCluster.GetUID())),
 				v1alpha1.TagControlPlanePurpose,
 			},
 			Type: ptr.To(models.V1IPBaseTypeStatic),
-		}).WithContext(ctx), nil)
+		}).WithContext(r.ctx), nil)
 		if err != nil {
 			return nil, fmt.Errorf("error creating ip: %w", err)
 		}
@@ -337,8 +355,8 @@ func (r *MetalStackClusterReconciler) ensureControlPlaneIP(ctx context.Context, 
 	}
 }
 
-func (r *MetalStackClusterReconciler) deleteControlPlaneIP(ctx context.Context, infraCluster *v1alpha1.MetalStackCluster) error {
-	ips, err := r.findControlPlaneIP(ctx, infraCluster)
+func (r *clusterReconciler) deleteControlPlaneIP() error {
+	ips, err := r.findControlPlaneIP(r.ctx, r.infraCluster)
 	if err != nil {
 		return err
 	}
@@ -353,7 +371,7 @@ func (r *MetalStackClusterReconciler) deleteControlPlaneIP(ctx context.Context, 
 			return fmt.Errorf("control plane ip address not set")
 		}
 
-		_, err := r.MetalClient.IP().FreeIP(ipmodels.NewFreeIPParams().WithID(*ip.Ipaddress).WithContext(ctx), nil)
+		_, err := r.MetalClient.IP().FreeIP(ipmodels.NewFreeIPParams().WithID(*ip.Ipaddress).WithContext(r.ctx), nil)
 		if err != nil {
 			return err
 		}
@@ -364,7 +382,7 @@ func (r *MetalStackClusterReconciler) deleteControlPlaneIP(ctx context.Context, 
 	}
 }
 
-func (r *MetalStackClusterReconciler) findControlPlaneIP(ctx context.Context, infraCluster *v1alpha1.MetalStackCluster) ([]*models.V1IPResponse, error) {
+func (r *clusterReconciler) findControlPlaneIP(ctx context.Context, infraCluster *v1alpha1.MetalStackCluster) ([]*models.V1IPResponse, error) {
 	resp, err := r.MetalClient.IP().FindIPs(ipmodels.NewFindIPsParams().WithBody(&models.V1IPFindRequest{
 		Projectid: infraCluster.Spec.ProjectID,
 		Tags: []string{
@@ -379,23 +397,23 @@ func (r *MetalStackClusterReconciler) findControlPlaneIP(ctx context.Context, in
 	return resp.Payload, nil
 }
 
-func (r *MetalStackClusterReconciler) ensureFirewallDeployment(ctx context.Context, infraCluster *v1alpha1.MetalStackCluster, nodeCIDR string) (*fcmv2.FirewallDeployment, error) {
+func (r *clusterReconciler) ensureFirewallDeployment(nodeCIDR string) (*fcmv2.FirewallDeployment, error) {
 	deploy := &fcmv2.FirewallDeployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      infraCluster.Name,
-			Namespace: infraCluster.Namespace,
+			Name:      r.infraCluster.Name,
+			Namespace: r.infraCluster.Namespace,
 		},
 		Spec: fcmv2.FirewallDeploymentSpec{
 			Template: fcmv2.FirewallTemplateSpec{
 				Spec: fcmv2.FirewallSpec{
-					Partition: infraCluster.Spec.Partition,
-					Project:   infraCluster.Spec.ProjectID,
+					Partition: r.infraCluster.Spec.Partition,
+					Project:   r.infraCluster.Spec.ProjectID,
 				},
 			},
 		},
 	}
 
-	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, deploy, func() error {
+	_, err := controllerutil.CreateOrUpdate(r.ctx, r.Client, deploy, func() error {
 		if deploy.Annotations == nil {
 			deploy.Annotations = map[string]string{}
 		}
@@ -410,20 +428,20 @@ func (r *MetalStackClusterReconciler) ensureFirewallDeployment(ctx context.Conte
 
 		deploy.Spec.Replicas = 1
 		deploy.Spec.Selector = map[string]string{
-			tag.ClusterID: string(infraCluster.GetUID()),
+			tag.ClusterID: string(r.infraCluster.GetUID()),
 		}
 
 		if deploy.Spec.Template.Labels == nil {
 			deploy.Spec.Template.Labels = map[string]string{}
 		}
-		deploy.Spec.Template.Labels[tag.ClusterID] = string(infraCluster.GetUID())
+		deploy.Spec.Template.Labels[tag.ClusterID] = string(r.infraCluster.GetUID())
 
-		deploy.Spec.Template.Spec.Size = infraCluster.Spec.Firewall.Size
-		deploy.Spec.Template.Spec.Image = infraCluster.Spec.Firewall.Image
-		deploy.Spec.Template.Spec.Networks = append(infraCluster.Spec.Firewall.AdditionalNetworks, nodeCIDR)
-		deploy.Spec.Template.Spec.RateLimits = infraCluster.Spec.Firewall.RateLimits
-		deploy.Spec.Template.Spec.EgressRules = infraCluster.Spec.Firewall.EgressRules
-		deploy.Spec.Template.Spec.LogAcceptedConnections = ptr.Deref(infraCluster.Spec.Firewall.LogAcceptedConnections, false)
+		deploy.Spec.Template.Spec.Size = r.infraCluster.Spec.Firewall.Size
+		deploy.Spec.Template.Spec.Image = r.infraCluster.Spec.Firewall.Image
+		deploy.Spec.Template.Spec.Networks = append(r.infraCluster.Spec.Firewall.AdditionalNetworks, nodeCIDR)
+		deploy.Spec.Template.Spec.RateLimits = r.infraCluster.Spec.Firewall.RateLimits
+		deploy.Spec.Template.Spec.EgressRules = r.infraCluster.Spec.Firewall.EgressRules
+		deploy.Spec.Template.Spec.LogAcceptedConnections = ptr.Deref(r.infraCluster.Spec.Firewall.LogAcceptedConnections, false)
 
 		// TODO: this needs to be a controller configuration
 		deploy.Spec.Template.Spec.InternalPrefixes = nil
@@ -446,17 +464,17 @@ func (r *MetalStackClusterReconciler) ensureFirewallDeployment(ctx context.Conte
 	return deploy, nil
 }
 
-func (r *MetalStackClusterReconciler) deleteFirewallDeployment(ctx context.Context, infraCluster *v1alpha1.MetalStackCluster) error {
+func (r *clusterReconciler) deleteFirewallDeployment() error {
 	// TODO: consider a retry here, which is actually anti-pattern but in this case could be beneficial
 
 	deploy := &fcmv2.FirewallDeployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      infraCluster.Name,
-			Namespace: infraCluster.Namespace,
+			Name:      r.infraCluster.Name,
+			Namespace: r.infraCluster.Namespace,
 		},
 	}
 
-	err := r.Client.Get(ctx, client.ObjectKeyFromObject(deploy), deploy)
+	err := r.Client.Get(r.ctx, client.ObjectKeyFromObject(deploy), deploy)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil
@@ -466,7 +484,7 @@ func (r *MetalStackClusterReconciler) deleteFirewallDeployment(ctx context.Conte
 	}
 
 	if deploy.DeletionTimestamp == nil {
-		err = r.Client.Delete(ctx, deploy)
+		err = r.Client.Delete(r.ctx, deploy)
 		if err != nil {
 			return fmt.Errorf("error deleting firewall deployment: %w", err)
 		}
@@ -477,14 +495,14 @@ func (r *MetalStackClusterReconciler) deleteFirewallDeployment(ctx context.Conte
 	return errors.New("firewall deployment is still ongoing")
 }
 
-func (r *MetalStackClusterReconciler) status(ctx context.Context, infraCluster *v1alpha1.MetalStackCluster) error {
+func (r *clusterReconciler) status() error {
 	var (
-		g, _             = errgroup.WithContext(ctx)
+		g, _             = errgroup.WithContext(r.ctx)
 		conditionUpdates = make(chan func())
 
 		// TODO: probably there is a helper for this available somewhere?
 		allConditionsTrue = func() bool {
-			for _, c := range infraCluster.Status.Conditions {
+			for _, c := range r.infraCluster.Status.Conditions {
 				if c.Status != corev1.ConditionTrue {
 					return false
 				}
@@ -499,28 +517,28 @@ func (r *MetalStackClusterReconciler) status(ctx context.Context, infraCluster *
 	}()
 
 	g.Go(func() error {
-		nws, err := r.findNodeNetwork(ctx, infraCluster)
+		nws, err := r.findNodeNetwork()
 
 		conditionUpdates <- func() {
 			if err != nil {
-				conditions.MarkFalse(infraCluster, v1alpha1.ClusterNodeNetworkEnsured, "InternalError", clusterv1.ConditionSeverityError, "%s", err.Error())
+				conditions.MarkFalse(r.infraCluster, v1alpha1.ClusterNodeNetworkEnsured, "InternalError", clusterv1.ConditionSeverityError, "%s", err.Error())
 				return
 			}
 
 			switch len(nws) {
 			case 0:
-				conditions.MarkFalse(infraCluster, v1alpha1.ClusterNodeNetworkEnsured, "NotCreated", clusterv1.ConditionSeverityError, "node network was not yet created")
+				conditions.MarkFalse(r.infraCluster, v1alpha1.ClusterNodeNetworkEnsured, "NotCreated", clusterv1.ConditionSeverityError, "node network was not yet created")
 			case 1:
 				nw := nws[0]
 
 				if len(nw.Prefixes) > 0 {
-					infraCluster.Status.NodeCIDR = &nw.Prefixes[0]
+					r.infraCluster.Status.NodeCIDR = &nw.Prefixes[0]
 				}
-				infraCluster.Status.NodeNetworkID = nw.ID
+				r.infraCluster.Status.NodeNetworkID = nw.ID
 
-				conditions.MarkTrue(infraCluster, v1alpha1.ClusterNodeNetworkEnsured)
+				conditions.MarkTrue(r.infraCluster, v1alpha1.ClusterNodeNetworkEnsured)
 			default:
-				conditions.MarkFalse(infraCluster, v1alpha1.ClusterNodeNetworkEnsured, "InternalError", clusterv1.ConditionSeverityError, "more than a single node network exists for this cluster, operator investigation is required")
+				conditions.MarkFalse(r.infraCluster, v1alpha1.ClusterNodeNetworkEnsured, "InternalError", clusterv1.ConditionSeverityError, "more than a single node network exists for this cluster, operator investigation is required")
 			}
 		}
 
@@ -528,25 +546,25 @@ func (r *MetalStackClusterReconciler) status(ctx context.Context, infraCluster *
 	})
 
 	g.Go(func() error {
-		ips, err := r.findControlPlaneIP(ctx, infraCluster)
+		ips, err := r.findControlPlaneIP(r.ctx, r.infraCluster)
 
 		conditionUpdates <- func() {
 			if err != nil {
-				conditions.MarkFalse(infraCluster, v1alpha1.ClusterControlPlaneEndpointEnsured, "InternalError", clusterv1.ConditionSeverityError, "%s", err.Error())
+				conditions.MarkFalse(r.infraCluster, v1alpha1.ClusterControlPlaneEndpointEnsured, "InternalError", clusterv1.ConditionSeverityError, "%s", err.Error())
 				return
 			}
 
 			switch len(ips) {
 			case 0:
-				conditions.MarkFalse(infraCluster, v1alpha1.ClusterControlPlaneEndpointEnsured, "NotCreated", clusterv1.ConditionSeverityError, "control plane ip was not yet created")
+				conditions.MarkFalse(r.infraCluster, v1alpha1.ClusterControlPlaneEndpointEnsured, "NotCreated", clusterv1.ConditionSeverityError, "control plane ip was not yet created")
 			case 1:
-				if infraCluster.Spec.ControlPlaneEndpoint.Host == *ips[0].Ipaddress {
-					conditions.MarkTrue(infraCluster, v1alpha1.ClusterControlPlaneEndpointEnsured)
+				if r.infraCluster.Spec.ControlPlaneEndpoint.Host == *ips[0].Ipaddress {
+					conditions.MarkTrue(r.infraCluster, v1alpha1.ClusterControlPlaneEndpointEnsured)
 				} else {
-					conditions.MarkFalse(infraCluster, v1alpha1.ClusterControlPlaneEndpointEnsured, "NotSet", clusterv1.ConditionSeverityWarning, "control plane ip was not yet patched into the cluster's spec")
+					conditions.MarkFalse(r.infraCluster, v1alpha1.ClusterControlPlaneEndpointEnsured, "NotSet", clusterv1.ConditionSeverityWarning, "control plane ip was not yet patched into the cluster's spec")
 				}
 			default:
-				conditions.MarkFalse(infraCluster, v1alpha1.ClusterControlPlaneEndpointEnsured, "InternalError", clusterv1.ConditionSeverityError, "more than a single control plane ip exists for this cluster, operator investigation is required")
+				conditions.MarkFalse(r.infraCluster, v1alpha1.ClusterControlPlaneEndpointEnsured, "InternalError", clusterv1.ConditionSeverityError, "more than a single control plane ip exists for this cluster, operator investigation is required")
 			}
 		}
 
@@ -556,27 +574,27 @@ func (r *MetalStackClusterReconciler) status(ctx context.Context, infraCluster *
 	g.Go(func() error {
 		deploy := &fcmv2.FirewallDeployment{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      infraCluster.Name,
-				Namespace: infraCluster.Namespace,
+				Name:      r.infraCluster.Name,
+				Namespace: r.infraCluster.Namespace,
 			},
 		}
 
-		err := r.Client.Get(ctx, client.ObjectKeyFromObject(deploy), deploy)
+		err := r.Client.Get(r.ctx, client.ObjectKeyFromObject(deploy), deploy)
 
 		conditionUpdates <- func() {
 			if err != nil && !apierrors.IsNotFound(err) {
-				conditions.MarkFalse(infraCluster, v1alpha1.ClusterFirewallDeploymentReady, "InternalError", clusterv1.ConditionSeverityError, "%s", err.Error())
+				conditions.MarkFalse(r.infraCluster, v1alpha1.ClusterFirewallDeploymentReady, "InternalError", clusterv1.ConditionSeverityError, "%s", err.Error())
 				return
 			}
 
 			if apierrors.IsNotFound(err) {
-				conditions.MarkFalse(infraCluster, v1alpha1.ClusterFirewallDeploymentReady, "NotCreated", clusterv1.ConditionSeverityError, "firewall deployment was not yet created")
+				conditions.MarkFalse(r.infraCluster, v1alpha1.ClusterFirewallDeploymentReady, "NotCreated", clusterv1.ConditionSeverityError, "firewall deployment was not yet created")
 				return
 			}
 
 			// switch {
 			// case deploy.Spec.Replicas == deploy.Status.ReadyReplicas:
-			conditions.MarkTrue(infraCluster, v1alpha1.ClusterFirewallDeploymentReady)
+			conditions.MarkTrue(r.infraCluster, v1alpha1.ClusterFirewallDeploymentReady)
 			// default:
 			// 	conditions.MarkFalse(infraCluster, v1alpha1.ClusterFirewallDeploymentReady, "Unhealthy", clusterv1.ConditionSeverityWarning, "not all firewalls are healthy")
 			// }
@@ -593,10 +611,10 @@ func (r *MetalStackClusterReconciler) status(ctx context.Context, infraCluster *
 
 	groupErr := g.Wait()
 	if groupErr == nil && allConditionsTrue() {
-		infraCluster.Status.Ready = true
+		r.infraCluster.Status.Ready = true
 	}
 
-	err := r.Client.Status().Update(ctx, infraCluster)
+	err := r.Client.Status().Update(r.ctx, r.infraCluster)
 
 	return errors.Join(groupErr, err)
 }
