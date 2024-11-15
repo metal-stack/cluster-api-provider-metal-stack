@@ -166,12 +166,12 @@ func (r *MetalStackClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 func (r *clusterReconciler) reconcile() error {
-	nodeCIDR, err := r.ensureNodeNetwork()
+	nodeNetworkID, err := r.ensureNodeNetwork()
 	if err != nil {
 		return fmt.Errorf("unable to ensure node network: %w", err)
 	}
 
-	r.log.Info("reconciled node network", "cidr", nodeCIDR)
+	r.log.Info("reconciled node network", "network-id", nodeNetworkID)
 
 	ip, err := r.ensureControlPlaneIP()
 	if err != nil {
@@ -197,7 +197,7 @@ func (r *clusterReconciler) reconcile() error {
 		return fmt.Errorf("failed to update infra cluster control plane endpoint: %w", err)
 	}
 
-	fwdeploy, err := r.ensureFirewallDeployment(nodeCIDR)
+	fwdeploy, err := r.ensureFirewallDeployment(nodeNetworkID)
 	if err != nil {
 		return fmt.Errorf("unable to ensure firewall deployment: %w", err)
 	}
@@ -259,7 +259,7 @@ func (r *clusterReconciler) ensureNodeNetwork() (string, error) {
 			return "", fmt.Errorf("error creating node network: %w", err)
 		}
 
-		return resp.Payload.Prefixes[0], nil
+		return *resp.Payload.ID, nil
 	case 1:
 		nw := nws[0]
 
@@ -267,7 +267,7 @@ func (r *clusterReconciler) ensureNodeNetwork() (string, error) {
 			return "", errors.New("node network exists but the prefix is gone")
 		}
 
-		return nw.Prefixes[0], nil
+		return *nw.ID, nil
 	default:
 		return "", fmt.Errorf("more than a single node network exists for this cluster, operator investigation is required")
 	}
@@ -399,7 +399,7 @@ func (r *clusterReconciler) findControlPlaneIP() ([]*models.V1IPResponse, error)
 	return resp.Payload, nil
 }
 
-func (r *clusterReconciler) ensureFirewallDeployment(nodeCIDR string) (*fcmv2.FirewallDeployment, error) {
+func (r *clusterReconciler) ensureFirewallDeployment(nodeNetworkID string) (*fcmv2.FirewallDeployment, error) {
 	deploy := &fcmv2.FirewallDeployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      r.infraCluster.Name,
@@ -440,7 +440,7 @@ func (r *clusterReconciler) ensureFirewallDeployment(nodeCIDR string) (*fcmv2.Fi
 
 		deploy.Spec.Template.Spec.Size = r.infraCluster.Spec.Firewall.Size
 		deploy.Spec.Template.Spec.Image = r.infraCluster.Spec.Firewall.Image
-		deploy.Spec.Template.Spec.Networks = append(r.infraCluster.Spec.Firewall.AdditionalNetworks, nodeCIDR)
+		deploy.Spec.Template.Spec.Networks = append(r.infraCluster.Spec.Firewall.AdditionalNetworks, nodeNetworkID)
 		deploy.Spec.Template.Spec.RateLimits = r.infraCluster.Spec.Firewall.RateLimits
 		deploy.Spec.Template.Spec.EgressRules = r.infraCluster.Spec.Firewall.EgressRules
 		deploy.Spec.Template.Spec.LogAcceptedConnections = ptr.Deref(r.infraCluster.Spec.Firewall.LogAcceptedConnections, false)
@@ -451,6 +451,10 @@ func (r *clusterReconciler) ensureFirewallDeployment(nodeCIDR string) (*fcmv2.Fi
 		deploy.Spec.Template.Spec.ControllerURL = "https://images.metal-stack.io/firewall-controller/v2.3.5/firewall-controller" // TODO: this needs to be a controller configuration
 		deploy.Spec.Template.Spec.NftablesExporterVersion = ""
 		deploy.Spec.Template.Spec.NftablesExporterURL = ""
+
+		// TODO: we need to allow internet connection for the nodes before the firewall-controller can connect to the control-plane
+		// the FCM currently does not support this
+		deploy.Spec.Template.Spec.Userdata = ""
 
 		// TODO: do we need to generate ssh keys for the machines and the firewall in this controller?
 		deploy.Spec.Template.Spec.SSHPublicKeys = nil
