@@ -27,7 +27,7 @@ spec:
     size: v1-small-x86
     image: firewall-ubuntu-3.0
     networks:
-    - internet-mini-lab
+      - internet-mini-lab
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
 kind: MetalStackMachineTemplate
