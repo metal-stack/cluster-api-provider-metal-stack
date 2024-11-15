@@ -96,3 +96,8 @@ spec:
           apt-get update
           apt-get install -y kubelet kubeadm kubectl
           apt-mark hold kubelet kubeadm kubectl
+      - path: /etc/containerd/config.toml
+        owner: "root:root"
+        permissions: "0644"
+        content: |
+          disabled_plugins = []
