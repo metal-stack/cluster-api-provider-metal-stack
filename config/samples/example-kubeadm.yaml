@@ -54,7 +54,12 @@ spec:
       name: metal-test-controlplane
   kubeadmConfigSpec:
     format: ignition
+    clusterConfiguration:
+      controlPlaneEndpoint: 203.0.113.129:443
     initConfiguration:
+      localAPIEndpoint:
+        advertiseAddress: 203.0.113.129
+        bindPort: 443
       nodeRegistration: {}
     joinConfiguration:
       controlPlane: {}

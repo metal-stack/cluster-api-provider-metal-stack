@@ -1,0 +1,23 @@
+egress:
+- comment: allow outgoing traffic for HTTP and HTTPS and DNS
+  ports:
+  - 443
+  - 80
+  - 53
+  protocol: TCP
+  to:
+  - 0.0.0.0/0
+- comment: allow outgoing DNS and NTP via UDP
+  ports:
+  - 53
+  - 123
+  protocol: UDP
+  to:
+  - 0.0.0.0/0
+ingress:
+- comment: allow incoming HTTPS to kube-apiserver
+  ports:
+  - 433
+  protocol: TCP
+  from:
+  - 0.0.0.0/0
