@@ -14,14 +14,13 @@
 
 - name: Deploy firewall-controller-manager CRDs
   k8s:
-    definition: "{{ lookup('url', 'https://raw.githubusercontent.com/metal-stack/firewall-controller-manager/refs/tags/' + firewall_controller_manager_image_tag + '/config/crds/' + item, split_lines=False) }}"
+    definition: "{{ lookup('url', firewall_controller_manager_crd_fetch_base_url + firewall_controller_manager_image_tag + '/config/crds/' + item, split_lines=False) }}"
     namespace: "{{ firewall_controller_manager_namespace }}"
   loop:
     - firewall.metal-stack.io_firewalldeployments.yaml
     - firewall.metal-stack.io_firewallmonitors.yaml
     - firewall.metal-stack.io_firewalls.yaml
     - firewall.metal-stack.io_firewallsets.yaml
-
 # - name: Deploy firewall-controller-manager
 #   k8s:
 #     definition:

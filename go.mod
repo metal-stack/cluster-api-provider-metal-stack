@@ -4,7 +4,7 @@ go 1.23.0
 
 require (
 	github.com/go-logr/logr v1.4.2
-	github.com/metal-stack/firewall-controller-manager v0.4.3
+	github.com/metal-stack/firewall-controller-manager v0.4.4-0.20241121151352-d3362457f60b
 	github.com/metal-stack/metal-go v0.37.2
 	github.com/metal-stack/metal-lib v0.18.4
 	github.com/onsi/ginkgo/v2 v2.20.2

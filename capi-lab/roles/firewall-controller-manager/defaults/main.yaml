@@ -17,3 +17,8 @@ firewall_controller_manager_shoot_access_token_secret: "shoot-access-firewall-co
 
 firewall_controller_manager_secrets_server:
 firewall_controller_manager_ca_bundle:
+
+firewall_controller_manager_crd_fetch_base_url: "https://raw.githubusercontent.com/metal-stack/firewall-controller-manager/refs/heads/"
+# TODO:
+# firewall_controller_manager_crd_fetch_base_url: "https://raw.githubusercontent.com/metal-stack/firewall-controller-manager/refs/tags/"
+firewall_controller_manager_image_tag: initial-firewall-ruleset

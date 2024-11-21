@@ -433,6 +433,49 @@ func (r *clusterReconciler) ensureFirewallDeployment(nodeNetworkID string) (*fcm
 			tag.ClusterID: string(r.infraCluster.GetUID()),
 		}
 
+		deploy.Spec.Template.Spec.InitialRuleSet = &fcmv2.InitialRuleSet{
+			Egress: []fcmv2.EgressRule{
+				{
+					Comment:  "allow outgoing http",
+					Ports:    []int32{80},
+					Protocol: fcmv2.NetworkProtocolTCP,
+					To:       []string{"0.0.0.0/0"},
+				},
+				{
+					Comment:  "allow outgoing https",
+					Ports:    []int32{443},
+					Protocol: fcmv2.NetworkProtocolTCP,
+					To:       []string{"0.0.0.0/0"},
+				},
+				{
+					Comment:  "allow outgoing dns via tcp",
+					Ports:    []int32{53},
+					Protocol: fcmv2.NetworkProtocolTCP,
+					To:       []string{"0.0.0.0/0"},
+				},
+				{
+					Comment:  "allow outgoing dns and ntp via udp",
+					Ports:    []int32{53, 123},
+					Protocol: fcmv2.NetworkProtocolUDP,
+					To:       []string{"0.0.0.0/0"},
+				},
+			},
+			Ingress: []fcmv2.IngressRule{
+				{
+					Comment:  "allow incoming ssh",
+					Ports:    []int32{22},
+					Protocol: fcmv2.NetworkProtocolTCP,
+					From:     []string{"0.0.0.0/0"}, // TODO: restrict cidr
+				},
+				{
+					Comment:  "allow incoming https to kube-apiserver",
+					Ports:    []int32{443},
+					Protocol: fcmv2.NetworkProtocolTCP,
+					From:     []string{"0.0.0.0/0"}, // TODO: restrict cidr
+				},
+			},
+		}
+
 		if deploy.Spec.Template.Labels == nil {
 			deploy.Spec.Template.Labels = map[string]string{}
 		}
