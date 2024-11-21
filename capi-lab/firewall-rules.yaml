@@ -17,7 +17,7 @@ egress:
 ingress:
 - comment: allow incoming HTTPS to kube-apiserver
   ports:
-  - 433
+  - 443
   protocol: TCP
   from:
   - 0.0.0.0/0
