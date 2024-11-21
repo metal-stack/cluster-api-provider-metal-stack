@@ -4,11 +4,12 @@ go 1.23.0
 
 require (
 	github.com/go-logr/logr v1.4.2
-	github.com/metal-stack/firewall-controller-manager v0.4.3
+	github.com/metal-stack/firewall-controller-manager v0.4.4-0.20241121151352-d3362457f60b
 	github.com/metal-stack/metal-go v0.37.2
 	github.com/metal-stack/metal-lib v0.18.4
 	github.com/onsi/ginkgo/v2 v2.20.2
 	github.com/onsi/gomega v1.34.2
+	golang.org/x/crypto v0.28.0
 	golang.org/x/sync v0.8.0
 	k8s.io/api v0.31.0
 	k8s.io/apimachinery v0.31.0
@@ -102,7 +103,6 @@ require (
 	go.opentelemetry.io/proto/otlp v1.3.1 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
-	golang.org/x/crypto v0.28.0 // indirect
 	golang.org/x/exp v0.0.0-20241009180824-f66d83c29e7c // indirect
 	golang.org/x/net v0.30.0 // indirect
 	golang.org/x/oauth2 v0.23.0 // indirect

@@ -14,5 +14,8 @@
     - name: prometheus
     - name: firewall-controller-manager
       vars:
-        firewall_controller_manager_namespace: cap-metal-stack
+        firewall_controller_manager_namespace: capms-system
+        firewall_controller_manager_ca: "{{ lookup('file', playbook_dir + '/fcm-certs/ca.pem') }}"
+        firewall_controller_manager_cert: "{{ lookup('file', playbook_dir + '/fcm-certs/tls.crt') }}"
+        firewall_controller_manager_cert_key: "{{ lookup('file', playbook_dir + '/fcm-certs/tls.key') }}"
     - name: cluster-api-provider-metal-stack
