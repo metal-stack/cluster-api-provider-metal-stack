@@ -58,7 +58,7 @@ spec:
       controlPlaneEndpoint: 203.0.113.129:443
     initConfiguration:
       localAPIEndpoint:
-        advertiseAddress: 203.0.113.129
+        advertiseAddress: 10.0.0.2
         bindPort: 443
       nodeRegistration: {}
     joinConfiguration:
@@ -95,12 +95,25 @@ spec:
           set -eo pipefail
           set +x
 
-          curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.30/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
-          echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.30/deb/ /' | tee /etc/apt/sources.list.d/kubernetes.list
+          apt update
+          apt install conntrack
 
-          apt-get update
-          apt-get install -y kubelet kubeadm kubectl
-          apt-mark hold kubelet kubeadm kubectl
+          CNI_PLUGINS_VERSION="v1.3.0"
+          DEST="/opt/cni/bin"
+          mkdir -p "$DEST"
+          curl -L "https://github.com/containernetworking/plugins/releases/download/${CNI_PLUGINS_VERSION}/cni-plugins-linux-amd64-${CNI_PLUGINS_VERSION}.tgz" | sudo tar -C "$DEST" -xz
+
+          RELEASE="v1.30.6"
+          cd /usr/local/bin
+          sudo curl -L --remote-name-all https://dl.k8s.io/release/${RELEASE}/bin/linux/amd64/{kubeadm,kubelet,kubectl}
+          sudo chmod +x {kubeadm,kubelet,kubectl}
+
+          RELEASE_VERSION="v0.16.2"
+          curl -sSL "https://raw.githubusercontent.com/kubernetes/release/${RELEASE_VERSION}/cmd/krel/templates/latest/kubelet/kubelet.service" | sed "s:/usr/bin:/usr/local/bin:g" | sudo tee /usr/lib/systemd/system/kubelet.service
+          sudo mkdir -p /usr/lib/systemd/system/kubelet.service.d
+          curl -sSL "https://raw.githubusercontent.com/kubernetes/release/${RELEASE_VERSION}/cmd/krel/templates/latest/kubeadm/10-kubeadm.conf" | sed "s:/usr/bin:/usr/local/bin:g" | sudo tee /usr/lib/systemd/system/kubelet.service.d/10-kubeadm.conf
+
+          systemctl enable kubelet.service
       - path: /etc/containerd/config.toml
         owner: "root:root"
         permissions: "0644"
