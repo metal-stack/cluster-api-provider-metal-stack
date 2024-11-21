@@ -1,2 +1,19 @@
 ---
 firewall_controller_manager_namespace: "firewall-controller-manager"
+
+firewall_controller_manager_image: ghcr.io/metal-stack/firewall-controller-manager
+firewall_controller_manager_image_pull_policy: Always
+firewall_controller_manager_replicas: 1
+# firewall_controller_manager_pod_annotations:
+
+firewall_controller_manager_seed_api_url:
+firewall_controller_manager_shoot_api_url:
+firewall_controller_manager_cluster_id:
+firewall_controller_manager_metalapi_url:
+firewall_controller_manager_generic_token_kubeconfig_secret_name:
+firewall_controller_manager_ssh_key_secret_name:
+
+firewall_controller_manager_shoot_access_token_secret: "shoot-access-firewall-controller-manager"
+
+firewall_controller_manager_secrets_server:
+firewall_controller_manager_ca_bundle:
