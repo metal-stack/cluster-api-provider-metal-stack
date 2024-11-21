@@ -139,9 +139,9 @@ spec:
           - -cert-dir=/certs
           - -log-level=info
           - -seed-api-url={{ firewall_controller_manager_seed_api_url }}
-          - -shoot-api-url={{ firewall_controller_manager_shootapiURL }}
+          - -shoot-api-url={{ firewall_controller_manager_shoot_api_url }}
           - -internal-shoot-api-url=https://kube-apiserver
-          - -cluster-id={{ firewall_controller_manager_clusterID }}
+          - -cluster-id={{ firewall_controller_manager_cluster_id }}
           - -enable-leader-election
           - -metal-api-url={{ firewall_controller_manager_metalapi_url }}
           - -namespace={{ firewall_controller_manager_namespace }}
