@@ -1,0 +1,29 @@
+---
+- name: Gather release versions
+  setup_yaml:
+
+- name: Create namespace
+  k8s:
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: "{{ firewall_controller_manager_namespace }}"
+        labels:
+          name: "{{ firewall_controller_manager_namespace }}"
+
+- name: Deploy firewall-controller-manager CRDs
+  k8s:
+    definition: "{{ lookup('url', 'https://raw.githubusercontent.com/metal-stack/firewall-controller-manager/refs/tags/' + firewall_controller_manager_image_tag + '/config/crds/' + item, split_lines=False) }}"
+    namespace: "{{ firewall_controller_manager_namespace }}"
+  loop:
+    - firewall.metal-stack.io_firewalldeployments.yaml
+    - firewall.metal-stack.io_firewallmonitors.yaml
+    - firewall.metal-stack.io_firewalls.yaml
+    - firewall.metal-stack.io_firewallsets.yaml
+
+# - name: Deploy firewall-controller-manager
+#   k8s:
+#     definition:
+
+#     namespace: "{{ firewall_controller_manager_namespace }}"

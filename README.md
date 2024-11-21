@@ -11,9 +11,7 @@
 ```bash
 make -C capi-lab
 eval $(make -C capi-lab --silent dev-env)
-kubectl apply -f ../firewall-controller-manager/config/crds
-kubectl create -f https://github.com/prometheus-operator/prometheus-operator/releases/download/v0.77.1/bundle.yaml
-clusterctl init
+EXP_KUBEADM_BOOTSTRAP_FORMAT_IGNITION=true clusterctl init
 make push-to-capi-lab
 
 kubectl apply -k config/samples

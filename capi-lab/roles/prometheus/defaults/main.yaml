@@ -1,0 +1,3 @@
+---
+prometheus_namespace: prometheus
+prometheus_helm_chart_version: "66.2.1"

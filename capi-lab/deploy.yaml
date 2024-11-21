@@ -3,8 +3,16 @@
   hosts: localhost
   connection: local
   gather_facts: false
+  vars:
+    setup_yaml:
+      - url: https://raw.githubusercontent.com/metal-stack/releases/develop/release.yaml
+        meta_var: metal_stack_release
   roles:
     - name: ansible-common
     - name: metal-roles
     - name: cert-manager
+    - name: prometheus
+    - name: firewall-controller-manager
+      vars:
+        firewall_controller_manager_namespace: cap-metal-stack
     - name: cluster-api-provider-metal-stack
