@@ -8,7 +8,7 @@ up: bake deploy-capi
 
 .PHONY: bake
 bake:
-	make -C mini-lab up ANSIBLE_EXTRA_VARS_FILE=../mini-lab-overrides/extra-vars.yaml
+	make -C mini-lab up	MINI_LAB_FLAVOR=capms ANSIBLE_EXTRA_VARS_FILE=../mini-lab-overrides/extra-vars.yaml
 
 .PHONY: deploy-capi
 deploy-capi:
