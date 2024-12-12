@@ -58,7 +58,7 @@ spec:
       controlPlaneEndpoint: 203.0.113.129:443
     initConfiguration:
       localAPIEndpoint:
-        advertiseAddress: 10.0.0.2
+        advertiseAddress: 127.0.0.1
         bindPort: 443
       nodeRegistration: {}
     joinConfiguration:
@@ -114,7 +114,6 @@ spec:
           curl -sSL "https://raw.githubusercontent.com/kubernetes/release/${RELEASE_VERSION}/cmd/krel/templates/latest/kubeadm/10-kubeadm.conf" | sed "s:/usr/bin:/usr/local/bin:g" | tee /usr/lib/systemd/system/kubelet.service.d/10-kubeadm.conf
 
           systemctl enable kubelet.service
-          systemctl restart kubeadm
       - path: /etc/containerd/config.toml
         owner: "root:root"
         permissions: "0644"
