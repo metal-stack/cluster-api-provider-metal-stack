@@ -131,7 +131,7 @@ spec:
                 type: object
               nodeNetworkID:
                 description: |-
-                  NodeNetworkID is the network ID in metal-stack in which the worker nodes and the firewall of the cluster is placed.
+                  NodeNetworkID is the network ID in metal-stack in which the worker nodes and the firewall of the cluster are placed.
                   If not provided this will automatically be acquired during reconcile. Note that this field is not patched after auto-acquisition.
                   The ID of the auto-acquired network can be looked up in the status resource instead.
                 type: string
