@@ -53,8 +53,16 @@ spec:
                 - host
                 - port
                 type: object
+              controlPlaneIP:
+                description: |-
+                  ControlPlaneIP is the ip address in metal-stack on which the control plane will be exposed.
+                  If this ip and the control plane endpoint are not provided this will automatically be acquired during reconcile. Note that this field is not patched after auto-acquisition.
+                  The address of the auto-acquired ip can be looked up in the control plane endpoint.
+                type: string
               firewall:
-                description: Firewall describes the firewall for this cluster
+                description: |-
+                  Firewall describes the firewall for this cluster.
+                  If not provided this will automatically be created during reconcile.
                 properties:
                   egressRules:
                     description: EgressRules contains egress rules configured for
@@ -121,16 +129,21 @@ spec:
                 - image
                 - size
                 type: object
+              nodeNetworkID:
+                description: |-
+                  NodeNetworkID is the network ID in metal-stack in which the worker nodes and the firewall of the cluster is placed.
+                  If not provided this will automatically be acquired during reconcile. Note that this field is not patched after auto-acquisition.
+                  The ID of the auto-acquired network can be looked up in the status resource instead.
+                type: string
               partition:
                 description: Partition is the data center partition in which the resources
-                  are created
+                  are created.
                 type: string
               projectID:
                 description: ProjectID is the project id of the project in metal-stack
-                  in which the associated metal-stack resources are created
+                  in which the associated metal-stack resources are created.
                 type: string
             required:
-            - firewall
             - partition
             - projectID
             type: object
@@ -194,11 +207,11 @@ spec:
                   programmatic interpretation.
                 type: string
               nodeCIDR:
-                description: NodeCIDR is set as soon as the node network was created
+                description: NodeCIDR is set as soon as the node network was created.
                 type: string
               nodeNetworkID:
                 description: NodeNetworkID is set as soon as the node network was
-                  created
+                  created.
                 type: string
               ready:
                 description: Ready denotes that the cluster is ready.
