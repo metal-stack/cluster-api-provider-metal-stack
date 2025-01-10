@@ -36,7 +36,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/ptr"
 
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
@@ -61,7 +60,6 @@ import (
 type MetalStackClusterReconciler struct {
 	MetalClient metalgo.Client
 	Client      client.Client
-	Scheme      *runtime.Scheme
 }
 
 type clusterReconciler struct {
@@ -673,10 +671,6 @@ func (r *clusterReconciler) status() error {
 		}
 	)
 
-	defer func() {
-		close(conditionUpdates)
-	}()
-
 	g.Go(func() error {
 		nws, err := r.findNodeNetwork()
 
@@ -773,16 +767,25 @@ func (r *clusterReconciler) status() error {
 		return err
 	})
 
+	ready := make(chan bool)
+	defer func() {
+		close(ready)
+	}()
+
 	go func() {
 		for u := range conditionUpdates {
 			u()
 		}
+		ready <- true
 	}()
 
 	groupErr := g.Wait()
 	if groupErr == nil && allConditionsTrue() {
 		r.infraCluster.Status.Ready = true
 	}
+
+	close(conditionUpdates)
+	<-ready
 
 	err := r.client.Status().Update(r.ctx, r.infraCluster)
 

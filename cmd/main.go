@@ -161,7 +161,6 @@ func main() {
 	if err = (&controller.MetalStackClusterReconciler{
 		MetalClient: metalClient,
 		Client:      mgr.GetClient(),
-		Scheme:      mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "MetalStackCluster")
 		os.Exit(1)
@@ -169,7 +168,6 @@ func main() {
 	if err = (&controller.MetalStackMachineReconciler{
 		MetalClient: metalClient,
 		Client:      mgr.GetClient(),
-		Scheme:      mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "MetalStackMachine")
 		os.Exit(1)

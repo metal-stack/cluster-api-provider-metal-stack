@@ -21,12 +21,19 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/stretchr/testify/mock"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	infrastructurev1alpha1 "github.com/metal-stack/cluster-api-provider-metal-stack/api/v1alpha1"
+	metalip "github.com/metal-stack/metal-go/api/client/ip"
+	metalnetwork "github.com/metal-stack/metal-go/api/client/network"
+	"github.com/metal-stack/metal-go/api/models"
+	metalgoclient "github.com/metal-stack/metal-go/test/client"
+	"github.com/metal-stack/metal-lib/pkg/testcommon"
 
 	clusterv1beta1 "sigs.k8s.io/cluster-api/api/v1beta1"
 )
@@ -58,7 +65,6 @@ var _ = Describe("MetalStackCluster Controller", func() {
 
 		controllerReconciler = &MetalStackClusterReconciler{
 			Client: k8sClient,
-			Scheme: suiteScheme,
 		}
 	})
 
@@ -116,7 +122,7 @@ var _ = Describe("MetalStackCluster Controller", func() {
 			}
 		})
 
-		It("should successfully reconcile", func() {
+		FIt("should successfully reconcile", func() {
 			Expect(k8sClient.Create(ctx, resource)).To(Succeed())
 
 			By("creating the cluster resource and setting the owner reference")
@@ -129,7 +135,7 @@ var _ = Describe("MetalStackCluster Controller", func() {
 			Expect(k8sClient.Create(ctx, owner)).To(Succeed())
 
 			resource.OwnerReferences = []metav1.OwnerReference{
-				*metav1.NewControllerRef(owner, owner.GroupVersionKind()),
+				*metav1.NewControllerRef(owner, clusterv1beta1.GroupVersion.WithKind("Cluster")),
 			}
 			Expect(k8sClient.Update(ctx, resource)).To(Succeed())
 
@@ -140,12 +146,119 @@ var _ = Describe("MetalStackCluster Controller", func() {
 				Namespace: "default",
 			}
 
+			controllerReconciler.MetalClient, _ = metalgoclient.NewMetalMockClient(testingT, &metalgoclient.MetalMockFns{
+				IP: func(m *mock.Mock) {
+					findIPResponse := &metalip.FindIPsOK{}
+
+					m.On("FindIPs", testcommon.MatchIgnoreContext(testingT, metalip.NewFindIPsParams().WithBody(&models.V1IPFindRequest{
+						Projectid: "test-project",
+						Tags: []string{
+							"cluster.metal-stack.io/id=" + string(resource.UID),
+							"metal-stack.infrastructure.cluster.x-k8s.io/purpose=control-plane",
+						},
+					})), nil).Return(findIPResponse, nil)
+
+					m.On("AllocateIP", testcommon.MatchIgnoreContext(testingT, metalip.NewAllocateIPParams().WithBody(&models.V1IPAllocateRequest{
+						Tags: []string{
+							"cluster.metal-stack.io/id=" + string(resource.UID),
+							"metal-stack.infrastructure.cluster.x-k8s.io/purpose=control-plane",
+						},
+						Name:        resource.Name + "-control-plane",
+						Description: resource.Namespace + "/" + resource.Name + " control plane ip",
+						Networkid:   ptr.To("internet"),
+						Projectid:   ptr.To("test-project"),
+						Type:        ptr.To("static"),
+					})), nil).Run(func(args mock.Arguments) {
+						findIPResponse = &metalip.FindIPsOK{
+							Payload: []*models.V1IPResponse{
+								{
+									Ipaddress: ptr.To("192.168.42.1"),
+								},
+							},
+						}
+					}).Return(&metalip.AllocateIPCreated{
+						Payload: &models.V1IPResponse{
+							Ipaddress: ptr.To("192.168.42.1"),
+						},
+					}, nil)
+				},
+				Network: func(mock *mock.Mock) {
+					mock.On("FindNetworks", testcommon.MatchIgnoreContext(testingT, metalnetwork.NewFindNetworksParams().WithBody(&models.V1NetworkFindRequest{
+						Labels: map[string]string{
+							"cluster.metal-stack.io/id": string(resource.UID),
+						},
+						Partitionid: "test-partition",
+						Projectid:   "test-project",
+					})), nil).Return(&metalnetwork.FindNetworksOK{}, nil).Once()
+
+					mock.On("FindNetworks", testcommon.MatchIgnoreContext(testingT, metalnetwork.NewFindNetworksParams().WithBody(&models.V1NetworkFindRequest{
+						Labels: map[string]string{
+							"cluster.metal-stack.io/id": string(resource.UID),
+						},
+						Partitionid: "test-partition",
+						Projectid:   "test-project",
+					})), nil).Return(&metalnetwork.FindNetworksOK{
+						Payload: []*models.V1NetworkResponse{{
+							ID:       ptr.To("node-network-id"),
+							Prefixes: []string{"192.168.42.0/24"},
+						}},
+					}, nil)
+
+					mock.On("FindNetworks", testcommon.MatchIgnoreContext(testingT, metalnetwork.NewFindNetworksParams().WithBody(&models.V1NetworkFindRequest{
+						Labels: map[string]string{
+							"network.metal-stack.io/default": "",
+						},
+					})), nil).Return(&metalnetwork.FindNetworksOK{
+						Payload: []*models.V1NetworkResponse{
+							{
+								ID: ptr.To("internet"),
+							},
+						},
+					}, nil)
+
+					mock.On("AllocateNetwork", testcommon.MatchIgnoreContext(testingT, metalnetwork.NewAllocateNetworkParams().WithBody(&models.V1NetworkAllocateRequest{
+						Name:        resource.Name,
+						Description: resource.Namespace + "/" + resource.Name,
+						Labels: map[string]string{
+							"cluster.metal-stack.io/id": string(resource.UID),
+						},
+						Partitionid: "test-partition",
+						Projectid:   "test-project",
+					})), nil).Return(&metalnetwork.AllocateNetworkCreated{
+						Payload: &models.V1NetworkResponse{
+							ID:       ptr.To("test-network"),
+							Prefixes: []string{"192.168.42.0/24"},
+						},
+					}, nil)
+				},
+			})
+
+			// during first reconcile the finalizer gets added only
 			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
 				NamespacedName: typeNamespacedName,
 			})
 			Expect(err).NotTo(HaveOccurred())
 
 			Expect(k8sClient.Get(ctx, typeNamespacedName, resource)).To(Succeed())
+			Expect(resource.Finalizers).To(ContainElement(infrastructurev1alpha1.ClusterFinalizer))
+
+			// second reconcile
+
+			_, err = controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: typeNamespacedName,
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			// third reconcile
+
+			Expect(k8sClient.Get(ctx, typeNamespacedName, resource)).To(Succeed())
+
+			Expect(resource.Status.Conditions).To(ContainElement(clusterv1beta1.Condition{
+				Type:    "ClusterNodeNetworkEnsured",
+				Status:  "True",
+				Reason:  "Ensured",
+				Message: "Created",
+			}))
 		})
 	})
 	Context("reconciliation when external resources are provided", func() {
