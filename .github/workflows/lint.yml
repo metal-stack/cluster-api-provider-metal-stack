@@ -24,3 +24,6 @@ jobs:
 
       - name: Run Linter
         uses: golangci/golangci-lint-action@v6
+
+      - name: Check spelling
+        uses: crate-ci/typos@master
