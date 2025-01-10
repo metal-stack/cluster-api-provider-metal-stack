@@ -36,4 +36,4 @@ controller:
 
 .PHONY: firewall
 firewall:
-	metalctl firewall create --description fw --name fw --hostname fw --project 00000000-0000-0000-0000-000000000001 --partition mini-lab --image firewall-ubuntu-3.0 --size v1-small-x86 --firewall-rules-file=capi-lab/firewall-rules.yaml --networks internet-mini-lab,16ec44b7-771b-4514-bb91-d1312a70cdcd
+	metalctl firewall create --description fw --name fw --hostname fw --project 00000000-0000-0000-0000-000000000001 --partition mini-lab --image firewall-ubuntu-3.0 --size v1-small-x86 --firewall-rules-file=firewall-rules.yaml --networks internet-mini-lab,$(shell docker compose run $(DOCKER_COMPOSE_RUN_ARG) metalctl network list --name metal-test -o template --template '{{ .id }}')

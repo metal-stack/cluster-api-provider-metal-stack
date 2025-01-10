@@ -1,13 +1,19 @@
+---
 egress:
-- comment: allow outgoing traffic for HTTP and HTTPS and DNS
+- comment: allow outgoing HTTP and HTTPS traffic
   ports:
-  - 443
   - 80
+  - 443
+  protocol: TCP
+  to:
+  - 0.0.0.0/0
+- comment: allow outgoing DNS traffic via TCP
+  ports:
   - 53
   protocol: TCP
   to:
   - 0.0.0.0/0
-- comment: allow outgoing DNS and NTP via UDP
+- comment: allow outgoing DNS and NTP traffic via UDP
   ports:
   - 53
   - 123
@@ -15,9 +21,13 @@ egress:
   to:
   - 0.0.0.0/0
 ingress:
-- comment: allow incoming HTTPS to kube-apiserver
+- comment: allow incoming HTTP and HTTPS traffic
   ports:
+  - 80
   - 443
   protocol: TCP
   from:
-  - 0.0.0.0/0
+  - 172.16.0.0/12 # Docker Networks
+  - 203.0.113.0/24 # metal_lab_ext
+  to:
+  - 203.0.113.128/25
