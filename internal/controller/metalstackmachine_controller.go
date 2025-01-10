@@ -145,7 +145,7 @@ func (r *MetalStackMachineReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		if statusErr != nil {
 			err = errors.Join(err, fmt.Errorf("unable to update status: %w", statusErr))
 		} else if !reconciler.infraMachine.Status.Ready {
-			err = errors.New("machine is not yet ready, requeueing")
+			err = errors.New("machine is not yet ready, requeuing")
 		}
 	}()
 
