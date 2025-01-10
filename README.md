@@ -15,4 +15,4 @@ Currently we provide the following custom resources:
 > [!note]
 > Compatibility with bootstrap providers
 > Currently our infrastructure provider is only tested against the [Cluster API bootstrap provider Kubeadm (CABPK)](https://cluster-api.sigs.k8s.io/tasks/bootstrap/kubeadm-bootstrap/index.html?highlight=kubeadm#cluster-api-bootstrap-provider-kubeadm).
-> While other providers might work, there is no guarantee nor to goal to reach compatability.
+> While other providers might work, there is no guarantee nor the goal to reach compatibility.
