@@ -50,14 +50,28 @@ type MetalStackClusterSpec struct {
 	// +optional
 	ControlPlaneEndpoint APIEndpoint `json:"controlPlaneEndpoint,omitempty"`
 
-	// ProjectID is the project id of the project in metal-stack in which the associated metal-stack resources are created
+	// ProjectID is the project id of the project in metal-stack in which the associated metal-stack resources are created.
 	ProjectID string `json:"projectID"`
 
-	// Partition is the data center partition in which the resources are created
+	// NodeNetworkID is the network ID in metal-stack in which the worker nodes and the firewall of the cluster are placed.
+	// If not provided this will automatically be acquired during reconcile. Note that this field is not patched after auto-acquisition.
+	// The ID of the auto-acquired network can be looked up in the status resource instead.
+	// +optional
+	NodeNetworkID *string `json:"nodeNetworkID,omitempty"`
+
+	// ControlPlaneIP is the ip address in metal-stack on which the control plane will be exposed.
+	// If this ip and the control plane endpoint are not provided this will automatically be acquired during reconcile. Note that this field is not patched after auto-acquisition.
+	// The address of the auto-acquired ip can be looked up in the control plane endpoint.
+	// +optional
+	ControlPlaneIP *string `json:"controlPlaneIP,omitempty"`
+
+	// Partition is the data center partition in which the resources are created.
 	Partition string `json:"partition"`
 
-	// Firewall describes the firewall for this cluster
-	Firewall Firewall `json:"firewall"`
+	// Firewall describes the firewall for this cluster.
+	// If not provided this will automatically be created during reconcile.
+	// +optional
+	Firewall *Firewall `json:"firewall,omitempty"`
 }
 
 // APIEndpoint represents a reachable Kubernetes API endpoint.
@@ -114,10 +128,10 @@ type MetalStackClusterStatus struct {
 	// +optional
 	Conditions clusterv1.Conditions `json:"conditions,omitempty"`
 
-	// NodeCIDR is set as soon as the node network was created
+	// NodeCIDR is set as soon as the node network was created.
 	// +optional
 	NodeCIDR *string `json:"nodeCIDR,omitempty"`
-	// NodeNetworkID is set as soon as the node network was created
+	// NodeNetworkID is set as soon as the node network was created.
 	// +optional
 	NodeNetworkID *string `json:"nodeNetworkID,omitempty"`
 }

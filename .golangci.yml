@@ -17,7 +17,6 @@ issues:
         - dupl
         - lll
 linters:
-  disable-all: true
   enable:
     - dupl
     - errcheck
@@ -30,7 +29,6 @@ linters:
     - gosimple
     - govet
     - ineffassign
-    - lll
     - misspell
     - nakedret
     - prealloc

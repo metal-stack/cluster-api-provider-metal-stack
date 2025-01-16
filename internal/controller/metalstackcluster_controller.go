@@ -36,7 +36,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/ptr"
 
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
@@ -61,7 +60,6 @@ import (
 type MetalStackClusterReconciler struct {
 	MetalClient metalgo.Client
 	Client      client.Client
-	Scheme      *runtime.Scheme
 }
 
 type clusterReconciler struct {
@@ -186,28 +184,31 @@ func (r *clusterReconciler) reconcile() error {
 
 	r.log.Info("reconciled node network", "network-id", nodeNetworkID)
 
-	ip, err := r.ensureControlPlaneIP()
-	if err != nil {
-		return fmt.Errorf("unable to ensure control plane ip: %w", err)
-	}
+	if r.infraCluster.Spec.ControlPlaneEndpoint.Host == "" {
+		ip, err := r.ensureControlPlaneIP()
+		if err != nil {
+			return fmt.Errorf("unable to ensure control plane ip: %w", err)
+		}
 
-	r.log.Info("reconciled control plane ip", "ip", *ip.Ipaddress)
+		r.log.Info("reconciled control plane ip", "ip", *ip.Ipaddress)
 
-	r.log.Info("setting control plane endpoint into cluster resource")
+		r.log.Info("setting control plane endpoint into cluster resource")
 
-	helper, err := patch.NewHelper(r.infraCluster, r.client)
-	if err != nil {
-		return err
-	}
+		helper, err := patch.NewHelper(r.infraCluster, r.client)
+		if err != nil {
+			return err
+		}
 
-	r.infraCluster.Spec.ControlPlaneEndpoint = infrastructurev1alpha1.APIEndpoint{
-		Host: *ip.Ipaddress,
-		Port: v1alpha1.ClusterControlPlaneEndpointDefaultPort,
-	}
+		r.infraCluster.Spec.ControlPlaneEndpoint = infrastructurev1alpha1.APIEndpoint{
+			Host: *ip.Ipaddress,
+			Port: v1alpha1.ClusterControlPlaneEndpointDefaultPort,
+		}
 
-	err = helper.Patch(r.ctx, r.infraCluster) // TODO:check whether patch is not executed when no changes occur
-	if err != nil {
-		return fmt.Errorf("failed to update infra cluster control plane endpoint: %w", err)
+		err = helper.Patch(r.ctx, r.infraCluster) // TODO:check whether patch is not executed when no changes occur
+		if err != nil {
+			return fmt.Errorf("failed to update infra cluster control plane endpoint: %w", err)
+		}
+		return nil
 	}
 
 	fwdeploy, err := r.ensureFirewallDeployment(nodeNetworkID, sshPubKey)
@@ -388,6 +389,15 @@ func (r *clusterReconciler) deleteNodeNetwork() error {
 }
 
 func (r *clusterReconciler) findNodeNetwork() ([]*models.V1NetworkResponse, error) {
+	if r.infraCluster.Spec.NodeNetworkID != nil {
+		resp, err := r.metalClient.Network().FindNetwork(network.NewFindNetworkParams().WithID(*r.infraCluster.Spec.NodeNetworkID).WithContext(r.ctx), nil)
+		if err != nil {
+			return nil, err
+		}
+
+		return []*models.V1NetworkResponse{resp.Payload}, nil
+	}
+
 	resp, err := r.metalClient.Network().FindNetworks(network.NewFindNetworksParams().WithBody(&models.V1NetworkFindRequest{
 		Projectid:   r.infraCluster.Spec.ProjectID,
 		Partitionid: r.infraCluster.Spec.Partition,
@@ -472,6 +482,15 @@ func (r *clusterReconciler) deleteControlPlaneIP() error {
 }
 
 func (r *clusterReconciler) findControlPlaneIP() ([]*models.V1IPResponse, error) {
+	if r.infraCluster.Spec.ControlPlaneIP != nil {
+		resp, err := r.metalClient.IP().FindIP(ipmodels.NewFindIPParams().WithID(*r.infraCluster.Spec.ControlPlaneIP).WithContext(r.ctx), nil)
+		if err != nil {
+			return nil, err
+		}
+
+		return []*models.V1IPResponse{resp.Payload}, nil
+	}
+
 	resp, err := r.metalClient.IP().FindIPs(ipmodels.NewFindIPsParams().WithBody(&models.V1IPFindRequest{
 		Projectid: r.infraCluster.Spec.ProjectID,
 		Tags: []string{
@@ -500,6 +519,15 @@ func (r *clusterReconciler) ensureFirewallDeployment(nodeNetworkID, sshPubKey st
 				},
 			},
 		},
+	}
+
+	if r.infraCluster.Spec.Firewall == nil {
+		err := r.client.Delete(r.ctx, deploy)
+		if apierrors.IsNotFound(err) {
+			return deploy, nil
+		}
+
+		return deploy, fmt.Errorf("firewall deployment is still being deleted...")
 	}
 
 	_, err := controllerutil.CreateOrUpdate(r.ctx, r.client, deploy, func() error {
@@ -644,10 +672,6 @@ func (r *clusterReconciler) status() error {
 		}
 	)
 
-	defer func() {
-		close(conditionUpdates)
-	}()
-
 	g.Go(func() error {
 		nws, err := r.findNodeNetwork()
 
@@ -688,7 +712,11 @@ func (r *clusterReconciler) status() error {
 
 			switch len(ips) {
 			case 0:
-				conditions.MarkFalse(r.infraCluster, v1alpha1.ClusterControlPlaneEndpointEnsured, "NotCreated", clusterv1.ConditionSeverityError, "control plane ip was not yet created")
+				if r.infraCluster.Spec.ControlPlaneEndpoint.Host != "" {
+					conditions.MarkTrue(r.infraCluster, v1alpha1.ClusterControlPlaneEndpointEnsured)
+				} else {
+					conditions.MarkFalse(r.infraCluster, v1alpha1.ClusterControlPlaneEndpointEnsured, "NotCreated", clusterv1.ConditionSeverityError, "control plane ip was not yet created")
+				}
 			case 1:
 				if r.infraCluster.Spec.ControlPlaneEndpoint.Host == *ips[0].Ipaddress {
 					conditions.MarkTrue(r.infraCluster, v1alpha1.ClusterControlPlaneEndpointEnsured)
@@ -720,6 +748,11 @@ func (r *clusterReconciler) status() error {
 			}
 
 			if apierrors.IsNotFound(err) {
+				if r.infraCluster.Spec.Firewall == nil {
+					conditions.MarkTrue(r.infraCluster, v1alpha1.ClusterFirewallDeploymentReady)
+					return
+				}
+
 				conditions.MarkFalse(r.infraCluster, v1alpha1.ClusterFirewallDeploymentReady, "NotCreated", clusterv1.ConditionSeverityError, "firewall deployment was not yet created")
 				return
 			}
@@ -735,16 +768,25 @@ func (r *clusterReconciler) status() error {
 		return err
 	})
 
+	ready := make(chan bool)
+	defer func() {
+		close(ready)
+	}()
+
 	go func() {
 		for u := range conditionUpdates {
 			u()
 		}
+		ready <- true
 	}()
 
 	groupErr := g.Wait()
 	if groupErr == nil && allConditionsTrue() {
 		r.infraCluster.Status.Ready = true
 	}
+
+	close(conditionUpdates)
+	<-ready
 
 	err := r.client.Status().Update(r.ctx, r.infraCluster)
 

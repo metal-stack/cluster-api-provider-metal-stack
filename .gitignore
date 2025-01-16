@@ -5,6 +5,7 @@
 *.so
 *.dylib
 bin/*
+test/external-crds
 Dockerfile.cross
 
 infrastructure-components.yaml
