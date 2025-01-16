@@ -28,6 +28,59 @@ A basic cluster configuration resides in `config/samples`.
 kubectl apply -k config/samples
 ```
 
+For now it is required to manually create the firewall. This might be changed in the future, but for now run:
+
+```bash
+make -C capi-lab firewall
+# once the firewall is up run
+make -C capi-lab mtu-fix
+```
+
+When the control plane node was provisioned, you can obtain the kubeconfig like:
+
+```bash
+kubectl get secret metal-test-kubeconfig -o jsonpath='{.data.value}' | base64 -d > .shoot
+```
+
+For now, the provider ID has to be manually added to the node object because we did not integrate the [metal-ccm](https://github.com/metal-stack/metal-ccm) yet:
+
+```bash
+kubectl --kubeconfig=.shoot patch node <control-plane-node-name> --patch='{"spec":{"providerID": "metal://<machine-id>"}}'
+```
+
+It is now expected to deploy a CNI to the cluster:
+
+```bash
+kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.28.2/manifests/tigera-operator.yaml
+cat <<EOF | kubectl create -f -
+apiVersion: operator.tigera.io/v1
+kind: Installation
+metadata:
+  name: default
+spec:
+  # Configures Calico networking.
+  calicoNetwork:
+    bgp: Disabled
+    ipPools:
+    - name: default-ipv4-ippool
+      blockSize: 26
+      cidr: 192.168.0.0/16
+      encapsulation: None
+    mtu: 1440
+  cni:
+    ipam:
+      type: HostLocal
+    type: Calico
+EOF
+```
+
+As soon as the worker node was provisioned, the same provider ID patch as above is required:
+
+```bash
+kubectl --kubeconfig=.shoot patch node <worker-node-name> --patch='{"spec":{"providerID": "metal://<machine-id>"}}'
+```
+
+That's it!
 
 ### To Deploy on the cluster
 **Build and push your image to the location specified by `IMG`:**
