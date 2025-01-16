@@ -21,13 +21,16 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	. "github.com/onsi/gomega/gstruct"
 	"github.com/stretchr/testify/mock"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/metal-stack/cluster-api-provider-metal-stack/api/v1alpha1"
 	infrastructurev1alpha1 "github.com/metal-stack/cluster-api-provider-metal-stack/api/v1alpha1"
 	metalip "github.com/metal-stack/metal-go/api/client/ip"
 	metalnetwork "github.com/metal-stack/metal-go/api/client/network"
@@ -251,14 +254,25 @@ var _ = Describe("MetalStackCluster Controller", func() {
 
 			// third reconcile
 
+			_, err = controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: typeNamespacedName,
+			})
+			Expect(err).NotTo(HaveOccurred())
+
 			Expect(k8sClient.Get(ctx, typeNamespacedName, resource)).To(Succeed())
 
-			Expect(resource.Status.Conditions).To(ContainElement(clusterv1beta1.Condition{
-				Type:    "ClusterNodeNetworkEnsured",
-				Status:  "True",
-				Reason:  "Ensured",
-				Message: "Created",
-			}))
+			Expect(resource.Status.Conditions).To(ContainElement(MatchFields(IgnoreExtras, Fields{
+				"Type":   Equal(v1alpha1.ClusterNodeNetworkEnsured),
+				"Status": Equal(corev1.ConditionTrue),
+			})))
+			Expect(resource.Status.Conditions).To(ContainElement(MatchFields(IgnoreExtras, Fields{
+				"Type":   Equal(v1alpha1.ClusterFirewallDeploymentReady),
+				"Status": Equal(corev1.ConditionTrue),
+			})))
+			Expect(resource.Status.Conditions).To(ContainElement(MatchFields(IgnoreExtras, Fields{
+				"Type":   Equal(v1alpha1.ClusterControlPlaneEndpointEnsured),
+				"Status": Equal(corev1.ConditionTrue),
+			})))
 		})
 	})
 	Context("reconciliation when external resources are provided", func() {
