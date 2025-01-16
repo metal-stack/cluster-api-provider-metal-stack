@@ -15,11 +15,9 @@ make -C capi-lab
 eval $(make -C capi-lab --silent dev-env)
 ```
 
-Next install Cluster API into our newly created kind cluster alongside with our controller manager.
+Next install our CAPMS provider into the cluster.
 
 ```bash
-EXP_KUBEADM_BOOTSTRAP_FORMAT_IGNITION=true clusterctl init
-
 # repeat this whenever you make changes
 make push-to-capi-lab
 ```
