@@ -289,7 +289,7 @@ var _ = Describe("MetalStackCluster Controller", func() {
 				NodeNetworkID:        &nodeNetworkID,
 				ControlPlaneIP:       &controlPlaneIP,
 				Partition:            "test-partition",
-				Firewall:             nil, // an empty firewall spec respresents an existing one
+				Firewall:             nil, // an empty firewall spec represents an existing one
 			}
 		})
 
