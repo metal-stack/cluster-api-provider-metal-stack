@@ -166,11 +166,9 @@ var _ = Describe("MetalStackCluster Controller", func() {
 						Projectid:   ptr.To("test-project"),
 						Type:        ptr.To("static"),
 					})), nil).Run(func(args mock.Arguments) {
-						findIPResponse = &metalip.FindIPsOK{
-							Payload: []*models.V1IPResponse{
-								{
-									Ipaddress: ptr.To("192.168.42.1"),
-								},
+						findIPResponse.Payload = []*models.V1IPResponse{
+							{
+								Ipaddress: ptr.To("192.168.42.1"),
 							},
 						}
 					}).Return(&metalip.AllocateIPCreated{
@@ -179,29 +177,48 @@ var _ = Describe("MetalStackCluster Controller", func() {
 						},
 					}, nil)
 				},
-				Network: func(mock *mock.Mock) {
-					mock.On("FindNetworks", testcommon.MatchIgnoreContext(testingT, metalnetwork.NewFindNetworksParams().WithBody(&models.V1NetworkFindRequest{
-						Labels: map[string]string{
-							"cluster.metal-stack.io/id": string(resource.UID),
-						},
-						Partitionid: "test-partition",
-						Projectid:   "test-project",
-					})), nil).Return(&metalnetwork.FindNetworksOK{}, nil).Once()
+				Network: func(m *mock.Mock) {
+					findNetworkResponse := &metalnetwork.FindNetworksOK{}
 
-					mock.On("FindNetworks", testcommon.MatchIgnoreContext(testingT, metalnetwork.NewFindNetworksParams().WithBody(&models.V1NetworkFindRequest{
+					m.On("FindNetworks", testcommon.MatchIgnoreContext(testingT, metalnetwork.NewFindNetworksParams().WithBody(&models.V1NetworkFindRequest{
 						Labels: map[string]string{
 							"cluster.metal-stack.io/id": string(resource.UID),
 						},
 						Partitionid: "test-partition",
 						Projectid:   "test-project",
-					})), nil).Return(&metalnetwork.FindNetworksOK{
-						Payload: []*models.V1NetworkResponse{{
-							ID:       ptr.To("node-network-id"),
-							Prefixes: []string{"192.168.42.0/24"},
-						}},
+					})), nil).Return(findNetworkResponse, nil)
+
+					m.On("AllocateNetwork", testcommon.MatchIgnoreContext(testingT, metalnetwork.NewAllocateNetworkParams().WithBody(&models.V1NetworkAllocateRequest{
+						Name:        resource.Name,
+						Description: resource.Namespace + "/" + resource.Name,
+						Labels: map[string]string{
+							"cluster.metal-stack.io/id": string(resource.UID),
+						},
+						Partitionid: "test-partition",
+						Projectid:   "test-project",
+					})), nil).Run(func(args mock.Arguments) {
+						findNetworkResponse.Payload = []*models.V1NetworkResponse{{
+							Labels: map[string]string{
+								"cluster.metal-stack.io/id": string(resource.UID),
+							},
+							Partitionid: "test-partition",
+							Projectid:   "test-project",
+							ID:          ptr.To("node-network-id"),
+							Prefixes:    []string{"192.168.42.0/24"},
+						}}
+					}).Return(&metalnetwork.AllocateNetworkCreated{
+						Payload: &models.V1NetworkResponse{
+							Labels: map[string]string{
+								"cluster.metal-stack.io/id": string(resource.UID),
+							},
+							Partitionid: "test-partition",
+							Projectid:   "test-project",
+							ID:          ptr.To("test-network"),
+							Prefixes:    []string{"192.168.42.0/24"},
+						},
 					}, nil)
 
-					mock.On("FindNetworks", testcommon.MatchIgnoreContext(testingT, metalnetwork.NewFindNetworksParams().WithBody(&models.V1NetworkFindRequest{
+					m.On("FindNetworks", testcommon.MatchIgnoreContext(testingT, metalnetwork.NewFindNetworksParams().WithBody(&models.V1NetworkFindRequest{
 						Labels: map[string]string{
 							"network.metal-stack.io/default": "",
 						},
@@ -210,21 +227,6 @@ var _ = Describe("MetalStackCluster Controller", func() {
 							{
 								ID: ptr.To("internet"),
 							},
-						},
-					}, nil)
-
-					mock.On("AllocateNetwork", testcommon.MatchIgnoreContext(testingT, metalnetwork.NewAllocateNetworkParams().WithBody(&models.V1NetworkAllocateRequest{
-						Name:        resource.Name,
-						Description: resource.Namespace + "/" + resource.Name,
-						Labels: map[string]string{
-							"cluster.metal-stack.io/id": string(resource.UID),
-						},
-						Partitionid: "test-partition",
-						Projectid:   "test-project",
-					})), nil).Return(&metalnetwork.AllocateNetworkCreated{
-						Payload: &models.V1NetworkResponse{
-							ID:       ptr.To("test-network"),
-							Prefixes: []string{"192.168.42.0/24"},
 						},
 					}, nil)
 				},
