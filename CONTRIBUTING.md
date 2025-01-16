@@ -74,6 +74,9 @@ spec:
 EOF
 ```
 
+> [!note]
+> Actually, Calico should be configured using BGP (no overlay), eBPF and DSR. An example will be proposed in this repository at a later point in time.
+
 As soon as the worker node was provisioned, the same provider ID patch as above is required:
 
 ```bash
