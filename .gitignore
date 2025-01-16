@@ -9,6 +9,7 @@ test/external-crds
 Dockerfile.cross
 
 infrastructure-components.yaml
+.capms-cluster-kubeconfig.yaml
 
 # Test binary, built with `go test -c`
 *.test

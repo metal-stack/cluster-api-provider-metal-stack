@@ -39,13 +39,13 @@ make -C capi-lab mtu-fix
 When the control plane node was provisioned, you can obtain the kubeconfig like:
 
 ```bash
-kubectl get secret metal-test-kubeconfig -o jsonpath='{.data.value}' | base64 -d > .shoot
+kubectl get secret metal-test-kubeconfig -o jsonpath='{.data.value}' | base64 -d > .capms-cluster-kubeconfig.yaml
 ```
 
 For now, the provider ID has to be manually added to the node object because we did not integrate the [metal-ccm](https://github.com/metal-stack/metal-ccm) yet:
 
 ```bash
-kubectl --kubeconfig=.shoot patch node <control-plane-node-name> --patch='{"spec":{"providerID": "metal://<machine-id>"}}'
+kubectl --kubeconfig=.capms-cluster-kubeconfig.yaml patch node <control-plane-node-name> --patch='{"spec":{"providerID": "metal://<machine-id>"}}'
 ```
 
 It is now expected to deploy a CNI to the cluster:
@@ -80,7 +80,7 @@ EOF
 As soon as the worker node was provisioned, the same provider ID patch as above is required:
 
 ```bash
-kubectl --kubeconfig=.shoot patch node <worker-node-name> --patch='{"spec":{"providerID": "metal://<machine-id>"}}'
+kubectl --kubeconfig=.capms-cluster-kubeconfig.yaml patch node <worker-node-name> --patch='{"spec":{"providerID": "metal://<machine-id>"}}'
 ```
 
 That's it!
