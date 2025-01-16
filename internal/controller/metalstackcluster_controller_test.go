@@ -36,6 +36,7 @@ import (
 	metalnetwork "github.com/metal-stack/metal-go/api/client/network"
 	"github.com/metal-stack/metal-go/api/models"
 	metalgoclient "github.com/metal-stack/metal-go/test/client"
+	"github.com/metal-stack/metal-lib/pkg/pointer"
 	"github.com/metal-stack/metal-lib/pkg/testcommon"
 
 	clusterv1beta1 "sigs.k8s.io/cluster-api/api/v1beta1"
@@ -272,14 +273,105 @@ var _ = Describe("MetalStackCluster Controller", func() {
 		})
 	})
 	Context("reconciliation when external resources are provided", func() {
+		var (
+			nodeNetworkID  string
+			controlPlaneIP string
+		)
 		BeforeEach(func() {
 			By("creating a cluster resource and setting an ownership")
 
+			nodeNetworkID = "test-network"
+			controlPlaneIP = "192.168.42.1"
+
+			resource.Spec = infrastructurev1alpha1.MetalStackClusterSpec{
+				ControlPlaneEndpoint: infrastructurev1alpha1.APIEndpoint{},
+				ProjectID:            "test-project",
+				NodeNetworkID:        &nodeNetworkID,
+				ControlPlaneIP:       &controlPlaneIP,
+				Partition:            "test-partition",
+				Firewall:             nil, // an empty firewall spec resprensents an exisiting one
+			}
 		})
 
 		When("creating a resource and setting an ownership", func() {
 			It("should successfully reconcile", func() {
+				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
 
+				By("creating the cluster resource and setting the owner reference")
+				owner := &clusterv1beta1.Cluster{
+					ObjectMeta: metav1.ObjectMeta{
+						GenerateName: "owner-",
+						Namespace:    "default",
+					},
+				}
+				Expect(k8sClient.Create(ctx, owner)).To(Succeed())
+
+				resource.OwnerReferences = []metav1.OwnerReference{
+					*metav1.NewControllerRef(owner, clusterv1beta1.GroupVersion.WithKind("Cluster")),
+				}
+				Expect(k8sClient.Update(ctx, resource)).To(Succeed())
+
+				By("reconciling the resource")
+
+				typeNamespacedName := types.NamespacedName{
+					Name:      resource.Name,
+					Namespace: "default",
+				}
+
+				controllerReconciler.MetalClient, _ = metalgoclient.NewMetalMockClient(testingT, &metalgoclient.MetalMockFns{
+					IP: func(m *mock.Mock) {
+						m.On("FindIP", testcommon.MatchIgnoreContext(testingT, metalip.NewFindIPParams().WithID(controlPlaneIP)), nil).Return(&metalip.FindIPOK{
+							Payload: &models.V1IPResponse{
+								Ipaddress: &controlPlaneIP,
+								Projectid: pointer.Pointer("test-project"),
+								Tags: []string{
+									"cluster.metal-stack.io/id=" + string(resource.UID),
+									"metal-stack.infrastructure.cluster.x-k8s.io/purpose=control-plane",
+								},
+							},
+						}, nil)
+					},
+					Network: func(m *mock.Mock) {
+						m.On("FindNetwork", testcommon.MatchIgnoreContext(testingT, metalnetwork.NewFindNetworkParams().WithID(nodeNetworkID)), nil).
+							Return(&metalnetwork.FindNetworkOK{
+								Payload: &models.V1NetworkResponse{
+									ID:          &nodeNetworkID,
+									Name:        resource.Name,
+									Description: resource.Namespace + "/" + resource.Name,
+									Labels: map[string]string{
+										"cluster.metal-stack.io/id": string(resource.UID),
+									},
+									Partitionid: "test-partition",
+									Projectid:   "test-project",
+									Prefixes:    []string{"192.168.42.0/24"},
+								},
+							}, nil)
+					},
+				})
+
+				Eventually(func() clusterv1beta1.Conditions {
+					_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+						NamespacedName: typeNamespacedName,
+					})
+					Expect(err).ToNot(HaveOccurred())
+
+					Expect(k8sClient.Get(ctx, typeNamespacedName, resource)).ToNot(HaveOccurred())
+
+					return resource.Status.Conditions
+				}, "20s").Should(ContainElements(
+					MatchFields(IgnoreExtras, Fields{
+						"Type":   Equal(v1alpha1.ClusterNodeNetworkEnsured),
+						"Status": Equal(corev1.ConditionTrue),
+					}),
+					MatchFields(IgnoreExtras, Fields{
+						"Type":   Equal(v1alpha1.ClusterFirewallDeploymentReady),
+						"Status": Equal(corev1.ConditionTrue),
+					}),
+					MatchFields(IgnoreExtras, Fields{
+						"Type":   Equal(v1alpha1.ClusterControlPlaneEndpointEnsured),
+						"Status": Equal(corev1.ConditionTrue),
+					}),
+				))
 			})
 		})
 

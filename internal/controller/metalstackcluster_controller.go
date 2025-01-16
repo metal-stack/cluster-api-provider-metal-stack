@@ -208,6 +208,7 @@ func (r *clusterReconciler) reconcile() error {
 		if err != nil {
 			return fmt.Errorf("failed to update infra cluster control plane endpoint: %w", err)
 		}
+		return nil
 	}
 
 	fwdeploy, err := r.ensureFirewallDeployment(nodeNetworkID, sshPubKey)
