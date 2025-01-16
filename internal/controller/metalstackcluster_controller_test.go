@@ -49,18 +49,12 @@ var _ = Describe("MetalStackCluster Controller", func() {
 		cancel               func()
 		resource             *infrastructurev1alpha1.MetalStackCluster
 		controllerReconciler *MetalStackClusterReconciler
-
-		// typeNamespacedName = types.NamespacedName{
-		// 	Name:      resourceName,
-		// 	Namespace: "default",
-		// }
 	)
 
 	BeforeEach(func() {
 		ctx, cancel = context.WithCancel(suiteCtx)
 		resource = &infrastructurev1alpha1.MetalStackCluster{
 			ObjectMeta: metav1.ObjectMeta{
-				// Name:      resourceName,
 				Namespace:    "default",
 				GenerateName: resourcePrefix,
 			},
@@ -125,7 +119,7 @@ var _ = Describe("MetalStackCluster Controller", func() {
 			}
 		})
 
-		FIt("should successfully reconcile", func() {
+		It("should successfully reconcile", func() {
 			Expect(k8sClient.Create(ctx, resource)).To(Succeed())
 
 			By("creating the cluster resource and setting the owner reference")
