@@ -13,6 +13,5 @@ Currently we provide the following custom resources:
 - [`MetalStackMachine`](./api/v1alpha1/metalstackmachine_types.go) bridges between [infrastructure machines](https://cluster-api.sigs.k8s.io/developer/providers/contracts/infra-machine) and metal-stack machines.
 
 > [!note]
-> Compatibility with bootstrap providers
 > Currently our infrastructure provider is only tested against the [Cluster API bootstrap provider Kubeadm (CABPK)](https://cluster-api.sigs.k8s.io/tasks/bootstrap/kubeadm-bootstrap/index.html?highlight=kubeadm#cluster-api-bootstrap-provider-kubeadm).
 > While other providers might work, there is no guarantee nor the goal to reach compatibility.
