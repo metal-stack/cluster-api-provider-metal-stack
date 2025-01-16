@@ -1,0 +1,22 @@
+---
+- name: Create namespace
+  k8s:
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: "{{ cluster_api_provider_metal_stack_namespace }}"
+        labels:
+          name: "{{ cluster_api_provider_metal_stack_namespace }}"
+
+- name: Install clusterctl
+  become: yes
+  get_url:
+    url: "https://github.com/kubernetes-sigs/cluster-api/releases/download/{{ cluster_api_version }}/clusterctl-linux-amd64"
+    dest: /usr/local/bin/clusterctl
+    mode: '0755'
+
+- name: Run clusterctl init
+  command: clusterctl init
+  environment:
+    EXP_KUBEADM_BOOTSTRAP_FORMAT_IGNITION: "true"
