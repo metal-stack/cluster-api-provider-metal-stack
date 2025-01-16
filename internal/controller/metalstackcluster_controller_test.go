@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"net/http"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -36,6 +37,7 @@ import (
 	metalnetwork "github.com/metal-stack/metal-go/api/client/network"
 	"github.com/metal-stack/metal-go/api/models"
 	metalgoclient "github.com/metal-stack/metal-go/test/client"
+	"github.com/metal-stack/metal-lib/httperrors"
 	"github.com/metal-stack/metal-lib/pkg/pointer"
 	"github.com/metal-stack/metal-lib/pkg/testcommon"
 
@@ -377,7 +379,75 @@ var _ = Describe("MetalStackCluster Controller", func() {
 
 		When("referenced resources do not exist", func() {
 			It("should fail reconciling", func() {
+				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
 
+				By("creating the cluster resource and setting the owner reference")
+				owner := &clusterv1beta1.Cluster{
+					ObjectMeta: metav1.ObjectMeta{
+						GenerateName: "owner-",
+						Namespace:    "default",
+					},
+				}
+				Expect(k8sClient.Create(ctx, owner)).To(Succeed())
+
+				resource.OwnerReferences = []metav1.OwnerReference{
+					*metav1.NewControllerRef(owner, clusterv1beta1.GroupVersion.WithKind("Cluster")),
+				}
+				Expect(k8sClient.Update(ctx, resource)).To(Succeed())
+
+				By("reconciling the resource")
+
+				typeNamespacedName := types.NamespacedName{
+					Name:      resource.Name,
+					Namespace: "default",
+				}
+
+				controllerReconciler.MetalClient, _ = metalgoclient.NewMetalMockClient(testingT, &metalgoclient.MetalMockFns{
+					IP: func(m *mock.Mock) {
+						m.On("FindIP", testcommon.MatchIgnoreContext(testingT, metalip.NewFindIPParams().WithID(controlPlaneIP)), nil).
+							Return(nil, &metalip.FindIPDefault{
+								Payload: &httperrors.HTTPErrorResponse{
+									StatusCode: http.StatusNotFound,
+									Message:    "ip not found",
+								},
+							})
+					},
+					Network: func(m *mock.Mock) {
+						m.On("FindNetwork", testcommon.MatchIgnoreContext(testingT, metalnetwork.NewFindNetworkParams().WithID(nodeNetworkID)), nil).
+							Return(nil, &metalnetwork.FindNetworkDefault{
+								Payload: &httperrors.HTTPErrorResponse{
+									StatusCode: http.StatusNotFound,
+									Message:    "network not found",
+								},
+							})
+					},
+				})
+
+				Eventually(func() error {
+					_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+						NamespacedName: typeNamespacedName,
+					})
+					return err
+				}).Should(MatchError(ContainSubstring("not found")))
+
+				Expect(k8sClient.Get(ctx, typeNamespacedName, resource)).ToNot(HaveOccurred())
+
+				Expect(resource.Status.Conditions).To(ContainElement(MatchFields(IgnoreExtras, Fields{
+					"Type":    Equal(v1alpha1.ClusterNodeNetworkEnsured),
+					"Status":  Equal(corev1.ConditionFalse),
+					"Reason":  Equal("InternalError"),
+					"Message": ContainSubstring("network not found"),
+				})))
+				Expect(resource.Status.Conditions).To(ContainElement(MatchFields(IgnoreExtras, Fields{
+					"Type":   Equal(v1alpha1.ClusterFirewallDeploymentReady),
+					"Status": Equal(corev1.ConditionTrue),
+				})))
+				Expect(resource.Status.Conditions).To(ContainElement(MatchFields(IgnoreExtras, Fields{
+					"Type":    Equal(v1alpha1.ClusterControlPlaneEndpointEnsured),
+					"Status":  Equal(corev1.ConditionFalse),
+					"Reason":  Equal("InternalError"),
+					"Message": ContainSubstring("ip not found"),
+				})))
 			})
 		})
 	})
