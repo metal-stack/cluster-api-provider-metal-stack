@@ -51,8 +51,8 @@ kubectl --kubeconfig=.capms-cluster-kubeconfig.yaml patch node <control-plane-no
 It is now expected to deploy a CNI to the cluster:
 
 ```bash
-kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.28.2/manifests/tigera-operator.yaml
-cat <<EOF | kubectl create -f -
+kubectl --kubeconfig=.capms-cluster-kubeconfig.yaml create -f https://raw.githubusercontent.com/projectcalico/calico/v3.28.2/manifests/tigera-operator.yaml
+cat <<EOF | kubectl --kubeconfig=.capms-cluster-kubeconfig.yaml create -f -
 apiVersion: operator.tigera.io/v1
 kind: Installation
 metadata:
