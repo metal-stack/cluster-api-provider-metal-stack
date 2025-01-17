@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"golang.org/x/sync/errgroup"
 	corev1 "k8s.io/api/core/v1"
@@ -230,7 +231,7 @@ func (r *machineReconciler) reconcile() error {
 		return err
 	}
 
-	r.infraMachine.Spec.ProviderID = *m.ID
+	r.infraMachine.Spec.ProviderID = "metal://" + *m.ID
 
 	err = helper.Patch(r.ctx, r.infraMachine) // TODO:check whether patch is not executed when no changes occur
 	if err != nil {
@@ -369,7 +370,7 @@ func (r *machineReconciler) status() error {
 				conditions.MarkFalse(r.infraMachine, v1alpha1.ProviderMachineHealthy, "NotHealthy", clusterv1.ConditionSeverityWarning, "machine not created")
 				conditions.MarkFalse(r.infraMachine, v1alpha1.ProviderMachineReady, "NotReady", clusterv1.ConditionSeverityWarning, "machine not created")
 			default:
-				if r.infraMachine.Spec.ProviderID == *m.ID {
+				if r.infraMachine.Spec.ProviderID == "metal://"+*m.ID {
 					conditions.MarkTrue(r.infraMachine, v1alpha1.ProviderMachineCreated)
 				} else {
 					conditions.MarkFalse(r.infraMachine, v1alpha1.ProviderMachineCreated, "NotSet", clusterv1.ConditionSeverityWarning, "provider id was not yet patched into the machine's spec")
@@ -455,7 +456,7 @@ func (r *machineReconciler) status() error {
 
 func (r *machineReconciler) findProviderMachine() (*models.V1MachineResponse, error) {
 	mfr := &models.V1MachineFindRequest{
-		ID:                r.infraMachine.Spec.ProviderID,
+		ID:                strings.TrimPrefix(r.infraMachine.Spec.ProviderID, "metal://"),
 		AllocationProject: r.infraCluster.Spec.ProjectID,
 		Tags:              r.machineTags(),
 	}
