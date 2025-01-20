@@ -2,8 +2,8 @@
   "CN": "localhost",
   "hosts": [
     "localhost",
-    "firewall-controller-manager.capms-system.svc",
-    "firewall-controller-manager.capms-system.svc.cluster.local"
+    "firewall-controller-manager.capi-metal-stack-system.svc",
+    "firewall-controller-manager.capi-metal-stack-system.svc.cluster.local"
   ],
   "key": {
     "algo": "ecdsa",

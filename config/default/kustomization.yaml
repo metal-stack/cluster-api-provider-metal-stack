@@ -1,6 +1,6 @@
 # Adds namespace to all resources.
-namespace: capms-system
-namePrefix: capms-
+namespace: capi-metal-stack-system
+namePrefix: capi-metal-stack-
 
 labels:
 - includeSelectors: true

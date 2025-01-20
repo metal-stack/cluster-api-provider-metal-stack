@@ -31,7 +31,7 @@ import (
 )
 
 // namespace where the project is deployed in
-const namespace = "capms-system"
+const namespace = "capi-metal-stack-system"
 
 // serviceAccountName created for the project
 const serviceAccountName = "capms-controller-manager"

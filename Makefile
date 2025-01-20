@@ -56,8 +56,8 @@ release-manifests: $(KUSTOMIZE) ## Builds the manifests to publish with a releas
 push-to-capi-lab: generate manifests build install deploy
 	docker build -t $(IMG) -f Dockerfile.dev .
 	kind --name metal-control-plane load docker-image capms-controller:latest
-	kubectl --kubeconfig=$(KUBECONFIG) patch deployments.apps -n capms-system capms-controller-manager --patch='{"spec":{"template":{"spec":{"containers":[{"name": "manager","imagePullPolicy":"IfNotPresent","image":"$(IMG)"}]}}}}'
-	kubectl --kubeconfig=$(KUBECONFIG) delete pod -n capms-system -l control-plane=controller-manager
+	kubectl --kubeconfig=$(KUBECONFIG) patch deployments.apps -n capi-metal-stack-system capms-controller-manager --patch='{"spec":{"template":{"spec":{"containers":[{"name": "manager","imagePullPolicy":"IfNotPresent","image":"$(IMG)"}]}}}}'
+	kubectl --kubeconfig=$(KUBECONFIG) delete pod -n capi-metal-stack-system -l control-plane=controller-manager
 
 .PHONY: manifests
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
