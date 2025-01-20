@@ -52,12 +52,12 @@ For your first cluster it is advised to start with our generated template.
 clusterctl generate cluster example --kubernetes-version v1.30.6 --infrastructure metal-stack --list-variables
 ```
 
-> [!ATTENTION]
+> [!CAUTION]
 > **Manual steps needed:**
-> Due to the early development stage manual actions are needed for the cluster to operate.
+> Due to the early development stage the following manual actions are needed for the cluster to operate.
 
 1. The firewall needs to be created manually.
-2. You need to install your CNI of choice.
+2. You need to install your CNI of choice. This is required due to CAPI.
 3. Control plane and worker nodes need to be patched.
 
   ```bash
