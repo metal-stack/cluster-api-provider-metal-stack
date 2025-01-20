@@ -168,7 +168,7 @@ var _ = Describe("MetalStackCluster Controller", func() {
 						Description: resource.Namespace + "/" + resource.Name + " control plane ip",
 						Networkid:   ptr.To("internet"),
 						Projectid:   ptr.To("test-project"),
-						Type:        ptr.To("static"),
+						Type:        ptr.To("ephemeral"),
 					})), nil).Run(func(args mock.Arguments) {
 						findIPResponse.Payload = []*models.V1IPResponse{
 							{
@@ -342,6 +342,7 @@ var _ = Describe("MetalStackCluster Controller", func() {
 									"cluster.metal-stack.io/id=" + string(resource.UID),
 									"metal-stack.infrastructure.cluster.x-k8s.io/purpose=control-plane",
 								},
+								Type: ptr.To(models.V1IPBaseTypeStatic),
 							},
 						}, nil)
 					},
