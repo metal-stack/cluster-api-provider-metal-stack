@@ -1,7 +1,10 @@
 # Image URL to use all building/pushing image targets
-IMG ?= capms-controller:latest
+IMG ?= ghcr.io/metal-stack/capms-controller:latest
+IMG_NAME ?= ghcr.io/metal-stack/capms-controller
+IMG_TAG ?= latest
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.31.0
+RELEASE_DIR ?= .release
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -45,8 +48,9 @@ help: ## Display this help.
 
 .PHONY: release-manifests
 release-manifests: $(KUSTOMIZE) ## Builds the manifests to publish with a release
-	$(KUSTOMIZE) build config/default > infrastructure-components.yaml
-	# cp metadata.yaml $(RELEASE_DIR)/metadata.yaml
+	$(KUSTOMIZE) build config/default > $(RELEASE_DIR)/infrastructure-components.yaml
+	sed -i 's!image: $(IMG_NAME):latest!image: $(IMG_NAME):$(IMG_TAG)!' $(RELEASE_DIR)/infrastructure-components.yaml
+	cp metadata.yaml $(RELEASE_DIR)/metadata.yaml
 	# cp examples/clusterctl-templates/clusterctl-cluster.yaml $(RELEASE_DIR)/cluster-template.yaml
 	# cp examples/clusterctl-templates/example_variables.rc $(RELEASE_DIR)/example_variables.rc
 
@@ -55,7 +59,7 @@ release-manifests: $(KUSTOMIZE) ## Builds the manifests to publish with a releas
 .PHONY: push-to-capi-lab
 push-to-capi-lab: generate manifests build install deploy
 	docker build -t $(IMG) -f Dockerfile.dev .
-	kind --name metal-control-plane load docker-image capms-controller:latest
+	kind --name metal-control-plane load docker-image $(IMG)
 	kubectl --kubeconfig=$(KUBECONFIG) patch deployments.apps -n capms-system capms-controller-manager --patch='{"spec":{"template":{"spec":{"containers":[{"name": "manager","imagePullPolicy":"IfNotPresent","image":"$(IMG)"}]}}}}'
 	kubectl --kubeconfig=$(KUBECONFIG) delete pod -n capms-system -l control-plane=controller-manager
 
