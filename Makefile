@@ -1,7 +1,7 @@
 # Image URL to use all building/pushing image targets
-IMG ?= ghcr.io/metal-stack/capms-controller:latest
 IMG_NAME ?= ghcr.io/metal-stack/capms-controller
 IMG_TAG ?= latest
+IMG ?= ${IMG_NAME}:${IMG_TAG}
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.31.0
 RELEASE_DIR ?= .release
@@ -47,7 +47,8 @@ help: ## Display this help.
 ##@ Releases
 
 .PHONY: release-manifests
-release-manifests: $(KUSTOMIZE) ## Builds the manifests to publish with a release
+release-manifests: $(KUSTOMIZE) build-installer ## Builds the manifests to publish with a release
+	mkdir -p $(RELEASE_DIR)
 	$(KUSTOMIZE) build config/default > $(RELEASE_DIR)/infrastructure-components.yaml
 	sed -i 's!image: $(IMG_NAME):latest!image: $(IMG_NAME):$(IMG_TAG)!' $(RELEASE_DIR)/infrastructure-components.yaml
 	cp metadata.yaml $(RELEASE_DIR)/metadata.yaml
@@ -156,9 +157,9 @@ docker-buildx: ## Build and push docker image for the manager for cross-platform
 
 .PHONY: build-installer
 build-installer: manifests generate kustomize ## Generate a consolidated YAML with CRDs and deployment.
-	mkdir -p dist
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	$(KUSTOMIZE) build config/default > dist/install.yaml
+	mkdir -p $(RELEASE_DIR)
+	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG_NAME}:${IMG_TAG}
+	$(KUSTOMIZE) build config/default > $(RELEASE_DIR)/install.yaml
 
 ##@ Deployment
 

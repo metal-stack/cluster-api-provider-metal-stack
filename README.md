@@ -4,7 +4,7 @@ The Cluster API provider for metal-stack (CAPMS) implements the declarative mana
 
 > [!CAUTION]
 > This project is currently under heavy development and is not advised to be used in production any time soon.
-> Please use or stack on top of [Gardener](https://docs.metal-stack.io/stable/installation/deployment/#Gardener-with-metal-stack) instead.
+> Please use our stack on top of [Gardener](https://docs.metal-stack.io/stable/installation/deployment/#Gardener-with-metal-stack) instead.
 > User documentation will follow as soon. Until then head to our [CONTRIBUTING.md](/CONTRIBUTING.md)
 
 Currently we provide the following custom resources:
@@ -15,3 +15,58 @@ Currently we provide the following custom resources:
 > [!note]
 > Currently our infrastructure provider is only tested against the [Cluster API bootstrap provider Kubeadm (CABPK)](https://cluster-api.sigs.k8s.io/tasks/bootstrap/kubeadm-bootstrap/index.html?highlight=kubeadm#cluster-api-bootstrap-provider-kubeadm).
 > While other providers might work, there is no guarantee nor the goal to reach compatibility.
+
+## Getting started
+
+**Prerequisites:**
+
+- a running metal-stack installation
+- CRDs for Prometheus
+- CRDs for the Firewall Controller Manager
+
+First add the metal-stack infrastructure provider to your `clusterctl.yaml`:
+
+```yaml
+# ~/.config/cluster-api/clusterctl.yaml
+providers:
+  - name: "metal-stack"
+    url: "https://github.com/metal-stack/cluster-api-provider-metal-stack/releases/latest/infrastructure-components.yaml"
+    type: InfrastructureProvider
+```
+
+Now you are able to install the CAPMS into your cluster:
+
+```bash
+export METALCTL_API_URL=http://metal.172.17.0.1.nip.io:8080
+export METALCTL_API_HMAC=metal-admin
+export EXP_KUBEADM_BOOTSTRAP_FORMAT_IGNITION=true
+
+clusterctl init --infrastructure metal-stack
+```
+
+Now you should be able to create Clusters on top of metal-stack.
+For your first cluster it is advised to start with our generated template.
+
+```bash
+# to display all env variables that need to be set
+clusterctl generate cluster example --kubernetes-version v1.30.6 --infrastructure metal-stack --list-variables
+```
+
+> [!ATTENTION]
+> **Manual steps needed:**
+> Due to the early development stage manual actions are needed for the cluster to operate.
+
+1. The firewall needs to be created manually.
+2. You need to install your CNI of choice.
+3. Control plane and worker nodes need to be patched.
+
+  ```bash
+  kubectl patch node <worker-node-name> --patch='{"spec":{"providerID": "metal://<machine-id>"}}'
+  ```
+
+4. Remove the `NoSchedule` taint from all worker nodes.
+
+```bash
+kubectl taint node.cluster.x-k8s.io/uninitialized:NoSchedule-
+```
+
