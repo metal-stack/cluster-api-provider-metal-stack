@@ -732,6 +732,13 @@ func (r *clusterReconciler) status() error {
 	})
 
 	g.Go(func() error {
+		if r.infraCluster.Spec.Firewall == nil {
+			conditionUpdates <- func() {
+				conditions.MarkTrue(r.infraCluster, v1alpha1.ClusterFirewallDeploymentReady)
+			}
+			return nil
+		}
+
 		deploy := &fcmv2.FirewallDeployment{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      r.infraCluster.Name,
@@ -748,11 +755,6 @@ func (r *clusterReconciler) status() error {
 			}
 
 			if apierrors.IsNotFound(err) {
-				if r.infraCluster.Spec.Firewall == nil {
-					conditions.MarkTrue(r.infraCluster, v1alpha1.ClusterFirewallDeploymentReady)
-					return
-				}
-
 				conditions.MarkFalse(r.infraCluster, v1alpha1.ClusterFirewallDeploymentReady, "NotCreated", clusterv1.ConditionSeverityError, "firewall deployment was not yet created")
 				return
 			}
@@ -781,12 +783,13 @@ func (r *clusterReconciler) status() error {
 	}()
 
 	groupErr := g.Wait()
-	if groupErr == nil && allConditionsTrue() {
-		r.infraCluster.Status.Ready = true
-	}
 
 	close(conditionUpdates)
 	<-ready
+
+	if groupErr == nil && allConditionsTrue() {
+		r.infraCluster.Status.Ready = true
+	}
 
 	err := r.client.Status().Update(r.ctx, r.infraCluster)
 
