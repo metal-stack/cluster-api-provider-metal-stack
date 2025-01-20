@@ -64,7 +64,7 @@ spec:
     ipPools:
     - name: default-ipv4-ippool
       blockSize: 26
-      cidr: 10.240.1.0/24
+      cidr: 10.240.0.0/12
       encapsulation: None
     mtu: 1440
   cni:
