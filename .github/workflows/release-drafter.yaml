@@ -43,6 +43,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           name: v${{ steps.draft_release.outputs.resolved_version }}
+          tag_name: ${{ steps.draft_release.outputs.tag_name }}
           draft: true
           fail_on_unmatched_files: true
           files: .release/*
