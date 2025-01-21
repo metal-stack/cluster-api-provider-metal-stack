@@ -32,9 +32,9 @@ const (
 
 	ClusterControlPlaneEndpointDefaultPort = 443
 
-	ClusterNodeNetworkEnsured          clusterv1.ConditionType = "ClusterNodeNetworkEnsured"
-	ClusterControlPlaneEndpointEnsured clusterv1.ConditionType = "ClusterControlPlaneEndpointEnsured"
-	ClusterFirewallDeploymentReady     clusterv1.ConditionType = "ClusterFirewallDeploymentReady"
+	ClusterNodeNetworkEnsured      clusterv1.ConditionType = "ClusterNodeNetworkEnsured"
+	ClusterControlPlaneIPEnsured   clusterv1.ConditionType = "ClusterControlPlaneIPEnsured"
+	ClusterFirewallDeploymentReady clusterv1.ConditionType = "ClusterFirewallDeploymentReady"
 )
 
 var (

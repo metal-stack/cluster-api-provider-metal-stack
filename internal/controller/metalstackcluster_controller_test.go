@@ -270,7 +270,7 @@ var _ = Describe("MetalStackCluster Controller", func() {
 				"Status": Equal(corev1.ConditionTrue),
 			})))
 			Expect(resource.Status.Conditions).To(ContainElement(MatchFields(IgnoreExtras, Fields{
-				"Type":   Equal(v1alpha1.ClusterControlPlaneEndpointEnsured),
+				"Type":   Equal(v1alpha1.ClusterControlPlaneIPEnsured),
 				"Status": Equal(corev1.ConditionTrue),
 			})))
 			Expect(resource.Status.Ready).To(BeTrue())
@@ -384,7 +384,7 @@ var _ = Describe("MetalStackCluster Controller", func() {
 						"Status": Equal(corev1.ConditionTrue),
 					}),
 					MatchFields(IgnoreExtras, Fields{
-						"Type":   Equal(v1alpha1.ClusterControlPlaneEndpointEnsured),
+						"Type":   Equal(v1alpha1.ClusterControlPlaneIPEnsured),
 						"Status": Equal(corev1.ConditionTrue),
 					}),
 				))
@@ -394,7 +394,7 @@ var _ = Describe("MetalStackCluster Controller", func() {
 		})
 
 		When("referenced resources do not exist", func() {
-			It("should fail reconciling", func() {
+			It("should fail reconciling because network does not exist", func() {
 				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
 
 				By("creating the cluster resource and setting the owner reference")
@@ -454,12 +454,76 @@ var _ = Describe("MetalStackCluster Controller", func() {
 					"Reason":  Equal("InternalError"),
 					"Message": ContainSubstring("network not found"),
 				})))
+
+				Expect(resource.Status.Ready).To(BeFalse())
+			})
+			It("should fail reconciling because control plane ip does not exist", func() {
+				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
+
+				By("creating the cluster resource and setting the owner reference")
+				owner := &clusterv1beta1.Cluster{
+					ObjectMeta: metav1.ObjectMeta{
+						GenerateName: "owner-",
+						Namespace:    "default",
+					},
+				}
+				Expect(k8sClient.Create(ctx, owner)).To(Succeed())
+
+				resource.OwnerReferences = []metav1.OwnerReference{
+					*metav1.NewControllerRef(owner, clusterv1beta1.GroupVersion.WithKind("Cluster")),
+				}
+				Expect(k8sClient.Update(ctx, resource)).To(Succeed())
+
+				By("reconciling the resource")
+
+				typeNamespacedName := types.NamespacedName{
+					Name:      resource.Name,
+					Namespace: "default",
+				}
+
+				controllerReconciler.MetalClient, _ = metalgoclient.NewMetalMockClient(testingT, &metalgoclient.MetalMockFns{
+					IP: func(m *mock.Mock) {
+						m.On("FindIP", testcommon.MatchIgnoreContext(testingT, metalip.NewFindIPParams().WithID(controlPlaneIP)), nil).
+							Return(nil, &metalip.FindIPDefault{
+								Payload: &httperrors.HTTPErrorResponse{
+									StatusCode: http.StatusNotFound,
+									Message:    "ip not found",
+								},
+							})
+					},
+					Network: func(m *mock.Mock) {
+						m.On("FindNetwork", testcommon.MatchIgnoreContext(testingT, metalnetwork.NewFindNetworkParams().WithID(nodeNetworkID)), nil).
+							Return(&metalnetwork.FindNetworkOK{
+								Payload: &models.V1NetworkResponse{
+									ID:          &nodeNetworkID,
+									Name:        resource.Name,
+									Description: resource.Namespace + "/" + resource.Name,
+									Labels: map[string]string{
+										"cluster.metal-stack.io/id": string(resource.UID),
+									},
+									Partitionid: "test-partition",
+									Projectid:   "test-project",
+									Prefixes:    []string{"192.168.42.0/24"},
+								},
+							}, nil)
+					},
+				})
+
+				Eventually(func() error {
+					_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+						NamespacedName: typeNamespacedName,
+					})
+					return err
+				}).Should(MatchError(ContainSubstring("not found")))
+
+				Expect(k8sClient.Get(ctx, typeNamespacedName, resource)).ToNot(HaveOccurred())
+
 				Expect(resource.Status.Conditions).To(ContainElement(MatchFields(IgnoreExtras, Fields{
-					"Type":   Equal(v1alpha1.ClusterFirewallDeploymentReady),
+					"Type":   Equal(v1alpha1.ClusterNodeNetworkEnsured),
 					"Status": Equal(corev1.ConditionTrue),
 				})))
 				Expect(resource.Status.Conditions).To(ContainElement(MatchFields(IgnoreExtras, Fields{
-					"Type":    Equal(v1alpha1.ClusterControlPlaneEndpointEnsured),
+					"Type":    Equal(v1alpha1.ClusterControlPlaneIPEnsured),
 					"Status":  Equal(corev1.ConditionFalse),
 					"Reason":  Equal("InternalError"),
 					"Message": ContainSubstring("ip not found"),
