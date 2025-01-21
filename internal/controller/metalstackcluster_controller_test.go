@@ -33,7 +33,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/metal-stack/cluster-api-provider-metal-stack/api/v1alpha1"
-	infrastructurev1alpha1 "github.com/metal-stack/cluster-api-provider-metal-stack/api/v1alpha1"
 	metalip "github.com/metal-stack/metal-go/api/client/ip"
 	metalnetwork "github.com/metal-stack/metal-go/api/client/network"
 	"github.com/metal-stack/metal-go/api/models"
@@ -51,13 +50,13 @@ var _ = Describe("MetalStackCluster Controller", func() {
 	var (
 		ctx                  context.Context
 		cancel               func()
-		resource             *infrastructurev1alpha1.MetalStackCluster
+		resource             *v1alpha1.MetalStackCluster
 		controllerReconciler *MetalStackClusterReconciler
 	)
 
 	BeforeEach(func() {
 		ctx, cancel = context.WithCancel(suiteCtx)
-		resource = &infrastructurev1alpha1.MetalStackCluster{
+		resource = &v1alpha1.MetalStackCluster{
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace:    "default",
 				GenerateName: resourcePrefix,
@@ -109,13 +108,13 @@ var _ = Describe("MetalStackCluster Controller", func() {
 
 	Context("reconciliation with auto-acquiring dependent resources", func() {
 		BeforeEach(func() {
-			resource.Spec = infrastructurev1alpha1.MetalStackClusterSpec{
-				ControlPlaneEndpoint: infrastructurev1alpha1.APIEndpoint{},
+			resource.Spec = v1alpha1.MetalStackClusterSpec{
+				ControlPlaneEndpoint: v1alpha1.APIEndpoint{},
 				ProjectID:            "test-project",
 				NodeNetworkID:        nil,
 				ControlPlaneIP:       nil,
 				Partition:            "test-partition",
-				Firewall: &infrastructurev1alpha1.Firewall{
+				Firewall: &v1alpha1.Firewall{
 					Size:               "v1-small-x86",
 					Image:              "firewall-ubuntu-3.0",
 					AdditionalNetworks: []string{"internet"},
@@ -182,16 +181,6 @@ var _ = Describe("MetalStackCluster Controller", func() {
 					}, nil)
 				},
 				Network: func(m *mock.Mock) {
-					findNetworkResponse := &metalnetwork.FindNetworksOK{}
-
-					m.On("FindNetworks", testcommon.MatchIgnoreContext(testingT, metalnetwork.NewFindNetworksParams().WithBody(&models.V1NetworkFindRequest{
-						Labels: map[string]string{
-							"cluster.metal-stack.io/id": string(resource.UID),
-						},
-						Partitionid: "test-partition",
-						Projectid:   "test-project",
-					})), nil).Return(findNetworkResponse, nil)
-
 					m.On("AllocateNetwork", testcommon.MatchIgnoreContext(testingT, metalnetwork.NewAllocateNetworkParams().WithBody(&models.V1NetworkAllocateRequest{
 						Name:        resource.Name,
 						Description: resource.Namespace + "/" + resource.Name,
@@ -200,17 +189,7 @@ var _ = Describe("MetalStackCluster Controller", func() {
 						},
 						Partitionid: "test-partition",
 						Projectid:   "test-project",
-					})), nil).Run(func(args mock.Arguments) {
-						findNetworkResponse.Payload = []*models.V1NetworkResponse{{
-							Labels: map[string]string{
-								"cluster.metal-stack.io/id": string(resource.UID),
-							},
-							Partitionid: "test-partition",
-							Projectid:   "test-project",
-							ID:          ptr.To("node-network-id"),
-							Prefixes:    []string{"192.168.42.0/24"},
-						}}
-					}).Return(&metalnetwork.AllocateNetworkCreated{
+					})), nil).Return(&metalnetwork.AllocateNetworkCreated{
 						Payload: &models.V1NetworkResponse{
 							Labels: map[string]string{
 								"cluster.metal-stack.io/id": string(resource.UID),
@@ -243,7 +222,7 @@ var _ = Describe("MetalStackCluster Controller", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			Expect(k8sClient.Get(ctx, typeNamespacedName, resource)).To(Succeed())
-			Expect(resource.Finalizers).To(ContainElement(infrastructurev1alpha1.ClusterFinalizer))
+			Expect(resource.Finalizers).To(ContainElement(v1alpha1.ClusterFinalizer))
 
 			// second reconcile
 
@@ -274,7 +253,7 @@ var _ = Describe("MetalStackCluster Controller", func() {
 				"Status": Equal(corev1.ConditionTrue),
 			})))
 			Expect(resource.Status.Ready).To(BeTrue())
-			Expect(resource.Spec.ControlPlaneEndpoint).To(Equal(infrastructurev1alpha1.APIEndpoint{
+			Expect(resource.Spec.ControlPlaneEndpoint).To(Equal(v1alpha1.APIEndpoint{
 				Host: "192.168.42.1",
 				Port: 443,
 			}))
@@ -302,8 +281,8 @@ var _ = Describe("MetalStackCluster Controller", func() {
 			nodeNetworkID = "test-network"
 			controlPlaneIP = "192.168.42.1"
 
-			resource.Spec = infrastructurev1alpha1.MetalStackClusterSpec{
-				ControlPlaneEndpoint: infrastructurev1alpha1.APIEndpoint{},
+			resource.Spec = v1alpha1.MetalStackClusterSpec{
+				ControlPlaneEndpoint: v1alpha1.APIEndpoint{},
 				ProjectID:            "test-project",
 				NodeNetworkID:        &nodeNetworkID,
 				ControlPlaneIP:       &controlPlaneIP,
@@ -351,22 +330,6 @@ var _ = Describe("MetalStackCluster Controller", func() {
 							},
 						}, nil)
 					},
-					Network: func(m *mock.Mock) {
-						m.On("FindNetwork", testcommon.MatchIgnoreContext(testingT, metalnetwork.NewFindNetworkParams().WithID(nodeNetworkID)), nil).
-							Return(&metalnetwork.FindNetworkOK{
-								Payload: &models.V1NetworkResponse{
-									ID:          &nodeNetworkID,
-									Name:        resource.Name,
-									Description: resource.Namespace + "/" + resource.Name,
-									Labels: map[string]string{
-										"cluster.metal-stack.io/id": string(resource.UID),
-									},
-									Partitionid: "test-partition",
-									Projectid:   "test-project",
-									Prefixes:    []string{"192.168.42.0/24"},
-								},
-							}, nil)
-					},
 				})
 
 				Eventually(func() clusterv1beta1.Conditions {
@@ -398,7 +361,7 @@ var _ = Describe("MetalStackCluster Controller", func() {
 		})
 
 		When("referenced resources do not exist", func() {
-			It("should fail reconciling because network does not exist", func() {
+			It("should succeed reconciling even if network does not exist", func() {
 				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
 
 				By("creating the cluster resource and setting the owner reference")
@@ -432,15 +395,6 @@ var _ = Describe("MetalStackCluster Controller", func() {
 								},
 							})
 					},
-					Network: func(m *mock.Mock) {
-						m.On("FindNetwork", testcommon.MatchIgnoreContext(testingT, metalnetwork.NewFindNetworkParams().WithID(nodeNetworkID)), nil).
-							Return(nil, &metalnetwork.FindNetworkDefault{
-								Payload: &httperrors.HTTPErrorResponse{
-									StatusCode: http.StatusNotFound,
-									Message:    "network not found",
-								},
-							})
-					},
 				})
 
 				Eventually(func() error {
@@ -453,10 +407,14 @@ var _ = Describe("MetalStackCluster Controller", func() {
 				Expect(k8sClient.Get(ctx, typeNamespacedName, resource)).ToNot(HaveOccurred())
 
 				Expect(resource.Status.Conditions).To(ContainElement(MatchFields(IgnoreExtras, Fields{
-					"Type":    Equal(v1alpha1.ClusterNodeNetworkEnsured),
+					"Type":   Equal(v1alpha1.ClusterNodeNetworkEnsured),
+					"Status": Equal(corev1.ConditionTrue),
+				})))
+				Expect(resource.Status.Conditions).To(ContainElement(MatchFields(IgnoreExtras, Fields{
+					"Type":    Equal(v1alpha1.ClusterControlPlaneIPEnsured),
 					"Status":  Equal(corev1.ConditionFalse),
 					"Reason":  Equal("InternalError"),
-					"Message": ContainSubstring("network not found"),
+					"Message": ContainSubstring("ip not found"),
 				})))
 
 				Expect(resource.Status.Ready).To(BeFalse())
@@ -494,22 +452,6 @@ var _ = Describe("MetalStackCluster Controller", func() {
 									Message:    "ip not found",
 								},
 							})
-					},
-					Network: func(m *mock.Mock) {
-						m.On("FindNetwork", testcommon.MatchIgnoreContext(testingT, metalnetwork.NewFindNetworkParams().WithID(nodeNetworkID)), nil).
-							Return(&metalnetwork.FindNetworkOK{
-								Payload: &models.V1NetworkResponse{
-									ID:          &nodeNetworkID,
-									Name:        resource.Name,
-									Description: resource.Namespace + "/" + resource.Name,
-									Labels: map[string]string{
-										"cluster.metal-stack.io/id": string(resource.UID),
-									},
-									Partitionid: "test-partition",
-									Projectid:   "test-project",
-									Prefixes:    []string{"192.168.42.0/24"},
-								},
-							}, nil)
 					},
 				})
 

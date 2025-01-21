@@ -189,7 +189,7 @@ func (r *clusterReconciler) reconcile() error {
 		return fmt.Errorf("unable to ensure node network: %w", err)
 	}
 	conditions.MarkTrue(r.infraCluster, v1alpha1.ClusterNodeNetworkEnsured)
-	r.infraCluster.Status.NodeNetworkID = &nodeNetworkID
+	r.infraCluster.Spec.NodeNetworkID = &nodeNetworkID
 
 	r.log.Info("reconciled node network", "network-id", nodeNetworkID)
 
@@ -322,91 +322,36 @@ func (r *clusterReconciler) deleteSshKeyPair(ctx context.Context) error {
 }
 
 func (r *clusterReconciler) ensureNodeNetwork() (string, error) {
-	nws, err := r.findNodeNetwork()
-	if err != nil {
-		return "", err
-	}
-
-	switch len(nws) {
-	case 0:
-		resp, err := r.metalClient.Network().AllocateNetwork(network.NewAllocateNetworkParams().WithBody(&models.V1NetworkAllocateRequest{
-			Projectid:   r.infraCluster.Spec.ProjectID,
-			Partitionid: r.infraCluster.Spec.Partition,
-			Name:        r.infraCluster.GetName(),
-			Description: fmt.Sprintf("%s/%s", r.infraCluster.GetNamespace(), r.infraCluster.GetName()),
-			Labels:      map[string]string{tag.ClusterID: string(r.infraCluster.GetUID())},
-		}).WithContext(r.ctx), nil)
-		if err != nil {
-			return "", fmt.Errorf("error creating node network: %w", err)
-		}
-
-		return *resp.Payload.ID, nil
-	case 1:
-		nw := nws[0]
-
-		if len(nw.Prefixes) == 0 {
-			return "", errors.New("node network exists but the prefix is gone")
-		}
-
-		return *nw.ID, nil
-	default:
-		return "", fmt.Errorf("more than a single node network exists for this cluster, operator investigation is required")
-	}
-}
-
-func (r *clusterReconciler) deleteNodeNetwork() error {
 	if r.infraCluster.Spec.NodeNetworkID != nil {
-		r.log.Info("skip deletion of node network")
-		return nil
+		return *r.infraCluster.Spec.NodeNetworkID, nil
 	}
 
-	nws, err := r.findNodeNetwork()
-	if err != nil {
-		return err
-	}
-
-	switch len(nws) {
-	case 0:
-		return nil
-	case 1:
-		nw := nws[0]
-
-		if nw.ID == nil {
-			return fmt.Errorf("node network id not set")
-		}
-
-		_, err := r.metalClient.Network().FreeNetwork(network.NewFreeNetworkParams().WithID(*nw.ID).WithContext(r.ctx), nil)
-		if err != nil {
-			return err
-		}
-		r.log.Info("deleted node network")
-
-		return nil
-	default:
-		return errors.New("more than a single node network exists for this cluster, operator investigation is required")
-	}
-}
-
-func (r *clusterReconciler) findNodeNetwork() ([]*models.V1NetworkResponse, error) {
-	if r.infraCluster.Spec.NodeNetworkID != nil {
-		resp, err := r.metalClient.Network().FindNetwork(network.NewFindNetworkParams().WithID(*r.infraCluster.Spec.NodeNetworkID).WithContext(r.ctx), nil)
-		if err != nil {
-			return nil, err
-		}
-
-		return []*models.V1NetworkResponse{resp.Payload}, nil
-	}
-
-	resp, err := r.metalClient.Network().FindNetworks(network.NewFindNetworksParams().WithBody(&models.V1NetworkFindRequest{
+	resp, err := r.metalClient.Network().AllocateNetwork(network.NewAllocateNetworkParams().WithBody(&models.V1NetworkAllocateRequest{
 		Projectid:   r.infraCluster.Spec.ProjectID,
 		Partitionid: r.infraCluster.Spec.Partition,
+		Name:        r.infraCluster.GetName(),
+		Description: fmt.Sprintf("%s/%s", r.infraCluster.GetNamespace(), r.infraCluster.GetName()),
 		Labels:      map[string]string{tag.ClusterID: string(r.infraCluster.GetUID())},
 	}).WithContext(r.ctx), nil)
 	if err != nil {
-		return nil, err
+		return "", fmt.Errorf("error creating node network: %w", err)
 	}
 
-	return resp.Payload, nil
+	return *resp.Payload.ID, nil
+}
+
+func (r *clusterReconciler) deleteNodeNetwork() error {
+	if r.infraCluster.Spec.NodeNetworkID == nil {
+		return nil
+	}
+
+	_, err := r.metalClient.Network().FreeNetwork(network.NewFreeNetworkParams().WithID(*r.infraCluster.Spec.NodeNetworkID).WithContext(r.ctx), nil)
+	if err != nil {
+		return err
+	}
+	r.log.Info("deleted node network")
+
+	return nil
 }
 
 func (r *clusterReconciler) ensureControlPlaneIP() (*models.V1IPResponse, error) {

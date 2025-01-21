@@ -38,7 +38,6 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/metal-stack/cluster-api-provider-metal-stack/api/v1alpha1"
-	infrastructurev1alpha1 "github.com/metal-stack/cluster-api-provider-metal-stack/api/v1alpha1"
 	metalgo "github.com/metal-stack/metal-go"
 	ipmodels "github.com/metal-stack/metal-go/api/client/ip"
 	metalmachine "github.com/metal-stack/metal-go/api/client/machine"
@@ -181,7 +180,7 @@ func (r *MetalStackMachineReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		return ctrl.Result{}, nil
 	}
 
-	if infraCluster.Status.NodeNetworkID == nil {
+	if infraCluster.Spec.NodeNetworkID == nil {
 		// this should not happen because before setting this id the cluster status should not become ready, but we check it anyway
 		return ctrl.Result{}, errors.New("waiting until node network id was set to infrastructure cluster status")
 	}
@@ -202,7 +201,7 @@ func (r *MetalStackMachineReconciler) Reconcile(ctx context.Context, req ctrl.Re
 // SetupWithManager sets up the controller with the Manager.
 func (r *MetalStackMachineReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&infrastructurev1alpha1.MetalStackMachine{}).
+		For(&v1alpha1.MetalStackMachine{}).
 		Named("metalstackmachine").
 		Complete(r)
 }
@@ -294,7 +293,7 @@ func (r *machineReconciler) create() (*models.V1MachineResponse, error) {
 		nws = []*models.V1MachineAllocationNetwork{
 			{
 				Autoacquire: ptr.To(true),
-				Networkid:   r.infraCluster.Status.NodeNetworkID,
+				Networkid:   r.infraCluster.Spec.NodeNetworkID,
 			},
 		}
 	)
