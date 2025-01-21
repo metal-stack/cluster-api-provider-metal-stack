@@ -41,7 +41,6 @@ jobs:
 
       - name: Attach release manifests
         uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
         with:
           name: v${{ steps.draft_release.outputs.resolved_version }}
           draft: true
