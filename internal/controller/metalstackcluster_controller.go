@@ -56,6 +56,11 @@ import (
 	metalgo "github.com/metal-stack/metal-go"
 )
 
+var (
+	errProviderIPNotFound     = errors.New("provider ip not found")
+	errProviderIPTooManyFound = errors.New("multiple provider ips found")
+)
+
 // MetalStackClusterReconciler reconciles a MetalStackCluster object
 type MetalStackClusterReconciler struct {
 	MetalClient metalgo.Client
@@ -235,28 +240,20 @@ func (r *clusterReconciler) delete() error {
 		return fmt.Errorf("unable to delete firewall deployment: %w", err)
 	}
 
-	r.log.Info("deleted firewall deployment")
-
 	err = r.deleteControlPlaneIP()
 	if err != nil {
 		return fmt.Errorf("unable to delete control plane ip: %w", err)
 	}
-
-	r.log.Info("deleted control plane ip")
 
 	err = r.deleteNodeNetwork()
 	if err != nil {
 		return fmt.Errorf("unable to delete node network: %w", err)
 	}
 
-	r.log.Info("deleted node network")
-
 	err = r.deleteSshKeyPair(r.ctx)
 	if err != nil {
 		return fmt.Errorf("unable to delete ssh key pair: %w", err)
 	}
-
-	r.log.Info("deleted ssh key pair")
 
 	return err
 }
@@ -325,6 +322,8 @@ func (r *clusterReconciler) deleteSshKeyPair(ctx context.Context) error {
 		return err
 	}
 
+	r.log.Info("deleted ssh key pair")
+
 	return nil
 }
 
@@ -362,6 +361,11 @@ func (r *clusterReconciler) ensureNodeNetwork() (string, error) {
 }
 
 func (r *clusterReconciler) deleteNodeNetwork() error {
+	if r.infraCluster.Spec.NodeNetworkID != nil {
+		r.log.Info("skip deletion of node network")
+		return nil
+	}
+
 	nws, err := r.findNodeNetwork()
 	if err != nil {
 		return err
@@ -381,6 +385,7 @@ func (r *clusterReconciler) deleteNodeNetwork() error {
 		if err != nil {
 			return err
 		}
+		r.log.Info("deleted node network")
 
 		return nil
 	default:
@@ -411,84 +416,90 @@ func (r *clusterReconciler) findNodeNetwork() ([]*models.V1NetworkResponse, erro
 }
 
 func (r *clusterReconciler) ensureControlPlaneIP() (*models.V1IPResponse, error) {
-	ips, err := r.findControlPlaneIP()
-	if err != nil {
+	ip, err := r.findControlPlaneIP()
+	if ip != nil {
+		return ip, nil
+	}
+	if errors.Is(err, errProviderIPTooManyFound) {
+		return nil, fmt.Errorf("more than a single control plane ip exists for this cluster, operator investigation is required")
+	}
+	if err != nil && !errors.Is(err, errProviderIPNotFound) {
 		return nil, err
 	}
 
-	switch len(ips) {
-	case 0:
-		nwResp, err := r.metalClient.Network().FindNetworks(network.NewFindNetworksParams().WithBody(&models.V1NetworkFindRequest{
-			Labels: map[string]string{
-				tag.NetworkDefault: "",
-			},
-		}).WithContext(r.ctx), nil)
-		if err != nil {
-			return nil, fmt.Errorf("error finding default network: %w", err)
-		}
-
-		if len(nwResp.Payload) != 1 {
-			return nil, fmt.Errorf("no distinct default network configured in the metal-api")
-		}
-
-		resp, err := r.metalClient.IP().AllocateIP(ipmodels.NewAllocateIPParams().WithBody(&models.V1IPAllocateRequest{
-			Description: fmt.Sprintf("%s/%s control plane ip", r.infraCluster.GetNamespace(), r.infraCluster.GetName()),
-			Name:        r.infraCluster.GetName() + "-control-plane",
-			Networkid:   nwResp.Payload[0].ID,
-			Projectid:   &r.infraCluster.Spec.ProjectID,
-			Tags: []string{
-				tag.New(tag.ClusterID, string(r.infraCluster.GetUID())),
-				v1alpha1.TagControlPlanePurpose,
-			},
-			Type: ptr.To(models.V1IPBaseTypeStatic),
-		}).WithContext(r.ctx), nil)
-		if err != nil {
-			return nil, fmt.Errorf("error creating ip: %w", err)
-		}
-
-		return resp.Payload, nil
-	case 1:
-		return ips[0], nil
-	default:
-		return nil, fmt.Errorf("more than a single control plane ip exists for this cluster, operator investigation is required")
+	nwResp, err := r.metalClient.Network().FindNetworks(network.NewFindNetworksParams().WithBody(&models.V1NetworkFindRequest{
+		Labels: map[string]string{
+			tag.NetworkDefault: "",
+		},
+	}).WithContext(r.ctx), nil)
+	if err != nil {
+		return nil, fmt.Errorf("error finding default network: %w", err)
 	}
+
+	if len(nwResp.Payload) != 1 {
+		return nil, fmt.Errorf("no distinct default network configured in the metal-api")
+	}
+
+	resp, err := r.metalClient.IP().AllocateIP(ipmodels.NewAllocateIPParams().WithBody(&models.V1IPAllocateRequest{
+		Description: fmt.Sprintf("%s/%s control plane ip", r.infraCluster.GetNamespace(), r.infraCluster.GetName()),
+		Name:        r.infraCluster.GetName() + "-control-plane",
+		Networkid:   nwResp.Payload[0].ID,
+		Projectid:   &r.infraCluster.Spec.ProjectID,
+		Tags: []string{
+			tag.New(tag.ClusterID, string(r.infraCluster.GetUID())),
+			v1alpha1.TagControlPlanePurpose,
+		},
+		Type: ptr.To(models.V1IPBaseTypeEphemeral),
+	}).WithContext(r.ctx), nil)
+	if err != nil {
+		return nil, fmt.Errorf("error creating ip: %w", err)
+	}
+
+	return resp.Payload, nil
 }
 
 func (r *clusterReconciler) deleteControlPlaneIP() error {
-	ips, err := r.findControlPlaneIP()
+	if r.infraCluster.Spec.ControlPlaneIP != nil {
+		r.log.Info("skip deletion of provided control plane ip")
+		return nil
+	}
+	ip, err := r.findControlPlaneIP()
+	if err != nil && errors.Is(err, errProviderIPNotFound) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("unable to delete control plane ip: %w", err)
+	}
+	if ip.Type != nil && *ip.Type == models.V1IPBaseTypeStatic {
+		r.log.Info("skip deletion of static control plane ip")
+		return nil
+	}
+
+	if ip.Ipaddress == nil {
+		return fmt.Errorf("control plane ip address not set")
+	}
+
+	if ip.Type != nil && *ip.Type == models.V1IPAllocateRequestTypeStatic {
+		r.log.Info("skipping deletion of static control plane ip", "ip", *ip.Ipaddress)
+		return nil
+	}
+	_, err = r.metalClient.IP().FreeIP(ipmodels.NewFreeIPParams().WithID(*ip.Ipaddress).WithContext(r.ctx), nil)
 	if err != nil {
 		return err
 	}
+	r.log.Info("deleted control plane ip", "address", *ip.Ipaddress)
 
-	switch len(ips) {
-	case 0:
-		return nil
-	case 1:
-		ip := ips[0]
-
-		if ip.Ipaddress == nil {
-			return fmt.Errorf("control plane ip address not set")
-		}
-
-		_, err := r.metalClient.IP().FreeIP(ipmodels.NewFreeIPParams().WithID(*ip.Ipaddress).WithContext(r.ctx), nil)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	default:
-		return fmt.Errorf("more than a single control plane ip exists for this cluster, operator investigation is required")
-	}
+	return nil
 }
 
-func (r *clusterReconciler) findControlPlaneIP() ([]*models.V1IPResponse, error) {
+func (r *clusterReconciler) findControlPlaneIP() (*models.V1IPResponse, error) {
 	if r.infraCluster.Spec.ControlPlaneIP != nil {
 		resp, err := r.metalClient.IP().FindIP(ipmodels.NewFindIPParams().WithID(*r.infraCluster.Spec.ControlPlaneIP).WithContext(r.ctx), nil)
 		if err != nil {
 			return nil, err
 		}
 
-		return []*models.V1IPResponse{resp.Payload}, nil
+		return resp.Payload, nil
 	}
 
 	resp, err := r.metalClient.IP().FindIPs(ipmodels.NewFindIPsParams().WithBody(&models.V1IPFindRequest{
@@ -502,7 +513,14 @@ func (r *clusterReconciler) findControlPlaneIP() ([]*models.V1IPResponse, error)
 		return nil, err
 	}
 
-	return resp.Payload, nil
+	switch len(resp.Payload) {
+	case 0:
+		return nil, errProviderIPNotFound
+	case 1:
+		return resp.Payload[0], nil
+	default:
+		return nil, errProviderIPTooManyFound
+	}
 }
 
 func (r *clusterReconciler) ensureFirewallDeployment(nodeNetworkID, sshPubKey string) (*fcmv2.FirewallDeployment, error) {
@@ -649,6 +667,8 @@ func (r *clusterReconciler) deleteFirewallDeployment() error {
 			return fmt.Errorf("error deleting firewall deployment: %w", err)
 		}
 
+		r.log.Info("deleting firewall deployment")
+
 		return errors.New("firewall deployment was deleted, process is still ongoing")
 	}
 
@@ -702,29 +722,29 @@ func (r *clusterReconciler) status() error {
 	})
 
 	g.Go(func() error {
-		ips, err := r.findControlPlaneIP()
+		ip, err := r.findControlPlaneIP()
 
 		conditionUpdates <- func() {
-			if err != nil {
-				conditions.MarkFalse(r.infraCluster, v1alpha1.ClusterControlPlaneEndpointEnsured, "InternalError", clusterv1.ConditionSeverityError, "%s", err.Error())
-				return
-			}
-
-			switch len(ips) {
-			case 0:
+			if errors.Is(err, errProviderIPNotFound) {
 				if r.infraCluster.Spec.ControlPlaneEndpoint.Host != "" {
 					conditions.MarkTrue(r.infraCluster, v1alpha1.ClusterControlPlaneEndpointEnsured)
 				} else {
 					conditions.MarkFalse(r.infraCluster, v1alpha1.ClusterControlPlaneEndpointEnsured, "NotCreated", clusterv1.ConditionSeverityError, "control plane ip was not yet created")
 				}
-			case 1:
-				if r.infraCluster.Spec.ControlPlaneEndpoint.Host == *ips[0].Ipaddress {
-					conditions.MarkTrue(r.infraCluster, v1alpha1.ClusterControlPlaneEndpointEnsured)
-				} else {
-					conditions.MarkFalse(r.infraCluster, v1alpha1.ClusterControlPlaneEndpointEnsured, "NotSet", clusterv1.ConditionSeverityWarning, "control plane ip was not yet patched into the cluster's spec")
-				}
-			default:
+
+			}
+			if errors.Is(err, errProviderIPTooManyFound) {
 				conditions.MarkFalse(r.infraCluster, v1alpha1.ClusterControlPlaneEndpointEnsured, "InternalError", clusterv1.ConditionSeverityError, "more than a single control plane ip exists for this cluster, operator investigation is required")
+			}
+			if err != nil {
+				conditions.MarkFalse(r.infraCluster, v1alpha1.ClusterControlPlaneEndpointEnsured, "InternalError", clusterv1.ConditionSeverityError, "%s", err.Error())
+				return
+			}
+
+			if r.infraCluster.Spec.ControlPlaneEndpoint.Host == *ip.Ipaddress {
+				conditions.MarkTrue(r.infraCluster, v1alpha1.ClusterControlPlaneEndpointEnsured)
+			} else {
+				conditions.MarkFalse(r.infraCluster, v1alpha1.ClusterControlPlaneEndpointEnsured, "NotSet", clusterv1.ConditionSeverityWarning, "control plane ip was not yet patched into the cluster's spec")
 			}
 		}
 
