@@ -1,0 +1,45 @@
+export METAL_API_URL=http://metal.172.17.0.1.nip.io:8080
+export METAL_API_HMAC=metal-admin
+
+export METAL_PROJECT_ID=00000000-0000-0000-0000-000000000001
+export POD_CIDR=10.240.0.0/12
+export METAL_PARTITION=mini-lab
+
+export FIREWALL_MACHINE_SIZE=v1-small-x86
+export FIREWALL_MACHINE_IMAGE=
+export FIREWALL_NETWORKS=[internet]
+
+export NODE_NETWORK_ID=00000000-0000-0000-0000-000000000002
+export CONTROL_PLANE_ENDPOINT=203.0.113.129:443
+export CONTROL_PLANE_PORT=443
+export CONTROL_PLANE_MACHINE_SIZE=v1-small-x86
+export CONTROL_PLANE_MACHINE_IMAGE=ubuntu-24.04
+
+export WORKER_MACHINE_IMAGE=ubuntu-24.04
+export WORKER_MACHINE_SIZE=v1-small-x86
+
+export BOOTSTRAP_SCRIPT="
+            #!/usr/bin/env bash
+            set -eo pipefail
+            set +x
+
+            apt update
+            apt install conntrack
+
+            CNI_PLUGINS_VERSION="v1.3.0"
+            DEST="/opt/cni/bin"
+            mkdir -p "$DEST"
+            curl -L "https://github.com/containernetworking/plugins/releases/download/${CNI_PLUGINS_VERSION}/cni-plugins-linux-amd64-${CNI_PLUGINS_VERSION}.tgz" | tar -C "$DEST" -xz
+
+            RELEASE="${KUBERNETES_VERSION}"
+            cd /usr/local/bin
+            curl -L --remote-name-all https://dl.k8s.io/release/${RELEASE}/bin/linux/amd64/{kubeadm,kubelet,kubectl}
+            chmod +x {kubeadm,kubelet,kubectl}
+
+            RELEASE_VERSION="v0.16.2"
+            curl -sSL "https://raw.githubusercontent.com/kubernetes/release/${RELEASE_VERSION}/cmd/krel/templates/latest/kubelet/kubelet.service" | sed "s:/usr/bin:/usr/local/bin:g" | tee /usr/lib/systemd/system/kubelet.service
+            mkdir -p /usr/lib/systemd/system/kubelet.service.d
+            curl -sSL "https://raw.githubusercontent.com/kubernetes/release/${RELEASE_VERSION}/cmd/krel/templates/latest/kubeadm/10-kubeadm.conf" | sed "s:/usr/bin:/usr/local/bin:g" | tee /usr/lib/systemd/system/kubelet.service.d/10-kubeadm.conf
+
+            systemctl enable kubelet.service
+"

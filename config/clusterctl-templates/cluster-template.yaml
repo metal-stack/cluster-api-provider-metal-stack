@@ -1,0 +1,213 @@
+---
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: Cluster
+metadata:
+  name: ${CLUSTER_NAME}
+  namespace: ${NAMESPACE}
+spec:
+  clusterNetwork:
+    pods:
+      cidrBlocks: ${POD_CIDR:=["10.240.0.0/12"]}
+  controlPlaneRef:
+    apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+    kind: KubeadmControlPlane
+    name: ${CLUSTER_NAME}-controlplane
+    namespace: ${NAMESPACE}
+  infrastructureRef:
+    apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+    kind: MetalStackCluster
+    name: ${CLUSTER_NAME}
+    namespace: ${NAMESPACE}
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+kind: MetalStackCluster
+metadata:
+  name: ${CLUSTER_NAME}
+  namespace: ${NAMESPACE}
+spec:
+  projectID: ${METAL_PROJECT_ID}
+  partition: ${METAL_PARTITION}
+  firewall:
+    size: ${FIREWALL_MACHINE_SIZE}
+    image: ${FIREWALL_MACHINE_IMAGE}
+    networks: ${FIREWALL_NETWORKS:=[internet]}
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+kind: MetalStackMachineTemplate
+metadata:
+  name: ${CLUSTER_NAME}-controlplane
+  namespace: ${NAMESPACE}
+spec:
+  template:
+    spec:
+      size: ${CONTROL_PLANE_MACHINE_SIZE}
+      image: ${CONTROL_PLANE_MACHINE_IMAGE}
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+kind: MetalStackMachineTemplate
+metadata:
+  name: ${CLUSTER_NAME}-worker
+spec:
+  template:
+    spec:
+      size: ${WORKER_MACHINE_SIZE}
+      image: ${WORKER_MACHINE_IMAGE}
+---
+kind: KubeadmControlPlane
+apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+metadata:
+  name: ${CLUSTER_NAME}-controlplane
+spec:
+  replicas: ${CONTROL_PLANE_MACHINE_COUNT}
+  version: ${KUBERNETES_VERSION}
+  machineTemplate:
+    nodeDrainTimeout: 10m
+    infrastructureRef:
+      kind: MetalStackMachineTemplate
+      apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+      name: ${CLUSTER_NAME}-controlplane
+  kubeadmConfigSpec:
+    format: ignition
+    clusterConfiguration:
+      controlPlaneEndpoint: ${CONTROL_PLANE_ENDPOINT}
+    initConfiguration:
+      localAPIEndpoint:
+        bindPort: ${CONTROL_PLANE_PORT:=443}
+      nodeRegistration: {}
+    joinConfiguration:
+      controlPlane: {}
+      nodeRegistration: {}
+    ignition:
+      containerLinuxConfig:
+        additionalConfig: |
+          systemd:
+            units:
+            - name: cluster-api-init.service
+              enable: true
+              contents: |-
+                [Unit]
+                Description=Prepares the node for bootstrapping with cluster-api kubeadm
+                Before=kubeadm.service
+                After=network-online.target
+                Wants=network-online.target
+                [Service]
+                Type=oneshot
+                Restart=on-failure
+                RestartSec=5
+                StartLimitBurst=0
+                EnvironmentFile=/etc/environment
+                ExecStart=/var/lib/cluster-api-init/bootstrap.sh
+                [Install]
+                WantedBy=multi-user.target
+    files:
+      - path: /var/lib/cluster-api-init/bootstrap.sh
+        owner: "root:root"
+        permissions: "0744"
+        content: ${BOOTSTRAP_SCRIPT:="
+            #!/usr/bin/env bash
+            set -eo pipefail
+            set +x
+
+            apt update
+            apt install conntrack
+
+            CNI_PLUGINS_VERSION="v1.3.0"
+            DEST="/opt/cni/bin"
+            mkdir -p "$DEST"
+            curl -L "https://github.com/containernetworking/plugins/releases/download/$CNI_PLUGINS_VERSION/cni-plugins-linux-amd64-$CNI_PLUGINS_VERSION.tgz" | tar -C "$DEST" -xz
+
+            RELEASE="${KUBERNETES_VERSION}"
+            cd /usr/local/bin
+            curl -L --remote-name-all https://dl.k8s.io/release/${RELEASE}/bin/linux/amd64/{kubeadm,kubelet,kubectl}
+            chmod +x {kubeadm,kubelet,kubectl}
+
+            RELEASE_VERSION="v0.16.2"
+            curl -sSL "https://raw.githubusercontent.com/kubernetes/release/$RELEASE_VERSION/cmd/krel/templates/latest/kubelet/kubelet.service" | sed "s:/usr/bin:/usr/local/bin:g" | tee /usr/lib/systemd/system/kubelet.service
+            mkdir -p /usr/lib/systemd/system/kubelet.service.d
+            curl -sSL "https://raw.githubusercontent.com/kubernetes/release/$RELEASE_VERSION/cmd/krel/templates/latest/kubeadm/10-kubeadm.conf" | sed "s:/usr/bin:/usr/local/bin:g" | tee /usr/lib/systemd/system/kubelet.service.d/10-kubeadm.conf
+
+            systemctl enable kubelet.service
+"}
+      - path: /etc/containerd/config.toml
+        owner: "root:root"
+        permissions: "0644"
+        content: |
+          disabled_plugins = []
+---
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: MachineDeployment
+metadata:
+  name: ${CLUSTER_NAME}-md-0
+  labels:
+    cluster.x-k8s.io/cluster-name: ${CLUSTER_NAME}
+    nodepool: nodepool-0
+spec:
+  clusterName: ${CLUSTER_NAME}
+  replicas: ${WORKER_MACHINE_COUNT}
+  selector:
+    matchLabels:
+      cluster.x-k8s.io/cluster-name: ${CLUSTER_NAME}
+      nodepool: nodepool-0
+  template:
+    metadata:
+      labels:
+        cluster.x-k8s.io/cluster-name: ${CLUSTER_NAME}
+        nodepool: nodepool-0
+    spec:
+      nodeDrainTimeout: 120s
+      clusterName: ${CLUSTER_NAME}
+      version: "${KUBERNETES_VERSION}"
+      bootstrap:
+        configRef:
+          name: ${CLUSTER_NAME}-md-0
+          apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+          kind: KubeadmConfigTemplate
+      infrastructureRef:
+        name: ${CLUSTER_NAME}-worker
+        apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+        kind: MetalStackMachineTemplate
+---
+apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+kind: KubeadmConfigTemplate
+metadata:
+  name: ${CLUSTER_NAME}-md-0
+spec:
+  template:
+    spec:
+      format: ignition
+      clusterConfiguration:
+        controlPlaneEndpoint: ${CONTROL_PLANE_ENDPOINT}
+      joinConfiguration:
+        nodeRegistration: {}
+      ignition:
+        containerLinuxConfig:
+          additionalConfig: |
+            systemd:
+              units:
+              - name: cluster-api-init.service
+                enable: true
+                contents: |-
+                  [Unit]
+                  Description=Prepares the node for bootstrapping with cluster-api kubeadm
+                  Before=kubeadm.service
+                  After=network-online.target
+                  Wants=network-online.target
+                  [Service]
+                  Type=oneshot
+                  Restart=on-failure
+                  RestartSec=5
+                  StartLimitBurst=0
+                  EnvironmentFile=/etc/environment
+                  ExecStart=/var/lib/cluster-api-init/bootstrap.sh
+                  [Install]
+                  WantedBy=multi-user.target
+      files:
+        - path: /var/lib/cluster-api-init/bootstrap.sh
+          owner: "root:root"
+          permissions: "0744"
+          content: ${BOOTSTRAP_SCRIPT}
+        - path: /etc/containerd/config.toml
+          owner: "root:root"
+          permissions: "0644"
+          content: |
+            disabled_plugins = []
