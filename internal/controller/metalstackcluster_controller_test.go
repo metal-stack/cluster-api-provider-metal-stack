@@ -273,6 +273,7 @@ var _ = Describe("MetalStackCluster Controller", func() {
 				"Type":   Equal(v1alpha1.ClusterControlPlaneEndpointEnsured),
 				"Status": Equal(corev1.ConditionTrue),
 			})))
+			Expect(resource.Status.Ready).To(BeTrue())
 
 			By("ssh keypair generation")
 			sshSecret := &corev1.Secret{
@@ -386,6 +387,8 @@ var _ = Describe("MetalStackCluster Controller", func() {
 						"Status": Equal(corev1.ConditionTrue),
 					}),
 				))
+
+				Expect(resource.Status.Ready).To(BeTrue())
 			})
 		})
 
@@ -460,6 +463,8 @@ var _ = Describe("MetalStackCluster Controller", func() {
 					"Reason":  Equal("InternalError"),
 					"Message": ContainSubstring("ip not found"),
 				})))
+
+				Expect(resource.Status.Ready).To(BeFalse())
 			})
 		})
 	})
