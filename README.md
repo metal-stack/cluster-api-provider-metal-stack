@@ -63,10 +63,3 @@ clusterctl generate cluster example --kubernetes-version v1.30.6 --infrastructur
   ```bash
   kubectl patch node <worker-node-name> --patch='{"spec":{"providerID": "metal://<machine-id>"}}'
   ```
-
-4. Remove the `NoSchedule` taint from all worker nodes.
-
-```bash
-kubectl taint node.cluster.x-k8s.io/uninitialized:NoSchedule-
-```
-
