@@ -183,11 +183,11 @@ func (r *MetalStackMachineReconciler) Reconcile(ctx context.Context, req ctrl.Re
 
 	if infraCluster.Status.NodeNetworkID == nil {
 		// this should not happen because before setting this id the cluster status should not become ready, but we check it anyway
-		return ctrl.Result{}, errors.New("waiting until node network id was set to cluster status")
+		return ctrl.Result{}, errors.New("waiting until node network id was set to infrastructure cluster status")
 	}
 
 	if infraCluster.Spec.ControlPlaneEndpoint.Host == "" {
-		return ctrl.Result{}, errors.New("waiting until control plane ip was set to cluster spec")
+		return ctrl.Result{}, errors.New("waiting until control plane ip was set to infrastructure cluster spec")
 	}
 
 	if machine.Spec.Bootstrap.DataSecretName == nil {

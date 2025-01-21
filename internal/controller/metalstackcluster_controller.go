@@ -145,7 +145,9 @@ func (r *MetalStackClusterReconciler) Reconcile(ctx context.Context, req ctrl.Re
 			return ctrl.Result{}, fmt.Errorf("unable to add finalizer: %w", err)
 		}
 
-		return ctrl.Result{}, nil
+		err = r.Client.Status().Update(ctx, infraCluster)
+
+		return ctrl.Result{}, err
 	}
 
 	helper, err := patch.NewHelper(infraCluster, r.Client)
@@ -155,15 +157,11 @@ func (r *MetalStackClusterReconciler) Reconcile(ctx context.Context, req ctrl.Re
 
 	err = reconciler.reconcile()
 
-	statusErr := r.Client.Status().Update(ctx, infraCluster)
-	if statusErr != nil {
-		err = errors.Join(err, fmt.Errorf("failed to update status: %w", statusErr))
-	}
-
 	updateErr := helper.Patch(ctx, infraCluster)
 	if updateErr != nil {
 		err = errors.Join(err, fmt.Errorf("failed to update infra cluster: %w", updateErr))
 	}
+
 	return ctrl.Result{}, err
 }
 
@@ -191,6 +189,7 @@ func (r *clusterReconciler) reconcile() error {
 		return fmt.Errorf("unable to ensure node network: %w", err)
 	}
 	conditions.MarkTrue(r.infraCluster, v1alpha1.ClusterNodeNetworkEnsured)
+	r.infraCluster.Status.NodeNetworkID = &nodeNetworkID
 
 	r.log.Info("reconciled node network", "network-id", nodeNetworkID)
 
@@ -210,6 +209,7 @@ func (r *clusterReconciler) reconcile() error {
 			Host: *ip.Ipaddress,
 			Port: v1alpha1.ClusterControlPlaneEndpointDefaultPort,
 		}
+
 	}
 
 	fwdeploy, err := r.ensureFirewallDeployment(nodeNetworkID, sshPubKey)

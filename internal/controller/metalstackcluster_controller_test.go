@@ -274,6 +274,10 @@ var _ = Describe("MetalStackCluster Controller", func() {
 				"Status": Equal(corev1.ConditionTrue),
 			})))
 			Expect(resource.Status.Ready).To(BeTrue())
+			Expect(resource.Spec.ControlPlaneEndpoint).To(Equal(infrastructurev1alpha1.APIEndpoint{
+				Host: "192.168.42.1",
+				Port: 443,
+			}))
 
 			By("ssh keypair generation")
 			sshSecret := &corev1.Secret{
