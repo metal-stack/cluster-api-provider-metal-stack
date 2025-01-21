@@ -41,4 +41,4 @@ jobs:
       with:
         context: .
         push: true
-        tags: ${{ env.REGISTRY }}/metal-stack/capms-controller:${{ env.tag }}
+        tags: ${{ env.REGISTRY }}/metal-stack/cluster-api-metal-stack-controller:${{ env.tag }}

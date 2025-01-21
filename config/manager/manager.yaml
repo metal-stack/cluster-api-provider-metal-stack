@@ -33,48 +33,48 @@ spec:
         seccompProfile:
           type: RuntimeDefault
       containers:
-        - env:
-            - name: METAL_API_URL
-              valueFrom:
-                secretKeyRef:
-                  name: controller-manager-config
-                  key: api-url
-            - name: METAL_API_HMAC
-              valueFrom:
-                secretKeyRef:
-                  name: controller-manager-config
-                  key: api-hmac
-          command:
-            - /manager
-          args:
-            - --leader-elect
-            - --health-probe-bind-address=:8081
-          image: controller:latest
-          imagePullPolicy: IfNotPresent
-          name: manager
-          securityContext:
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop:
-                - "ALL"
-          livenessProbe:
-            httpGet:
-              path: /healthz
-              port: 8081
-            initialDelaySeconds: 15
-            periodSeconds: 20
-          readinessProbe:
-            httpGet:
-              path: /readyz
-              port: 8081
-            initialDelaySeconds: 5
-            periodSeconds: 10
-          resources:
-            limits:
-              cpu: 500m
-              memory: 128Mi
-            requests:
-              cpu: 10m
-              memory: 64Mi
+      - env:
+          - name: METAL_API_URL
+            valueFrom:
+              secretKeyRef:
+                name: controller-manager-config
+                key: api-url
+          - name: METAL_API_HMAC
+            valueFrom:
+              secretKeyRef:
+                name: controller-manager-config
+                key: api-hmac
+        command:
+        - /manager
+        args:
+          - --leader-elect
+          - --health-probe-bind-address=:8081
+        image: controller:latest
+        imagePullPolicy: IfNotPresent
+        name: manager
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - "ALL"
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          limits:
+            cpu: 500m
+            memory: 128Mi
+          requests:
+            cpu: 10m
+            memory: 64Mi
       serviceAccountName: controller-manager
       terminationGracePeriodSeconds: 10

@@ -1,5 +1,5 @@
 # Image URL to use all building/pushing image targets
-IMG_NAME ?= ghcr.io/metal-stack/capms-controller
+IMG_NAME ?= ghcr.io/metal-stack/cluster-api-metal-stack-controller
 IMG_TAG ?= latest
 IMG ?= ${IMG_NAME}:${IMG_TAG}
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
@@ -52,8 +52,8 @@ release-manifests: $(KUSTOMIZE) build-installer ## Builds the manifests to publi
 	$(KUSTOMIZE) build config/default > $(RELEASE_DIR)/infrastructure-components.yaml
 	sed -i 's!image: $(IMG_NAME):latest!image: $(IMG_NAME):$(IMG_TAG)!' $(RELEASE_DIR)/infrastructure-components.yaml
 	cp metadata.yaml $(RELEASE_DIR)/metadata.yaml
-	# cp examples/clusterctl-templates/clusterctl-cluster.yaml $(RELEASE_DIR)/cluster-template.yaml
-	# cp examples/clusterctl-templates/example_variables.rc $(RELEASE_DIR)/example_variables.rc
+	cp config/clusterctl-templates/cluster-template.yaml $(RELEASE_DIR)/cluster-template.yaml
+	cp config/clusterctl-templates/example_variables.rc $(RELEASE_DIR)/example_variables.rc
 
 ##@ Development
 
