@@ -18,7 +18,6 @@ package controller
 
 import (
 	"context"
-	"net/http"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -37,8 +36,6 @@ import (
 	metalnetwork "github.com/metal-stack/metal-go/api/client/network"
 	"github.com/metal-stack/metal-go/api/models"
 	metalgoclient "github.com/metal-stack/metal-go/test/client"
-	"github.com/metal-stack/metal-lib/httperrors"
-	"github.com/metal-stack/metal-lib/pkg/pointer"
 	"github.com/metal-stack/metal-lib/pkg/testcommon"
 
 	clusterv1beta1 "sigs.k8s.io/cluster-api/api/v1beta1"
@@ -148,16 +145,6 @@ var _ = Describe("MetalStackCluster Controller", func() {
 
 			controllerReconciler.MetalClient, _ = metalgoclient.NewMetalMockClient(testingT, &metalgoclient.MetalMockFns{
 				IP: func(m *mock.Mock) {
-					findIPResponse := &metalip.FindIPsOK{}
-
-					m.On("FindIPs", testcommon.MatchIgnoreContext(testingT, metalip.NewFindIPsParams().WithBody(&models.V1IPFindRequest{
-						Projectid: "test-project",
-						Tags: []string{
-							"cluster.metal-stack.io/id=" + string(resource.UID),
-							"metal-stack.infrastructure.cluster.x-k8s.io/purpose=control-plane",
-						},
-					})), nil).Return(findIPResponse, nil)
-
 					m.On("AllocateIP", testcommon.MatchIgnoreContext(testingT, metalip.NewAllocateIPParams().WithBody(&models.V1IPAllocateRequest{
 						Tags: []string{
 							"cluster.metal-stack.io/id=" + string(resource.UID),
@@ -168,13 +155,7 @@ var _ = Describe("MetalStackCluster Controller", func() {
 						Networkid:   ptr.To("internet"),
 						Projectid:   ptr.To("test-project"),
 						Type:        ptr.To("ephemeral"),
-					})), nil).Run(func(args mock.Arguments) {
-						findIPResponse.Payload = []*models.V1IPResponse{
-							{
-								Ipaddress: ptr.To("192.168.42.1"),
-							},
-						}
-					}).Return(&metalip.AllocateIPCreated{
+					})), nil).Return(&metalip.AllocateIPCreated{
 						Payload: &models.V1IPResponse{
 							Ipaddress: ptr.To("192.168.42.1"),
 						},
@@ -316,21 +297,7 @@ var _ = Describe("MetalStackCluster Controller", func() {
 					Namespace: "default",
 				}
 
-				controllerReconciler.MetalClient, _ = metalgoclient.NewMetalMockClient(testingT, &metalgoclient.MetalMockFns{
-					IP: func(m *mock.Mock) {
-						m.On("FindIP", testcommon.MatchIgnoreContext(testingT, metalip.NewFindIPParams().WithID(controlPlaneIP)), nil).Return(&metalip.FindIPOK{
-							Payload: &models.V1IPResponse{
-								Ipaddress: &controlPlaneIP,
-								Projectid: pointer.Pointer("test-project"),
-								Tags: []string{
-									"cluster.metal-stack.io/id=" + string(resource.UID),
-									"metal-stack.infrastructure.cluster.x-k8s.io/purpose=control-plane",
-								},
-								Type: ptr.To(models.V1IPBaseTypeStatic),
-							},
-						}, nil)
-					},
-				})
+				controllerReconciler.MetalClient, _ = metalgoclient.NewMetalMockClient(testingT, &metalgoclient.MetalMockFns{})
 
 				Eventually(func() clusterv1beta1.Conditions {
 					_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
@@ -361,7 +328,7 @@ var _ = Describe("MetalStackCluster Controller", func() {
 		})
 
 		When("referenced resources do not exist", func() {
-			It("should succeed reconciling even if network does not exist", func() {
+			It("should succeed reconciling even if linked resources do not exist", func() {
 				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
 
 				By("creating the cluster resource and setting the owner reference")
@@ -385,97 +352,31 @@ var _ = Describe("MetalStackCluster Controller", func() {
 					Namespace: "default",
 				}
 
-				controllerReconciler.MetalClient, _ = metalgoclient.NewMetalMockClient(testingT, &metalgoclient.MetalMockFns{
-					IP: func(m *mock.Mock) {
-						m.On("FindIP", testcommon.MatchIgnoreContext(testingT, metalip.NewFindIPParams().WithID(controlPlaneIP)), nil).
-							Return(nil, &metalip.FindIPDefault{
-								Payload: &httperrors.HTTPErrorResponse{
-									StatusCode: http.StatusNotFound,
-									Message:    "ip not found",
-								},
-							})
-					},
-				})
-
-				Eventually(func() error {
+				Eventually(func() clusterv1beta1.Conditions {
 					_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
 						NamespacedName: typeNamespacedName,
 					})
-					return err
-				}).Should(MatchError(ContainSubstring("not found")))
+					Expect(err).ToNot(HaveOccurred())
 
-				Expect(k8sClient.Get(ctx, typeNamespacedName, resource)).ToNot(HaveOccurred())
+					Expect(k8sClient.Get(ctx, typeNamespacedName, resource)).ToNot(HaveOccurred())
 
-				Expect(resource.Status.Conditions).To(ContainElement(MatchFields(IgnoreExtras, Fields{
-					"Type":   Equal(v1alpha1.ClusterNodeNetworkEnsured),
-					"Status": Equal(corev1.ConditionTrue),
-				})))
-				Expect(resource.Status.Conditions).To(ContainElement(MatchFields(IgnoreExtras, Fields{
-					"Type":    Equal(v1alpha1.ClusterControlPlaneIPEnsured),
-					"Status":  Equal(corev1.ConditionFalse),
-					"Reason":  Equal("InternalError"),
-					"Message": ContainSubstring("ip not found"),
-				})))
+					return resource.Status.Conditions
+				}, "20s").Should(ContainElements(
+					MatchFields(IgnoreExtras, Fields{
+						"Type":   Equal(v1alpha1.ClusterNodeNetworkEnsured),
+						"Status": Equal(corev1.ConditionTrue),
+					}),
+					MatchFields(IgnoreExtras, Fields{
+						"Type":   Equal(v1alpha1.ClusterFirewallDeploymentReady),
+						"Status": Equal(corev1.ConditionTrue),
+					}),
+					MatchFields(IgnoreExtras, Fields{
+						"Type":   Equal(v1alpha1.ClusterControlPlaneIPEnsured),
+						"Status": Equal(corev1.ConditionTrue),
+					}),
+				))
 
-				Expect(resource.Status.Ready).To(BeFalse())
-			})
-			It("should fail reconciling because control plane ip does not exist", func() {
-				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
-
-				By("creating the cluster resource and setting the owner reference")
-				owner := &clusterv1beta1.Cluster{
-					ObjectMeta: metav1.ObjectMeta{
-						GenerateName: "owner-",
-						Namespace:    "default",
-					},
-				}
-				Expect(k8sClient.Create(ctx, owner)).To(Succeed())
-
-				resource.OwnerReferences = []metav1.OwnerReference{
-					*metav1.NewControllerRef(owner, clusterv1beta1.GroupVersion.WithKind("Cluster")),
-				}
-				Expect(k8sClient.Update(ctx, resource)).To(Succeed())
-
-				By("reconciling the resource")
-
-				typeNamespacedName := types.NamespacedName{
-					Name:      resource.Name,
-					Namespace: "default",
-				}
-
-				controllerReconciler.MetalClient, _ = metalgoclient.NewMetalMockClient(testingT, &metalgoclient.MetalMockFns{
-					IP: func(m *mock.Mock) {
-						m.On("FindIP", testcommon.MatchIgnoreContext(testingT, metalip.NewFindIPParams().WithID(controlPlaneIP)), nil).
-							Return(nil, &metalip.FindIPDefault{
-								Payload: &httperrors.HTTPErrorResponse{
-									StatusCode: http.StatusNotFound,
-									Message:    "ip not found",
-								},
-							})
-					},
-				})
-
-				Eventually(func() error {
-					_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
-						NamespacedName: typeNamespacedName,
-					})
-					return err
-				}).Should(MatchError(ContainSubstring("not found")))
-
-				Expect(k8sClient.Get(ctx, typeNamespacedName, resource)).ToNot(HaveOccurred())
-
-				Expect(resource.Status.Conditions).To(ContainElement(MatchFields(IgnoreExtras, Fields{
-					"Type":   Equal(v1alpha1.ClusterNodeNetworkEnsured),
-					"Status": Equal(corev1.ConditionTrue),
-				})))
-				Expect(resource.Status.Conditions).To(ContainElement(MatchFields(IgnoreExtras, Fields{
-					"Type":    Equal(v1alpha1.ClusterControlPlaneIPEnsured),
-					"Status":  Equal(corev1.ConditionFalse),
-					"Reason":  Equal("InternalError"),
-					"Message": ContainSubstring("ip not found"),
-				})))
-
-				Expect(resource.Status.Ready).To(BeFalse())
+				Expect(resource.Status.Ready).To(BeTrue())
 			})
 		})
 	})

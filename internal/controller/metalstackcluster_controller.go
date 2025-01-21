@@ -201,12 +201,12 @@ func (r *clusterReconciler) reconcile() error {
 		}
 		conditions.MarkTrue(r.infraCluster, v1alpha1.ClusterControlPlaneIPEnsured)
 
-		r.log.Info("reconciled control plane ip", "ip", *ip.Ipaddress)
+		r.log.Info("reconciled control plane ip", "ip", ip)
 
 		r.log.Info("setting control plane endpoint into cluster resource")
 
 		r.infraCluster.Spec.ControlPlaneEndpoint = v1alpha1.APIEndpoint{
-			Host: *ip.Ipaddress,
+			Host: ip,
 			Port: v1alpha1.ClusterControlPlaneEndpointDefaultPort,
 		}
 
@@ -354,16 +354,9 @@ func (r *clusterReconciler) deleteNodeNetwork() error {
 	return nil
 }
 
-func (r *clusterReconciler) ensureControlPlaneIP() (*models.V1IPResponse, error) {
-	ip, err := r.findControlPlaneIP()
-	if ip != nil {
-		return ip, nil
-	}
-	if errors.Is(err, errProviderIPTooManyFound) {
-		return nil, fmt.Errorf("more than a single control plane ip exists for this cluster, operator investigation is required")
-	}
-	if err != nil && !errors.Is(err, errProviderIPNotFound) {
-		return nil, err
+func (r *clusterReconciler) ensureControlPlaneIP() (string, error) {
+	if r.infraCluster.Spec.ControlPlaneIP != nil {
+		return *r.infraCluster.Spec.ControlPlaneIP, nil
 	}
 
 	nwResp, err := r.metalClient.Network().FindNetworks(network.NewFindNetworksParams().WithBody(&models.V1NetworkFindRequest{
@@ -372,17 +365,18 @@ func (r *clusterReconciler) ensureControlPlaneIP() (*models.V1IPResponse, error)
 		},
 	}).WithContext(r.ctx), nil)
 	if err != nil {
-		return nil, fmt.Errorf("error finding default network: %w", err)
+		return "", fmt.Errorf("error finding default network: %w", err)
 	}
 
 	if len(nwResp.Payload) != 1 {
-		return nil, fmt.Errorf("no distinct default network configured in the metal-api")
+		return "", fmt.Errorf("no distinct default network configured in the metal-api")
 	}
 
+	defaultNetwork := nwResp.Payload[0]
 	resp, err := r.metalClient.IP().AllocateIP(ipmodels.NewAllocateIPParams().WithBody(&models.V1IPAllocateRequest{
 		Description: fmt.Sprintf("%s/%s control plane ip", r.infraCluster.GetNamespace(), r.infraCluster.GetName()),
 		Name:        r.infraCluster.GetName() + "-control-plane",
-		Networkid:   nwResp.Payload[0].ID,
+		Networkid:   defaultNetwork.ID,
 		Projectid:   &r.infraCluster.Spec.ProjectID,
 		Tags: []string{
 			tag.New(tag.ClusterID, string(r.infraCluster.GetUID())),
@@ -391,10 +385,13 @@ func (r *clusterReconciler) ensureControlPlaneIP() (*models.V1IPResponse, error)
 		Type: ptr.To(models.V1IPBaseTypeEphemeral),
 	}).WithContext(r.ctx), nil)
 	if err != nil {
-		return nil, fmt.Errorf("error creating ip: %w", err)
+		return "", fmt.Errorf("error creating ip: %w", err)
+	}
+	if resp.Payload.Ipaddress == nil {
+		return "", fmt.Errorf("error creating ip address")
 	}
 
-	return resp.Payload, nil
+	return *resp.Payload.Ipaddress, nil
 }
 
 func (r *clusterReconciler) deleteControlPlaneIP() error {
