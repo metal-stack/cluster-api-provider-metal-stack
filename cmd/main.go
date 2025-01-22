@@ -36,11 +36,12 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
+	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+
 	infrastructurev1alpha1 "github.com/metal-stack/cluster-api-provider-metal-stack/api/v1alpha1"
 	"github.com/metal-stack/cluster-api-provider-metal-stack/internal/controller"
 	fcmv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
 	metalgo "github.com/metal-stack/metal-go"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -197,7 +198,7 @@ func newMetalClient() (metalgo.Client, error) {
 	}
 
 	hmac := os.Getenv("METAL_API_HMAC")
-	if url == "" {
+	if hmac == "" {
 		return nil, errors.New("METAL_API_HMAC environment variable must be set")
 	}
 
