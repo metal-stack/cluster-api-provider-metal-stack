@@ -196,7 +196,7 @@ func newMetalClient() (metalgo.Client, error) {
 	}
 
 	hmac := os.Getenv("METAL_API_HMAC")
-	if url == "" {
+	if hmac == "" {
 		return nil, errors.New("METAL_API_HMAC environment variable must be set")
 	}
 

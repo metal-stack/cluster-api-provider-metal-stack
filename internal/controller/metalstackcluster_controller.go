@@ -160,7 +160,7 @@ func (r *MetalStackClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&infrastructurev1alpha1.MetalStackCluster{}).
 		Named("metalstackcluster").
-		WithEventFilter(predicates.ResourceIsNotExternallyManaged(mgr.GetLogger())).
+		WithEventFilter(predicates.ResourceIsNotExternallyManaged(mgr.GetScheme(), mgr.GetLogger())).
 		// TODO: implement resource paused from cluster-api's predicates?
 		Complete(r)
 }

@@ -18,9 +18,9 @@ issues:
         - lll
 linters:
   enable:
+    - copyloopvar
     - dupl
     - errcheck
-    - exportloopref
     - ginkgolinter
     - goconst
     - gocyclo
