@@ -27,7 +27,7 @@ spec:
     size: v1-small-x86
     image: firewall-ubuntu-3.0
     networks:
-      - internet-mini-lab
+    - internet-mini-lab
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
 kind: MetalStackMachineTemplate
@@ -111,17 +111,17 @@ spec:
           CNI_PLUGINS_VERSION="v1.3.0"
           DEST="/opt/cni/bin"
           mkdir -p "$DEST"
-          curl -L "https://github.com/containernetworking/plugins/releases/download/${CNI_PLUGINS_VERSION}/cni-plugins-linux-amd64-${CNI_PLUGINS_VERSION}.tgz" | tar -C "$DEST" -xz
+          curl -L "https://github.com/containernetworking/plugins/releases/download/${CNI_PLUGINS_VERSION}/cni-plugins-linux-amd64-${CNI_PLUGINS_VERSION}.tgz" | sudo tar -C "$DEST" -xz
 
           RELEASE="v1.30.6"
           cd /usr/local/bin
-          curl -L --remote-name-all https://dl.k8s.io/release/${RELEASE}/bin/linux/amd64/{kubeadm,kubelet,kubectl}
-          chmod +x {kubeadm,kubelet,kubectl}
+          sudo curl -L --remote-name-all https://dl.k8s.io/release/${RELEASE}/bin/linux/amd64/{kubeadm,kubelet,kubectl}
+          sudo chmod +x {kubeadm,kubelet,kubectl}
 
           RELEASE_VERSION="v0.16.2"
-          curl -sSL "https://raw.githubusercontent.com/kubernetes/release/${RELEASE_VERSION}/cmd/krel/templates/latest/kubelet/kubelet.service" | sed "s:/usr/bin:/usr/local/bin:g" | tee /usr/lib/systemd/system/kubelet.service
-          mkdir -p /usr/lib/systemd/system/kubelet.service.d
-          curl -sSL "https://raw.githubusercontent.com/kubernetes/release/${RELEASE_VERSION}/cmd/krel/templates/latest/kubeadm/10-kubeadm.conf" | sed "s:/usr/bin:/usr/local/bin:g" | tee /usr/lib/systemd/system/kubelet.service.d/10-kubeadm.conf
+          curl -sSL "https://raw.githubusercontent.com/kubernetes/release/${RELEASE_VERSION}/cmd/krel/templates/latest/kubelet/kubelet.service" | sed "s:/usr/bin:/usr/local/bin:g" | sudo tee /usr/lib/systemd/system/kubelet.service
+          sudo mkdir -p /usr/lib/systemd/system/kubelet.service.d
+          curl -sSL "https://raw.githubusercontent.com/kubernetes/release/${RELEASE_VERSION}/cmd/krel/templates/latest/kubeadm/10-kubeadm.conf" | sed "s:/usr/bin:/usr/local/bin:g" | sudo tee /usr/lib/systemd/system/kubelet.service.d/10-kubeadm.conf
 
           systemctl enable kubelet.service
       - path: /etc/containerd/config.toml

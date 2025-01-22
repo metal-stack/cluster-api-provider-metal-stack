@@ -273,22 +273,6 @@ func (r *machineReconciler) create() (*models.V1MachineResponse, error) {
 		return nil, fmt.Errorf("unable to fetch bootstrap secret: %w", err)
 	}
 
-	sshSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      r.infraCluster.Name + "-ssh-keypair",
-			Namespace: r.infraCluster.Namespace,
-		},
-	}
-	err = r.client.Get(r.ctx, client.ObjectKeyFromObject(sshSecret), sshSecret)
-	if err != nil {
-		return nil, fmt.Errorf("unable to fetch ssh secret: %w", err)
-	}
-
-	sshPubKey, ok := sshSecret.Data["id_rsa.pub"]
-	if !ok {
-		return nil, errors.New("ssh secret does not contain public key")
-	}
-
 	var (
 		ips []string
 		nws = []*models.V1MachineAllocationNetwork{
@@ -326,7 +310,7 @@ func (r *machineReconciler) create() (*models.V1MachineResponse, error) {
 		Networks:      nws,
 		Ips:           ips,
 		UserData:      string(bootstrapSecret.Data["value"]),
-		SSHPubKeys:    []string{string(sshPubKey)},
+		// TODO: SSHPubKeys, ...
 	}), nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to allocate machine: %w", err)

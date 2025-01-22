@@ -8,36 +8,22 @@
       apiVersion: v1
       kind: Namespace
       metadata:
-        name: "{{ item }}"
+        name: "{{ firewall_controller_manager_namespace }}"
         labels:
-          name: "{{ item }}"
-  loop:
-    - "{{ firewall_controller_manager_namespace }}"
-    - firewall
+          name: "{{ firewall_controller_manager_namespace }}"
 
 - name: Deploy firewall-controller-manager CRDs
   k8s:
-    definition: "{{ lookup('url', firewall_controller_manager_crd_fetch_base_url + firewall_controller_manager_image_tag + '/config/crds/' + item, split_lines=False) }}"
+    definition: "{{ lookup('url', 'https://raw.githubusercontent.com/metal-stack/firewall-controller-manager/refs/tags/' + firewall_controller_manager_image_tag + '/config/crds/' + item, split_lines=False) }}"
     namespace: "{{ firewall_controller_manager_namespace }}"
-    apply: true
   loop:
     - firewall.metal-stack.io_firewalldeployments.yaml
     - firewall.metal-stack.io_firewallmonitors.yaml
     - firewall.metal-stack.io_firewalls.yaml
     - firewall.metal-stack.io_firewallsets.yaml
 
-- name: Deploy firewall-controller-manager
-  k8s:
-    definition: "{{ lookup('template', item) }}"
-    namespace: "{{ firewall_controller_manager_namespace }}"
-    apply: true
-  loop:
-    - sa.yaml
-    - cluster-role.yaml
-    - cluster-role-binding.yaml
-    - mutatingwebhookconfiguration.yaml
-    - validatingwebhookconfiguration.yaml
-    - secret.yaml
-    - secret-ca.yaml
-    - deployment.yaml
-    - service.yaml
+# - name: Deploy firewall-controller-manager
+#   k8s:
+#     definition:
+
+#     namespace: "{{ firewall_controller_manager_namespace }}"

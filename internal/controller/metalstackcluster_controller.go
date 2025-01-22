@@ -18,15 +18,10 @@ package controller
 
 import (
 	"context"
-	"crypto/rand"
-	"crypto/rsa"
-	"crypto/x509"
-	"encoding/pem"
 	"errors"
 	"fmt"
 	"strconv"
 
-	"golang.org/x/crypto/ssh"
 	"golang.org/x/sync/errgroup"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -81,7 +76,6 @@ type clusterReconciler struct {
 // +kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=metalstackclusters/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=metalstackclusters/finalizers,verbs=update
 // +kubebuilder:rbac:groups=firewall.metal-stack.io,resources=firewalldeployments,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;create;update;delete
 
 // Reconcile reconciles the reconciled cluster to be reconciled.
 func (r *MetalStackClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -175,13 +169,6 @@ func (r *MetalStackClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 func (r *clusterReconciler) reconcile() error {
-	sshPubKey, err := r.ensureSshKeyPair(r.ctx)
-	if err != nil {
-		return fmt.Errorf("unable to ensure ssh key pair: %w", err)
-	}
-
-	r.log.Info("reconciled ssh key pair")
-
 	nodeNetworkID, err := r.ensureNodeNetwork()
 	if err != nil {
 		return fmt.Errorf("unable to ensure node network: %w", err)
@@ -216,7 +203,7 @@ func (r *clusterReconciler) reconcile() error {
 		return nil
 	}
 
-	fwdeploy, err := r.ensureFirewallDeployment(nodeNetworkID, sshPubKey)
+	fwdeploy, err := r.ensureFirewallDeployment(nodeNetworkID)
 	if err != nil {
 		return fmt.Errorf("unable to ensure firewall deployment: %w", err)
 	}
@@ -250,81 +237,7 @@ func (r *clusterReconciler) delete() error {
 		return fmt.Errorf("unable to delete node network: %w", err)
 	}
 
-	err = r.deleteSshKeyPair(r.ctx)
-	if err != nil {
-		return fmt.Errorf("unable to delete ssh key pair: %w", err)
-	}
-
 	return err
-}
-
-func (r *clusterReconciler) ensureSshKeyPair(ctx context.Context) (string, error) {
-	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      r.cluster.Name + "-ssh-keypair",
-			Namespace: r.cluster.Namespace,
-		},
-	}
-
-	err := r.client.Get(ctx, client.ObjectKeyFromObject(secret), secret)
-	if err == nil {
-		if key, ok := secret.Data["id_rsa.pub"]; ok {
-			return string(key), nil
-		}
-	}
-	if err != nil && !apierrors.IsNotFound(err) {
-		return "", err
-	}
-
-	privateKey, err := rsa.GenerateKey(rand.Reader, 4096)
-	if err != nil {
-		return "", err
-	}
-
-	privateKeyBlock := &pem.Block{
-		Type:  "RSA PRIVATE KEY",
-		Bytes: x509.MarshalPKCS1PrivateKey(privateKey),
-	}
-
-	// generate and write public key
-	pubKey, err := ssh.NewPublicKey(&privateKey.PublicKey)
-	if err != nil {
-		return "", err
-	}
-
-	secret.Data = map[string][]byte{
-		"id_rsa":     pem.EncodeToMemory(privateKeyBlock),
-		"id_rsa.pub": ssh.MarshalAuthorizedKey(pubKey),
-	}
-
-	err = r.client.Create(ctx, secret)
-	if err != nil {
-		return "", err
-	}
-
-	return string(ssh.MarshalAuthorizedKey(pubKey)), nil
-}
-
-func (r *clusterReconciler) deleteSshKeyPair(ctx context.Context) error {
-	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "ssh-keypair-" + r.cluster.Name,
-			Namespace: r.cluster.Namespace,
-		},
-	}
-
-	err := r.client.Delete(ctx, secret)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return nil
-		}
-
-		return err
-	}
-
-	r.log.Info("deleted ssh key pair")
-
-	return nil
 }
 
 func (r *clusterReconciler) ensureNodeNetwork() (string, error) {
@@ -523,7 +436,7 @@ func (r *clusterReconciler) findControlPlaneIP() (*models.V1IPResponse, error) {
 	}
 }
 
-func (r *clusterReconciler) ensureFirewallDeployment(nodeNetworkID, sshPubKey string) (*fcmv2.FirewallDeployment, error) {
+func (r *clusterReconciler) ensureFirewallDeployment(nodeNetworkID string) (*fcmv2.FirewallDeployment, error) {
 	deploy := &fcmv2.FirewallDeployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      r.infraCluster.Name,
@@ -553,7 +466,6 @@ func (r *clusterReconciler) ensureFirewallDeployment(nodeNetworkID, sshPubKey st
 			deploy.Annotations = map[string]string{}
 		}
 		deploy.Annotations[fcmv2.ReconcileAnnotation] = strconv.FormatBool(true)
-		deploy.Annotations[fcmv2.FirewallNoControllerConnectionAnnotation] = strconv.FormatBool(true)
 
 		if deploy.Labels == nil {
 			deploy.Labels = map[string]string{}
@@ -562,49 +474,6 @@ func (r *clusterReconciler) ensureFirewallDeployment(nodeNetworkID, sshPubKey st
 		deploy.Spec.Replicas = 1
 		deploy.Spec.Selector = map[string]string{
 			tag.ClusterID: string(r.infraCluster.GetUID()),
-		}
-
-		deploy.Spec.Template.Spec.InitialRuleSet = &fcmv2.InitialRuleSet{
-			Egress: []fcmv2.EgressRule{
-				{
-					Comment:  "allow outgoing http",
-					Ports:    []int32{80},
-					Protocol: fcmv2.NetworkProtocolTCP,
-					To:       []string{"0.0.0.0/0"},
-				},
-				{
-					Comment:  "allow outgoing https",
-					Ports:    []int32{443},
-					Protocol: fcmv2.NetworkProtocolTCP,
-					To:       []string{"0.0.0.0/0"},
-				},
-				{
-					Comment:  "allow outgoing dns via tcp",
-					Ports:    []int32{53},
-					Protocol: fcmv2.NetworkProtocolTCP,
-					To:       []string{"0.0.0.0/0"},
-				},
-				{
-					Comment:  "allow outgoing dns and ntp via udp",
-					Ports:    []int32{53, 123},
-					Protocol: fcmv2.NetworkProtocolUDP,
-					To:       []string{"0.0.0.0/0"},
-				},
-			},
-			Ingress: []fcmv2.IngressRule{
-				{
-					Comment:  "allow incoming ssh",
-					Ports:    []int32{22},
-					Protocol: fcmv2.NetworkProtocolTCP,
-					From:     []string{"0.0.0.0/0"}, // TODO: restrict cidr
-				},
-				{
-					Comment:  "allow incoming https to kube-apiserver",
-					Ports:    []int32{443},
-					Protocol: fcmv2.NetworkProtocolTCP,
-					From:     []string{"0.0.0.0/0"}, // TODO: restrict cidr
-				},
-			},
 		}
 
 		if deploy.Spec.Template.Labels == nil {
@@ -629,7 +498,7 @@ func (r *clusterReconciler) ensureFirewallDeployment(nodeNetworkID, sshPubKey st
 		// TODO: we need to allow internet connection for the nodes before the firewall-controller can connect to the control-plane
 		// the FCM currently does not support this
 		deploy.Spec.Template.Spec.Userdata = "{}"
-		deploy.Spec.Template.Spec.SSHPublicKeys = []string{sshPubKey}
+		deploy.Spec.Template.Spec.SSHPublicKeys = nil
 
 		// TODO: consider auto update machine image feature
 
