@@ -20,7 +20,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strconv"
 
 	"golang.org/x/sync/errgroup"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -30,7 +29,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
@@ -40,6 +38,7 @@ import (
 	"sigs.k8s.io/cluster-api/util/predicates"
 
 	"github.com/go-logr/logr"
+
 	"github.com/metal-stack/cluster-api-provider-metal-stack/api/v1alpha1"
 	infrastructurev1alpha1 "github.com/metal-stack/cluster-api-provider-metal-stack/api/v1alpha1"
 	ipmodels "github.com/metal-stack/metal-go/api/client/ip"
@@ -47,7 +46,6 @@ import (
 	"github.com/metal-stack/metal-go/api/models"
 	"github.com/metal-stack/metal-lib/pkg/tag"
 
-	fcmv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
 	metalgo "github.com/metal-stack/metal-go"
 )
 
@@ -75,7 +73,6 @@ type clusterReconciler struct {
 // +kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=metalstackclusters,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=metalstackclusters/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=metalstackclusters/finalizers,verbs=update
-// +kubebuilder:rbac:groups=firewall.metal-stack.io,resources=firewalldeployments,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile reconciles the reconciled cluster to be reconciled.
 func (r *MetalStackClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -203,13 +200,6 @@ func (r *clusterReconciler) reconcile() error {
 		return nil
 	}
 
-	fwdeploy, err := r.ensureFirewallDeployment(nodeNetworkID)
-	if err != nil {
-		return fmt.Errorf("unable to ensure firewall deployment: %w", err)
-	}
-
-	r.log.Info("reconciled firewall deployment", "name", fwdeploy.Name, "namespace", fwdeploy.Namespace)
-
 	return err
 }
 
@@ -221,11 +211,6 @@ func (r *clusterReconciler) delete() error {
 			err = errors.Join(err, fmt.Errorf("unable to update status: %w", statusErr))
 		}
 	}()
-
-	err = r.deleteFirewallDeployment()
-	if err != nil {
-		return fmt.Errorf("unable to delete firewall deployment: %w", err)
-	}
 
 	err = r.deleteControlPlaneIP()
 	if err != nil {
@@ -436,114 +421,6 @@ func (r *clusterReconciler) findControlPlaneIP() (*models.V1IPResponse, error) {
 	}
 }
 
-func (r *clusterReconciler) ensureFirewallDeployment(nodeNetworkID string) (*fcmv2.FirewallDeployment, error) {
-	deploy := &fcmv2.FirewallDeployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      r.infraCluster.Name,
-			Namespace: r.infraCluster.Namespace,
-		},
-		Spec: fcmv2.FirewallDeploymentSpec{
-			Template: fcmv2.FirewallTemplateSpec{
-				Spec: fcmv2.FirewallSpec{
-					Partition: r.infraCluster.Spec.Partition,
-					Project:   r.infraCluster.Spec.ProjectID,
-				},
-			},
-		},
-	}
-
-	if r.infraCluster.Spec.Firewall == nil {
-		err := r.client.Delete(r.ctx, deploy)
-		if apierrors.IsNotFound(err) {
-			return deploy, nil
-		}
-
-		return deploy, fmt.Errorf("firewall deployment is still being deleted...")
-	}
-
-	_, err := controllerutil.CreateOrUpdate(r.ctx, r.client, deploy, func() error {
-		if deploy.Annotations == nil {
-			deploy.Annotations = map[string]string{}
-		}
-		deploy.Annotations[fcmv2.ReconcileAnnotation] = strconv.FormatBool(true)
-
-		if deploy.Labels == nil {
-			deploy.Labels = map[string]string{}
-		}
-
-		deploy.Spec.Replicas = 1
-		deploy.Spec.Selector = map[string]string{
-			tag.ClusterID: string(r.infraCluster.GetUID()),
-		}
-
-		if deploy.Spec.Template.Labels == nil {
-			deploy.Spec.Template.Labels = map[string]string{}
-		}
-		deploy.Spec.Template.Labels[tag.ClusterID] = string(r.infraCluster.GetUID())
-
-		deploy.Spec.Template.Spec.Size = r.infraCluster.Spec.Firewall.Size
-		deploy.Spec.Template.Spec.Image = r.infraCluster.Spec.Firewall.Image
-		deploy.Spec.Template.Spec.Networks = append(r.infraCluster.Spec.Firewall.AdditionalNetworks, nodeNetworkID)
-		deploy.Spec.Template.Spec.RateLimits = r.infraCluster.Spec.Firewall.RateLimits
-		deploy.Spec.Template.Spec.EgressRules = r.infraCluster.Spec.Firewall.EgressRules
-		deploy.Spec.Template.Spec.LogAcceptedConnections = ptr.Deref(r.infraCluster.Spec.Firewall.LogAcceptedConnections, false)
-
-		// TODO: this needs to be a controller configuration
-		deploy.Spec.Template.Spec.InternalPrefixes = nil
-		deploy.Spec.Template.Spec.ControllerVersion = "v2.3.5"                                                                   // TODO: this needs to be a controller configuration
-		deploy.Spec.Template.Spec.ControllerURL = "https://images.metal-stack.io/firewall-controller/v2.3.5/firewall-controller" // TODO: this needs to be a controller configuration
-		deploy.Spec.Template.Spec.NftablesExporterVersion = ""
-		deploy.Spec.Template.Spec.NftablesExporterURL = ""
-
-		// TODO: we need to allow internet connection for the nodes before the firewall-controller can connect to the control-plane
-		// the FCM currently does not support this
-		deploy.Spec.Template.Spec.Userdata = "{}"
-		deploy.Spec.Template.Spec.SSHPublicKeys = nil
-
-		// TODO: consider auto update machine image feature
-
-		return nil
-	})
-	if err != nil {
-		return nil, fmt.Errorf("error creating firewall deployment: %w", err)
-	}
-
-	return deploy, nil
-}
-
-func (r *clusterReconciler) deleteFirewallDeployment() error {
-	// TODO: consider a retry here, which is actually anti-pattern but in this case could be beneficial
-
-	deploy := &fcmv2.FirewallDeployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      r.infraCluster.Name,
-			Namespace: r.infraCluster.Namespace,
-		},
-	}
-
-	err := r.client.Get(r.ctx, client.ObjectKeyFromObject(deploy), deploy)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return nil
-		}
-
-		return fmt.Errorf("error getting firewall deployment: %w", err)
-	}
-
-	if deploy.DeletionTimestamp == nil {
-		err = r.client.Delete(r.ctx, deploy)
-		if err != nil {
-			return fmt.Errorf("error deleting firewall deployment: %w", err)
-		}
-
-		r.log.Info("deleting firewall deployment")
-
-		return errors.New("firewall deployment was deleted, process is still ongoing")
-	}
-
-	return errors.New("firewall deployment is still ongoing")
-}
-
 func (r *clusterReconciler) status() error {
 	var (
 		g, _             = errgroup.WithContext(r.ctx)
@@ -615,45 +492,6 @@ func (r *clusterReconciler) status() error {
 			} else {
 				conditions.MarkFalse(r.infraCluster, v1alpha1.ClusterControlPlaneEndpointEnsured, "NotSet", clusterv1.ConditionSeverityWarning, "control plane ip was not yet patched into the cluster's spec")
 			}
-		}
-
-		return err
-	})
-
-	g.Go(func() error {
-		if r.infraCluster.Spec.Firewall == nil {
-			conditionUpdates <- func() {
-				conditions.MarkTrue(r.infraCluster, v1alpha1.ClusterFirewallDeploymentReady)
-			}
-			return nil
-		}
-
-		deploy := &fcmv2.FirewallDeployment{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      r.infraCluster.Name,
-				Namespace: r.infraCluster.Namespace,
-			},
-		}
-
-		err := r.client.Get(r.ctx, client.ObjectKeyFromObject(deploy), deploy)
-
-		conditionUpdates <- func() {
-			if err != nil && !apierrors.IsNotFound(err) {
-				conditions.MarkFalse(r.infraCluster, v1alpha1.ClusterFirewallDeploymentReady, "InternalError", clusterv1.ConditionSeverityError, "%s", err.Error())
-				return
-			}
-
-			if apierrors.IsNotFound(err) {
-				conditions.MarkFalse(r.infraCluster, v1alpha1.ClusterFirewallDeploymentReady, "NotCreated", clusterv1.ConditionSeverityError, "firewall deployment was not yet created")
-				return
-			}
-
-			// switch {
-			// case deploy.Spec.Replicas == deploy.Status.ReadyReplicas:
-			conditions.MarkTrue(r.infraCluster, v1alpha1.ClusterFirewallDeploymentReady)
-			// default:
-			// 	conditions.MarkFalse(infraCluster, v1alpha1.ClusterFirewallDeploymentReady, "Unhealthy", clusterv1.ConditionSeverityWarning, "not all firewalls are healthy")
-			// }
 		}
 
 		return err

@@ -23,11 +23,6 @@ metadata:
 spec:
   projectID: 00000000-0000-0000-0000-000000000001
   partition: mini-lab
-  firewall:
-    size: v1-small-x86
-    image: firewall-ubuntu-3.0
-    networks:
-    - internet-mini-lab
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
 kind: MetalStackMachineTemplate

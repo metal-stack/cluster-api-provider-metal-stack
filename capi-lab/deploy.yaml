@@ -11,7 +11,4 @@
     - name: ansible-common
     - name: metal-roles
     - name: prometheus
-    - name: firewall-controller-manager
-      vars:
-        firewall_controller_manager_namespace: capms-metal-stack
     - name: cluster-api
