@@ -1,5 +1,5 @@
 ---
-cluster_api_version: v1.9.3
+cluster_api_version: v1.9.4
 
 cluster_api_provider_metal_stack_namespace: cap-metal-stack
 

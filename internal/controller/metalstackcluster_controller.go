@@ -44,6 +44,7 @@ import (
 	"sigs.k8s.io/cluster-api/util/predicates"
 
 	"github.com/go-logr/logr"
+
 	"github.com/metal-stack/cluster-api-provider-metal-stack/api/v1alpha1"
 	ipmodels "github.com/metal-stack/metal-go/api/client/ip"
 	"github.com/metal-stack/metal-go/api/client/network"
@@ -170,7 +171,7 @@ func (r *MetalStackClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.MetalStackCluster{}).
 		Named("metalstackcluster").
-		WithEventFilter(predicates.ResourceIsNotExternallyManaged(mgr.GetLogger())).
+		WithEventFilter(predicates.ResourceIsNotExternallyManaged(mgr.GetScheme(), mgr.GetLogger())).
 		// TODO: implement resource paused from cluster-api's predicates?
 		Complete(r)
 }
