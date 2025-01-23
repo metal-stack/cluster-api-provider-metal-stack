@@ -22,17 +22,21 @@ Next install our CAPMS provider into the cluster.
 make push-to-capi-lab
 ```
 
-A basic cluster configuration that relies on `config/clusterctl-templates/cluster-template.yaml` can be generated and applied to the management cluster using a make target.
+Before creating a cluster some manual steps are required beforehand: you need to allocate a node network and a firewall.
+
+```bash
+make -C capi-lab node-network firewall
+```
+
+A basic cluster configuration that relies on `config/clusterctl-templates/cluster-template.yaml` and uses the aforementioned node network can be generated and applied to the management cluster using a make target.
 
 ```bash
 make apply-sample-cluster
 ```
 
-For now it is required to manually create the firewall. This might be changed in the future, but for now run:
+Once the control plane node has phoned home, run:
 
 ```bash
-make -C capi-lab firewall
-# once the firewall is up run
 make -C capi-lab mtu-fix
 ```
 

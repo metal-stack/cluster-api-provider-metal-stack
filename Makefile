@@ -244,8 +244,9 @@ endef
 
 # mini-lab developer environment
 
-export METAL_PARTITION ?= metal-test
+export METAL_PARTITION ?= mini-lab
 export METAL_PROJECT_ID ?= 00000000-0000-0000-0000-000000000001
+export METAL_NODE_NETWORK_ID ?= $(shell metalctl network list --name metal-test -o template --template '{{ .id }}')
 export CONTROL_PLANE_ENDPOINT ?= "203.0.113.129:443"
 export CONTROL_PLANE_MACHINE_IMAGE ?= ubuntu-24.04
 export CONTROL_PLANE_MACHINE_SIZE ?= v1-small-x86
