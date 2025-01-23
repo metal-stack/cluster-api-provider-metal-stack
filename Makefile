@@ -196,6 +196,7 @@ $(LOCALBIN):
 ## Tool Binaries
 KUBECTL ?= kubectl
 KUSTOMIZE ?= $(LOCALBIN)/kustomize
+CLUSTERCTL ?= $(LOCALBIN)/clusterctl 
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 ENVTEST ?= $(LOCALBIN)/setup-envtest
 GOLANGCI_LINT = $(LOCALBIN)/golangci-lint
@@ -246,3 +247,38 @@ endef
 
 .PHONY: up
 up: bake deploy-cloud-stack
+
+.PHONY: apply-sample-cluster
+apply-sample-cluster: generate manifests
+	METAL_PARTITION=$(or $(METAL_PARTITION),metal-test) \
+	METAL_PROJECT_ID=$(or $(METAL_PROJECT_ID),00000000-0000-0000-0000-000000000001) \
+	CONTROL_PLANE_ENDPOINT=$(or $(CONTROL_PLANE_ENDPOINT),203.0.113.129:443) \
+	CONTROL_PLANE_MACHINE_IMAGE=$(or $(CONTROL_PLANE_MACHINE_IMAGE),ubuntu-24.04) \
+	CONTROL_PLANE_MACHINE_SIZE=$(or $(CONTROL_PLANE_MACHINE_SIZE),v1-small-x86) \
+	WORKER_MACHINE_IMAGE=$(or $(WORKER_MACHINE_IMAGE),ubuntu-24.04) \
+	WORKER_MACHINE_SIZE=$(or $(WORKER_MACHINE_SIZE),v1-small-x86) \
+	clusterctl generate cluster metal-test \
+		--kubeconfig=$(KUBECONFIG) \
+		--worker-machine-count 1 \
+		--control-plane-count 1 \
+		--kubernetes-version 1.30.6 \
+		--from config/clusterctl-templates/cluster-template.yaml \
+		| kubectl --kubeconfig=$(KUBECONFIG) apply -f -
+
+.PHONY: delete-sample-cluster
+delete-sample-cluster: generate manifests
+	METAL_PARTITION=$(or $(METAL_PARTITION),metal-test) \
+	METAL_PROJECT_ID=$(or $(METAL_PROJECT_ID),00000000-0000-0000-0000-000000000001) \
+	CONTROL_PLANE_ENDPOINT=$(or $(CONTROL_PLANE_ENDPOINT),203.0.113.129:443) \
+	CONTROL_PLANE_MACHINE_IMAGE=$(or $(CONTROL_PLANE_MACHINE_IMAGE),ubuntu-24.04) \
+	CONTROL_PLANE_MACHINE_SIZE=$(or $(CONTROL_PLANE_MACHINE_SIZE),v1-small-x86) \
+	WORKER_MACHINE_IMAGE=$(or $(WORKER_MACHINE_IMAGE),ubuntu-24.04) \
+	WORKER_MACHINE_SIZE=$(or $(WORKER_MACHINE_SIZE),v1-small-x86) \
+	clusterctl generate cluster metal-test \
+		--kubeconfig=$(KUBECONFIG) \
+		--worker-machine-count 1 \
+		--control-plane-count 1 \
+		--kubernetes-version 1.30.6 \
+		--from config/clusterctl-templates/cluster-template.yaml \
+		| kubectl --kubeconfig=$(KUBECONFIG) delete -f -
+

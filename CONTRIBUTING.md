@@ -22,10 +22,10 @@ Next install our CAPMS provider into the cluster.
 make push-to-capi-lab
 ```
 
-A basic cluster configuration resides in `config/samples`.
+A basic cluster configuration that relies on `config/clusterctl-templates/cluster-template.yaml` can be generated and applied to the mangement cluster using a make target.
 
 ```bash
-kubectl apply -k config/samples
+make apply-sample-cluster
 ```
 
 For now it is required to manually create the firewall. This might be changed in the future, but for now run:
