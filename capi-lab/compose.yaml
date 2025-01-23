@@ -1,0 +1,12 @@
+---
+services:
+  clusterctl:
+    container_name: clusterctl
+    environment:
+      - EXP_KUBEADM_BOOTSTRAP_FORMAT_IGNITION=true
+      - KUBECONFIG=/kubeconfig
+    image: registry.k8s.io/cluster-api/clusterctl:v1.9.4
+    network_mode: host
+    user: root
+    volumes:
+      - ${KUBECONFIG}:/kubeconfig:ro
