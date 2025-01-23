@@ -14,7 +14,19 @@ spec:
     singular: metalstackmachinetemplate
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    - description: Size of the MetalStackMachine
+      jsonPath: .spec.template.spec.size
+      name: Size
+      type: string
+    - description: OS image of the MetalStackMachine
+      jsonPath: .spec.template.spec.image
+      name: Image
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: MetalStackMachineTemplate is the Schema for the inframachinetemplates
@@ -175,3 +187,4 @@ spec:
         type: object
     served: true
     storage: true
+    subresources: {}

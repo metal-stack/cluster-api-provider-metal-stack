@@ -14,7 +14,39 @@ spec:
     singular: metalstackcluster
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - description: Cluster to which this MetalStackCluster belongs
+      jsonPath: .metadata.labels.cluster\.x-k8s\.io/cluster-name
+      name: Cluster
+      type: string
+    - description: Control plane API endpoint
+      jsonPath: .spec.controlPlaneEndpoint.host
+      name: Endpoint
+      type: string
+    - description: The partition within metal-stack
+      jsonPath: .spec.partition
+      name: Partition
+      priority: 1
+      type: string
+    - description: The project within metal-stack
+      jsonPath: .spec.projectID
+      name: Project
+      priority: 1
+      type: string
+    - description: The network within metal-stack
+      jsonPath: .status.nodeNetworkID
+      name: Network
+      priority: 1
+      type: string
+    - description: MetalStackCluster is ready
+      jsonPath: .status.ready
+      name: Ready
+      type: string
+    - description: Uptime of the cluster
+      jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: MetalStackCluster is the Schema for the metalstackclusters API.

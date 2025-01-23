@@ -14,7 +14,36 @@ spec:
     singular: metalstackmachine
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - description: Cluster to which this MetalStackMachine belongs
+      jsonPath: .metadata.labels.cluster\.x-k8s\.io/cluster-name
+      name: Cluster
+      type: string
+    - description: ProviderID reference for the MetalStackMachine
+      jsonPath: .spec.providerID
+      name: ProviderID
+      type: string
+    - description: Size of the MetalStackMachine
+      jsonPath: .spec.size
+      name: Size
+      priority: 1
+      type: string
+    - description: OS image of the MetalStackMachine
+      jsonPath: .spec.image
+      name: Image
+      type: string
+    - description: MetalStackMachine is ready for worker nodes
+      jsonPath: .status.ready
+      name: Ready
+      type: string
+    - description: Health of the provider machine
+      jsonPath: .status.conditions[1].status
+      name: Healthy
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: MetalStackMachine is the Schema for the metalstackmachines API.
