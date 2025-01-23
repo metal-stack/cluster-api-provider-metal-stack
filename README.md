@@ -57,9 +57,5 @@ clusterctl generate cluster example --kubernetes-version v1.30.6 --infrastructur
 > Due to the early development stage the following manual actions are needed for the cluster to operate.
 
 1. The firewall needs to be created manually.
-2. You need to install your CNI of choice. This is required due to CAPI.
-3. Control plane and worker nodes need to be patched.
-
-  ```bash
-  kubectl patch node <worker-node-name> --patch='{"spec":{"providerID": "metal://<machine-id>"}}'
-  ```
+1. The metal-ccm has to be deployed
+1. You need to install your CNI of choice. This is required due to CAPI.

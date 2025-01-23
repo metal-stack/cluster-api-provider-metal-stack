@@ -31,8 +31,8 @@ const (
 
 	ClusterControlPlaneEndpointDefaultPort = 443
 
-	ClusterNodeNetworkEnsured          clusterv1.ConditionType = "ClusterNodeNetworkEnsured"
-	ClusterControlPlaneEndpointEnsured clusterv1.ConditionType = "ClusterControlPlaneEndpointEnsured"
+	ClusterNodeNetworkEnsured    clusterv1.ConditionType = "ClusterNodeNetworkEnsured"
+	ClusterControlPlaneIPEnsured clusterv1.ConditionType = "ClusterControlPlaneIPEnsured"
 )
 
 var (
@@ -52,14 +52,13 @@ type MetalStackClusterSpec struct {
 	ProjectID string `json:"projectID"`
 
 	// NodeNetworkID is the network ID in metal-stack in which the worker nodes and the firewall of the cluster are placed.
-	// If not provided this will automatically be acquired during reconcile. Note that this field is not patched after auto-acquisition.
-	// The ID of the auto-acquired network can be looked up in the status resource instead.
+	// If not provided this will automatically be acquired during reconcile.
 	// +optional
 	NodeNetworkID *string `json:"nodeNetworkID,omitempty"`
 
 	// ControlPlaneIP is the ip address in metal-stack on which the control plane will be exposed.
-	// If this ip and the control plane endpoint are not provided this will automatically be acquired during reconcile. Note that this field is not patched after auto-acquisition.
-	// The address of the auto-acquired ip can be looked up in the control plane endpoint.
+	// If this ip and the control plane endpoint are not provided, an ephemeral ip will automatically be acquired during reconcile.
+	// Static ip addresses will not be deleted.
 	// +optional
 	ControlPlaneIP *string `json:"controlPlaneIP,omitempty"`
 
@@ -79,6 +78,7 @@ type APIEndpoint struct {
 // MetalStackClusterStatus defines the observed state of MetalStackCluster.
 type MetalStackClusterStatus struct {
 	// Ready denotes that the cluster is ready.
+	// +kubebuilder:default=false
 	Ready bool `json:"ready"`
 
 	// FailureReason indicates that there is a fatal problem reconciling the
@@ -95,13 +95,6 @@ type MetalStackClusterStatus struct {
 	// Conditions defines current service state of the MetalStackCluster.
 	// +optional
 	Conditions clusterv1.Conditions `json:"conditions,omitempty"`
-
-	// NodeCIDR is set as soon as the node network was created.
-	// +optional
-	NodeCIDR *string `json:"nodeCIDR,omitempty"`
-	// NodeNetworkID is set as soon as the node network was created.
-	// +optional
-	NodeNetworkID *string `json:"nodeNetworkID,omitempty"`
 }
 
 // +kubebuilder:object:root=true
