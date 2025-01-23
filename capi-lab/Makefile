@@ -12,9 +12,7 @@ bake:
 
 .PHONY: deploy-capi
 deploy-capi:
-	make -C mini-lab env
-	@[ -f .extra_vars.yaml ] || echo '{}' > .extra_vars.yaml
-	docker compose --env-file ./mini-lab/.env up --remove-orphans --force-recreate capi
+	docker compose run --rm clusterctl init
 
 .PHONY: cleanup
 cleanup:
