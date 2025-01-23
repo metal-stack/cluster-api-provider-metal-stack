@@ -21,8 +21,8 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
-	"golang.org/x/sync/errgroup"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -38,13 +38,14 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/metal-stack/cluster-api-provider-metal-stack/api/v1alpha1"
-	infrastructurev1alpha1 "github.com/metal-stack/cluster-api-provider-metal-stack/api/v1alpha1"
 	metalgo "github.com/metal-stack/metal-go"
 	ipmodels "github.com/metal-stack/metal-go/api/client/ip"
 	metalmachine "github.com/metal-stack/metal-go/api/client/machine"
 	"github.com/metal-stack/metal-go/api/models"
 	"github.com/metal-stack/metal-lib/pkg/tag"
 )
+
+const defaultProviderMachineRequeueTime = time.Second * 30
 
 var (
 	errProviderMachineNotFound     = errors.New("provider machine not found")
@@ -139,109 +140,103 @@ func (r *MetalStackMachineReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		infraMachine:   infraMachine,
 	}
 
-	defer func() {
-		statusErr := reconciler.status()
-		if statusErr != nil {
-			err = errors.Join(err, fmt.Errorf("unable to update status: %w", statusErr))
-		} else if !reconciler.infraMachine.Status.Ready {
-			err = errors.New("machine is not yet ready, requeuing")
-		}
-	}()
+	helper, err := patch.NewHelper(infraMachine, r.Client)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	var result ctrl.Result
 
 	if !infraMachine.DeletionTimestamp.IsZero() {
-		if !controllerutil.ContainsFinalizer(infraMachine, v1alpha1.MachineFinalizer) {
-			return ctrl.Result{}, nil
-		}
-
-		log.Info("reconciling resource deletion flow")
-		err := reconciler.delete()
-		if err != nil {
-			return ctrl.Result{}, err
-		}
-
-		log.Info("deletion finished, removing finalizer")
-		controllerutil.RemoveFinalizer(infraMachine, v1alpha1.MachineFinalizer)
-		if err := r.Client.Update(ctx, infraMachine); err != nil {
-			return ctrl.Result{}, fmt.Errorf("unable to remove finalizer: %w", err)
-		}
-
-		return ctrl.Result{}, nil
-	}
-
-	log.Info("reconciling machine")
-
-	if !controllerutil.ContainsFinalizer(infraMachine, v1alpha1.MachineFinalizer) {
+		err = reconciler.delete()
+	} else if !controllerutil.ContainsFinalizer(infraMachine, v1alpha1.MachineFinalizer) {
 		log.Info("adding finalizer")
-
 		controllerutil.AddFinalizer(infraMachine, v1alpha1.MachineFinalizer)
-		if err := r.Client.Update(ctx, infraMachine); err != nil {
-			return ctrl.Result{}, fmt.Errorf("unable to add finalizer: %w", err)
-		}
-
-		return ctrl.Result{}, nil
+	} else {
+		result, err = reconciler.reconcile()
 	}
 
-	if infraCluster.Status.NodeNetworkID == nil {
-		// this should not happen because before setting this id the cluster status should not become ready, but we check it anyway
-		return ctrl.Result{}, errors.New("waiting until node network id was set to cluster status")
+	updateErr := helper.Patch(ctx, infraMachine)
+	if updateErr != nil {
+		err = errors.Join(err, fmt.Errorf("failed to update infra machine: %w", updateErr))
 	}
 
-	if infraCluster.Spec.ControlPlaneEndpoint.Host == "" {
-		return ctrl.Result{}, errors.New("waiting until control plane ip was set to cluster spec")
-	}
-
-	if machine.Spec.Bootstrap.DataSecretName == nil {
-		return ctrl.Result{}, errors.New("waiting until bootstrap data secret was created")
-	}
-
-	err = reconciler.reconcile()
-
-	return ctrl.Result{}, err // remember to return err here and not nil because the defer func can influence this
+	return result, err
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *MetalStackMachineReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&infrastructurev1alpha1.MetalStackMachine{}).
+		For(&v1alpha1.MetalStackMachine{}).
 		Named("metalstackmachine").
 		Complete(r)
 }
 
-func (r *machineReconciler) reconcile() error {
+func (r *machineReconciler) reconcile() (ctrl.Result, error) {
+	if r.infraCluster.Spec.NodeNetworkID == nil {
+		// this should not happen because before setting this id the cluster status should not become ready, but we check it anyway
+		return ctrl.Result{}, errors.New("waiting until node network id was set to infrastructure cluster status")
+	}
+
+	if r.infraCluster.Spec.ControlPlaneEndpoint.Host == "" {
+		return ctrl.Result{}, errors.New("waiting until control plane ip was set to infrastructure cluster spec")
+	}
+
+	if r.clusterMachine.Spec.Bootstrap.DataSecretName == nil {
+		return ctrl.Result{}, errors.New("waiting until bootstrap data secret was created")
+	}
+
+	r.log.Info("reconciling machine")
+
 	m, err := r.findProviderMachine()
 	if err != nil && !errors.Is(err, errProviderMachineNotFound) {
-		return err
+		conditions.MarkFalse(r.infraMachine, v1alpha1.ProviderMachineCreated, "InternalError", clusterv1.ConditionSeverityError, "%s", err.Error())
+		return ctrl.Result{}, err
 	}
 
 	if errors.Is(err, errProviderMachineNotFound) {
 		m, err = r.create()
 		if err != nil {
-			return fmt.Errorf("unable to create machine at provider: %w", err)
+			conditions.MarkFalse(r.infraMachine, v1alpha1.ProviderMachineCreated, "InternalError", clusterv1.ConditionSeverityError, "%s", err.Error())
+			return ctrl.Result{}, fmt.Errorf("unable to create machine at provider: %w", err)
 		}
 	}
+	conditions.MarkTrue(r.infraMachine, v1alpha1.ProviderMachineCreated)
 
 	if m.ID == nil {
-		return errors.New("machine allocated but got no provider ID")
+		return ctrl.Result{}, errors.New("machine allocated but got no provider ID")
 	}
-
-	r.log.Info("setting provider id into machine resource")
-
-	helper, err := patch.NewHelper(r.infraMachine, r.client)
-	if err != nil {
-		return err
-	}
-
 	r.infraMachine.Spec.ProviderID = "metal://" + *m.ID
 
-	err = helper.Patch(r.ctx, r.infraMachine) // TODO:check whether patch is not executed when no changes occur
+	result := ctrl.Result{}
+
+	isReady, err := r.getMachineStatus(m)
 	if err != nil {
-		return fmt.Errorf("failed to update infra machine provider ID %q: %w", r.infraMachine.Spec.ProviderID, err)
+		conditions.MarkFalse(r.infraMachine, v1alpha1.ProviderMachineHealthy, "NotHealthy", clusterv1.ConditionSeverityWarning, "%s", err)
+		result.RequeueAfter = defaultProviderMachineRequeueTime
+	} else {
+		conditions.MarkTrue(r.infraMachine, v1alpha1.ProviderMachineHealthy)
 	}
 
-	return nil
+	if isReady {
+		conditions.MarkTrue(r.infraMachine, v1alpha1.ProviderMachineReady)
+		r.infraMachine.Status.Ready = isReady
+	} else {
+		conditions.MarkFalse(r.infraMachine, v1alpha1.ProviderMachineReady, "NotReady", clusterv1.ConditionSeverityWarning, "machine is not in phoned home state")
+		result.RequeueAfter = defaultProviderMachineRequeueTime
+	}
+
+	r.infraMachine.Status.Addresses = r.getMachineAddresses(m)
+
+	return result, nil
 }
 
 func (r *machineReconciler) delete() error {
+	if !controllerutil.ContainsFinalizer(r.infraMachine, v1alpha1.MachineFinalizer) {
+		return nil
+	}
+
+	r.log.Info("reconciling resource deletion flow")
+
 	m, err := r.findProviderMachine()
 	if errors.Is(err, errProviderMachineNotFound) {
 		// metal-stack machine already freed
@@ -257,6 +252,9 @@ func (r *machineReconciler) delete() error {
 	}
 
 	r.log.Info("freed provider machine")
+
+	r.log.Info("deletion finished, removing finalizer")
+	controllerutil.RemoveFinalizer(r.infraMachine, v1alpha1.MachineFinalizer)
 
 	return nil
 }
@@ -278,7 +276,7 @@ func (r *machineReconciler) create() (*models.V1MachineResponse, error) {
 		nws = []*models.V1MachineAllocationNetwork{
 			{
 				Autoacquire: ptr.To(true),
-				Networkid:   r.infraCluster.Status.NodeNetworkID,
+				Networkid:   r.infraCluster.Spec.NodeNetworkID,
 			},
 		}
 	)
@@ -319,123 +317,59 @@ func (r *machineReconciler) create() (*models.V1MachineResponse, error) {
 	return resp.Payload, nil
 }
 
-func (r *machineReconciler) status() error {
-	var (
-		g, _             = errgroup.WithContext(r.ctx)
-		conditionUpdates = make(chan func())
+func (r *machineReconciler) getMachineStatus(mr *models.V1MachineResponse) (bool, error) {
+	var errs []error
 
-		// TODO: probably there is a helper for this available somewhere?
-		allConditionsTrue = func() bool {
-			for _, c := range r.infraMachine.Status.Conditions {
-				if c.Status != corev1.ConditionTrue {
-					return false
-				}
-			}
-
-			return true
-		}
-	)
-
-	defer func() {
-		close(conditionUpdates)
-	}()
-
-	g.Go(func() error {
-		m, err := r.findProviderMachine()
-
-		conditionUpdates <- func() {
-			switch {
-			case err != nil && !errors.Is(err, errProviderMachineNotFound):
-				conditions.MarkFalse(r.infraMachine, v1alpha1.ProviderMachineCreated, "InternalError", clusterv1.ConditionSeverityError, "%s", err.Error())
-				conditions.MarkFalse(r.infraMachine, v1alpha1.ProviderMachineHealthy, "NotHealthy", clusterv1.ConditionSeverityWarning, "machine not created")
-				conditions.MarkFalse(r.infraMachine, v1alpha1.ProviderMachineReady, "NotReady", clusterv1.ConditionSeverityWarning, "machine not created")
-			case err != nil && errors.Is(err, errProviderMachineNotFound):
-				conditions.MarkFalse(r.infraMachine, v1alpha1.ProviderMachineCreated, "NotCreated", clusterv1.ConditionSeverityError, "%s", err.Error())
-				conditions.MarkFalse(r.infraMachine, v1alpha1.ProviderMachineHealthy, "NotHealthy", clusterv1.ConditionSeverityWarning, "machine not created")
-				conditions.MarkFalse(r.infraMachine, v1alpha1.ProviderMachineReady, "NotReady", clusterv1.ConditionSeverityWarning, "machine not created")
-			default:
-				if r.infraMachine.Spec.ProviderID == "metal://"+*m.ID {
-					conditions.MarkTrue(r.infraMachine, v1alpha1.ProviderMachineCreated)
-				} else {
-					conditions.MarkFalse(r.infraMachine, v1alpha1.ProviderMachineCreated, "NotSet", clusterv1.ConditionSeverityWarning, "provider id was not yet patched into the machine's spec")
-				}
-
-				var errs []error
-
-				switch l := ptr.Deref(m.Liveliness, ""); l {
-				case "Alive":
-				default:
-					errs = append(errs, fmt.Errorf("machine is not alive but %q", l))
-				}
-
-				if m.Events != nil {
-					if m.Events.CrashLoop != nil && *m.Events.CrashLoop {
-						errs = append(errs, errors.New("machine is in a crash loop"))
-					}
-					if m.Events.FailedMachineReclaim != nil && *m.Events.FailedMachineReclaim {
-						errs = append(errs, errors.New("machine reclaim is failing"))
-					}
-				}
-
-				if m.Events != nil && len(m.Events.Log) > 0 && ptr.Deref(m.Events.Log[0].Event, "") == "Phoned Home" {
-					conditions.MarkTrue(r.infraMachine, v1alpha1.ProviderMachineReady)
-				} else {
-					conditions.MarkFalse(r.infraMachine, v1alpha1.ProviderMachineReady, "NotReady", clusterv1.ConditionSeverityWarning, "machine is not in phoned home state")
-				}
-
-				if len(errs) == 0 {
-					conditions.MarkTrue(r.infraMachine, v1alpha1.ProviderMachineHealthy)
-				} else {
-					conditions.MarkFalse(r.infraMachine, v1alpha1.ProviderMachineHealthy, "NotHealthy", clusterv1.ConditionSeverityWarning, "%s", errors.Join(errs...).Error())
-				}
-
-				r.infraMachine.Status.Addresses = nil
-
-				if m.Allocation.Hostname != nil {
-					r.infraMachine.Status.Addresses = append(r.infraMachine.Status.Addresses, clusterv1.MachineAddress{
-						Type:    clusterv1.MachineHostName,
-						Address: *m.Allocation.Hostname,
-					})
-				}
-
-				for _, nw := range m.Allocation.Networks {
-					switch ptr.Deref(nw.Networktype, "") {
-					case "privateprimaryunshared":
-						for _, ip := range nw.Ips {
-							r.infraMachine.Status.Addresses = append(r.infraMachine.Status.Addresses, clusterv1.MachineAddress{
-								Type:    clusterv1.MachineInternalIP,
-								Address: ip,
-							})
-						}
-					case "external":
-						for _, ip := range nw.Ips {
-							r.infraMachine.Status.Addresses = append(r.infraMachine.Status.Addresses, clusterv1.MachineAddress{
-								Type:    clusterv1.MachineExternalIP,
-								Address: ip,
-							})
-						}
-					}
-				}
-			}
-		}
-
-		return err
-	})
-
-	go func() {
-		for u := range conditionUpdates {
-			u()
-		}
-	}()
-
-	groupErr := g.Wait()
-	if groupErr == nil && allConditionsTrue() {
-		r.infraMachine.Status.Ready = true
+	switch l := ptr.Deref(mr.Liveliness, ""); l {
+	case "Alive":
+	default:
+		errs = append(errs, fmt.Errorf("machine is not alive but %q", l))
 	}
 
-	err := r.client.Status().Update(r.ctx, r.infraMachine)
+	if mr.Events != nil {
+		if mr.Events.CrashLoop != nil && *mr.Events.CrashLoop {
+			errs = append(errs, errors.New("machine is in a crash loop"))
+		}
+		if mr.Events.FailedMachineReclaim != nil && *mr.Events.FailedMachineReclaim {
+			errs = append(errs, errors.New("machine reclaim is failing"))
+		}
+	}
 
-	return errors.Join(groupErr, err)
+	isReady := mr.Events != nil && len(mr.Events.Log) > 0 && ptr.Deref(mr.Events.Log[0].Event, "") == "Phoned Home"
+
+	return isReady, errors.Join(errs...)
+}
+
+func (r *machineReconciler) getMachineAddresses(m *models.V1MachineResponse) clusterv1.MachineAddresses {
+	var maddrs clusterv1.MachineAddresses
+
+	if m.Allocation.Hostname != nil {
+		maddrs = append(maddrs, clusterv1.MachineAddress{
+			Type:    clusterv1.MachineHostName,
+			Address: *m.Allocation.Hostname,
+		})
+	}
+
+	for _, nw := range m.Allocation.Networks {
+		switch ptr.Deref(nw.Networktype, "") {
+		case "privateprimaryunshared":
+			for _, ip := range nw.Ips {
+				maddrs = append(maddrs, clusterv1.MachineAddress{
+					Type:    clusterv1.MachineInternalIP,
+					Address: ip,
+				})
+			}
+		case "external":
+			for _, ip := range nw.Ips {
+				maddrs = append(maddrs, clusterv1.MachineAddress{
+					Type:    clusterv1.MachineExternalIP,
+					Address: ip,
+				})
+			}
+		}
+	}
+
+	return maddrs
 }
 
 func (r *machineReconciler) findProviderMachine() (*models.V1MachineResponse, error) {
