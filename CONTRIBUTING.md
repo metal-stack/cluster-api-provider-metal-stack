@@ -22,7 +22,7 @@ Next install our CAPMS provider into the cluster.
 make push-to-capi-lab
 ```
 
-A basic cluster configuration that relies on `config/clusterctl-templates/cluster-template.yaml` can be generated and applied to the mangement cluster using a make target.
+A basic cluster configuration that relies on `config/clusterctl-templates/cluster-template.yaml` can be generated and applied to the management cluster using a make target.
 
 ```bash
 make apply-sample-cluster
@@ -112,19 +112,17 @@ make deploy IMG=<some-registry>/cluster-api-provider-metal-stack:tag
 privileges or be logged in as admin.
 
 **Create instances of your solution**
-You can apply the samples (examples) from the config/sample:
+You can apply the sample cluster configuration:
 
 ```sh
-kubectl apply -k config/samples/
+make apply-sample-cluster
 ```
-
->**NOTE**: Ensure that the samples has default values to test it out.
 
 ### To Uninstall
 **Delete the instances (CRs) from the cluster:**
 
 ```sh
-kubectl delete -k config/samples/
+make delete-sample-cluster
 ```
 
 **Delete the APIs(CRDs) from the cluster:**
