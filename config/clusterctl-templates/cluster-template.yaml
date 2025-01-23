@@ -27,6 +27,7 @@ metadata:
 spec:
   projectID: ${METAL_PROJECT_ID}
   partition: ${METAL_PARTITION}
+  nodeNetworkID: ${METAL_NODE_NETWORK_ID}
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
 kind: MetalStackMachineTemplate
