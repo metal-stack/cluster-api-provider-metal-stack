@@ -49,6 +49,7 @@ type MetalStackMachineSpec struct {
 // MetalStackMachineStatus defines the observed state of MetalStackMachine.
 type MetalStackMachineStatus struct {
 	// Ready denotes that the machine is ready.
+	// +kubebuilder:default=false
 	Ready bool `json:"ready"`
 
 	// FailureReason indicates that there is a fatal problem reconciling the

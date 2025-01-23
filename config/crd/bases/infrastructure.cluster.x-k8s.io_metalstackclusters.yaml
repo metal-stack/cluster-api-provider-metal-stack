@@ -168,6 +168,7 @@ spec:
                   programmatic interpretation.
                 type: string
               ready:
+                default: false
                 description: Ready denotes that the cluster is ready.
                 type: boolean
             required:

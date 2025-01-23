@@ -106,42 +106,20 @@ func (r *MetalStackClusterReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		infraCluster: infraCluster,
 	}
 
-	if !infraCluster.DeletionTimestamp.IsZero() {
-		helper, err := patch.NewHelper(infraCluster, r.Client)
-		if err != nil {
-			return ctrl.Result{}, err
-		}
-
-		err = reconciler.delete()
-
-		updateErr := helper.Patch(ctx, infraCluster)
-		if updateErr != nil {
-			err = errors.Join(err, fmt.Errorf("unable to remove finalizer: %w", updateErr))
-		}
-
-		return ctrl.Result{}, err
-	}
-
-	log.Info("reconciling cluster")
-
-	if !controllerutil.ContainsFinalizer(infraCluster, v1alpha1.ClusterFinalizer) {
-		log.Info("adding finalizer")
-		controllerutil.AddFinalizer(infraCluster, v1alpha1.ClusterFinalizer)
-		if err := r.Client.Update(ctx, infraCluster); err != nil {
-			return ctrl.Result{}, fmt.Errorf("unable to add finalizer: %w", err)
-		}
-
-		err = r.Client.Status().Update(ctx, infraCluster)
-
-		return ctrl.Result{}, err
-	}
-
 	helper, err := patch.NewHelper(infraCluster, r.Client)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	err = reconciler.reconcile()
+	if !infraCluster.DeletionTimestamp.IsZero() {
+		err = reconciler.delete()
+	} else if !controllerutil.ContainsFinalizer(infraCluster, v1alpha1.ClusterFinalizer) {
+		log.Info("adding finalizer")
+		controllerutil.AddFinalizer(infraCluster, v1alpha1.ClusterFinalizer)
+	} else {
+		log.Info("reconciling cluster")
+		err = reconciler.reconcile()
+	}
 
 	updateErr := helper.Patch(ctx, infraCluster)
 	if updateErr != nil {

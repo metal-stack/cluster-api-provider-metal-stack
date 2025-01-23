@@ -78,6 +78,7 @@ type APIEndpoint struct {
 // MetalStackClusterStatus defines the observed state of MetalStackCluster.
 type MetalStackClusterStatus struct {
 	// Ready denotes that the cluster is ready.
+	// +kubebuilder:default=false
 	Ready bool `json:"ready"`
 
 	// FailureReason indicates that there is a fatal problem reconciling the

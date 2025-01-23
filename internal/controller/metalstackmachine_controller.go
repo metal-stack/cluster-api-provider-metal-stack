@@ -140,63 +140,23 @@ func (r *MetalStackMachineReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		infraMachine:   infraMachine,
 	}
 
-	if !infraMachine.DeletionTimestamp.IsZero() {
-		if !controllerutil.ContainsFinalizer(infraMachine, v1alpha1.MachineFinalizer) {
-			return ctrl.Result{}, nil
-		}
-
-		log.Info("reconciling resource deletion flow")
-		err := reconciler.delete()
-		if err != nil {
-			return ctrl.Result{}, err
-		}
-
-		log.Info("deletion finished, removing finalizer")
-		controllerutil.RemoveFinalizer(infraMachine, v1alpha1.MachineFinalizer)
-		if err := r.Client.Update(ctx, infraMachine); err != nil {
-			return ctrl.Result{}, fmt.Errorf("unable to remove finalizer: %w", err)
-		}
-
-		return ctrl.Result{}, nil
-	}
-
-	log.Info("reconciling machine")
-
-	if !controllerutil.ContainsFinalizer(infraMachine, v1alpha1.MachineFinalizer) {
-		log.Info("adding finalizer")
-
-		controllerutil.AddFinalizer(infraMachine, v1alpha1.MachineFinalizer)
-		if err := r.Client.Update(ctx, infraMachine); err != nil {
-			return ctrl.Result{}, fmt.Errorf("unable to add finalizer: %w", err)
-		}
-
-		err = r.Client.Status().Update(ctx, infraMachine)
-
-		return ctrl.Result{}, err
-	}
-
-	if infraCluster.Spec.NodeNetworkID == nil {
-		// this should not happen because before setting this id the cluster status should not become ready, but we check it anyway
-		return ctrl.Result{}, errors.New("waiting until node network id was set to infrastructure cluster status")
-	}
-
-	if infraCluster.Spec.ControlPlaneEndpoint.Host == "" {
-		return ctrl.Result{}, errors.New("waiting until control plane ip was set to infrastructure cluster spec")
-	}
-
-	if machine.Spec.Bootstrap.DataSecretName == nil {
-		return ctrl.Result{}, errors.New("waiting until bootstrap data secret was created")
-	}
-
 	helper, err := patch.NewHelper(infraMachine, r.Client)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
+	var result ctrl.Result
 
-	result, err := reconciler.reconcile()
+	if !infraMachine.DeletionTimestamp.IsZero() {
+		err = reconciler.delete()
+	} else if !controllerutil.ContainsFinalizer(infraMachine, v1alpha1.MachineFinalizer) {
+		log.Info("adding finalizer")
+		controllerutil.AddFinalizer(infraMachine, v1alpha1.MachineFinalizer)
+	} else {
+		result, err = reconciler.reconcile()
+	}
 
 	updateErr := helper.Patch(ctx, infraMachine)
-	if err != nil {
+	if updateErr != nil {
 		err = errors.Join(err, fmt.Errorf("failed to update infra machine: %w", updateErr))
 	}
 
@@ -212,6 +172,21 @@ func (r *MetalStackMachineReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 func (r *machineReconciler) reconcile() (ctrl.Result, error) {
+	if r.infraCluster.Spec.NodeNetworkID == nil {
+		// this should not happen because before setting this id the cluster status should not become ready, but we check it anyway
+		return ctrl.Result{}, errors.New("waiting until node network id was set to infrastructure cluster status")
+	}
+
+	if r.infraCluster.Spec.ControlPlaneEndpoint.Host == "" {
+		return ctrl.Result{}, errors.New("waiting until control plane ip was set to infrastructure cluster spec")
+	}
+
+	if r.clusterMachine.Spec.Bootstrap.DataSecretName == nil {
+		return ctrl.Result{}, errors.New("waiting until bootstrap data secret was created")
+	}
+
+	r.log.Info("reconciling machine")
+
 	m, err := r.findProviderMachine()
 	if err != nil && !errors.Is(err, errProviderMachineNotFound) {
 		conditions.MarkFalse(r.infraMachine, v1alpha1.ProviderMachineCreated, "InternalError", clusterv1.ConditionSeverityError, "%s", err.Error())
@@ -256,6 +231,12 @@ func (r *machineReconciler) reconcile() (ctrl.Result, error) {
 }
 
 func (r *machineReconciler) delete() error {
+	if !controllerutil.ContainsFinalizer(r.infraMachine, v1alpha1.MachineFinalizer) {
+		return nil
+	}
+
+	r.log.Info("reconciling resource deletion flow")
+
 	m, err := r.findProviderMachine()
 	if errors.Is(err, errProviderMachineNotFound) {
 		// metal-stack machine already freed
@@ -271,6 +252,9 @@ func (r *machineReconciler) delete() error {
 	}
 
 	r.log.Info("freed provider machine")
+
+	r.log.Info("deletion finished, removing finalizer")
+	controllerutil.RemoveFinalizer(r.infraMachine, v1alpha1.MachineFinalizer)
 
 	return nil
 }

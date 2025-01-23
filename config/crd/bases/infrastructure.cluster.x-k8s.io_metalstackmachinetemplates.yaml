@@ -175,6 +175,7 @@ spec:
                           programmatic interpretation.
                         type: string
                       ready:
+                        default: false
                         description: Ready denotes that the machine is ready.
                         type: boolean
                     required:
