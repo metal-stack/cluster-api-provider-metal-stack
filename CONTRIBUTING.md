@@ -22,17 +22,21 @@ Next install our CAPMS provider into the cluster.
 make push-to-capi-lab
 ```
 
-A basic cluster configuration resides in `config/samples`.
+Before creating a cluster some manual steps are required beforehand: you need to allocate a node network and a firewall.
 
 ```bash
-kubectl apply -k config/samples
+make -C capi-lab node-network firewall
 ```
 
-For now it is required to manually create the firewall. This might be changed in the future, but for now run:
+A basic cluster configuration that relies on `config/clusterctl-templates/cluster-template.yaml` and uses the aforementioned node network can be generated and applied to the management cluster using a make target.
 
 ```bash
-make -C capi-lab firewall
-# once the firewall is up run
+make apply-sample-cluster
+```
+
+Once the control plane node has phoned home, run:
+
+```bash
 make -C capi-lab mtu-fix
 ```
 
@@ -112,19 +116,17 @@ make deploy IMG=<some-registry>/cluster-api-provider-metal-stack:tag
 privileges or be logged in as admin.
 
 **Create instances of your solution**
-You can apply the samples (examples) from the config/sample:
+You can apply the sample cluster configuration:
 
 ```sh
-kubectl apply -k config/samples/
+make apply-sample-cluster
 ```
-
->**NOTE**: Ensure that the samples has default values to test it out.
 
 ### To Uninstall
 **Delete the instances (CRs) from the cluster:**
 
 ```sh
-kubectl delete -k config/samples/
+make delete-sample-cluster
 ```
 
 **Delete the APIs(CRDs) from the cluster:**

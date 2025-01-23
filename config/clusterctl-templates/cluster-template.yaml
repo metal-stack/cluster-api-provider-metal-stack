@@ -27,6 +27,7 @@ metadata:
 spec:
   projectID: ${METAL_PROJECT_ID}
   partition: ${METAL_PARTITION}
+  nodeNetworkID: ${METAL_NODE_NETWORK_ID}
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
 kind: MetalStackMachineTemplate
@@ -66,13 +67,23 @@ spec:
     format: ignition
     clusterConfiguration:
       controlPlaneEndpoint: ${CONTROL_PLANE_ENDPOINT}
+      apiServer:
+        extraArgs:
+          cloud-provider: external
+      controllerManager:
+        extraArgs:
+          cloud-provider: external
     initConfiguration:
       localAPIEndpoint:
         bindPort: ${CONTROL_PLANE_PORT:=443}
-      nodeRegistration: {}
+      nodeRegistration:
+        kubeletExtraArgs:
+          cloud-provider: external
     joinConfiguration:
       controlPlane: {}
-      nodeRegistration: {}
+      nodeRegistration:
+        kubeletExtraArgs:
+          cloud-provider: external
 ---
 apiVersion: cluster.x-k8s.io/v1beta1
 kind: MachineDeployment
@@ -117,5 +128,13 @@ spec:
       format: ignition
       clusterConfiguration:
         controlPlaneEndpoint: ${CONTROL_PLANE_ENDPOINT}
+        apiServer:
+          extraArgs:
+            cloud-provider: external
+        controllerManager:
+          extraArgs:
+            cloud-provider: external
       joinConfiguration:
-        nodeRegistration: {}
+        nodeRegistration:
+          kubeletExtraArgs:
+            cloud-provider: external
