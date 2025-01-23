@@ -107,23 +107,19 @@ func (r *MetalStackClusterReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	}
 
 	if !infraCluster.DeletionTimestamp.IsZero() {
-		if !controllerutil.ContainsFinalizer(infraCluster, v1alpha1.ClusterFinalizer) {
-			return ctrl.Result{}, nil
-		}
-
-		log.Info("reconciling resource deletion flow")
-		err := reconciler.delete()
+		helper, err := patch.NewHelper(infraCluster, r.Client)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
 
-		log.Info("deletion finished, removing finalizer")
-		controllerutil.RemoveFinalizer(infraCluster, v1alpha1.ClusterFinalizer)
-		if err := r.Client.Update(ctx, infraCluster); err != nil {
-			return ctrl.Result{}, fmt.Errorf("unable to remove finalizer: %w", err)
+		err = reconciler.delete()
+
+		updateErr := helper.Patch(ctx, infraCluster)
+		if updateErr != nil {
+			err = errors.Join(err, fmt.Errorf("unable to remove finalizer: %w", updateErr))
 		}
 
-		return ctrl.Result{}, nil
+		return ctrl.Result{}, err
 	}
 
 	log.Info("reconciling cluster")
@@ -203,15 +199,26 @@ func (r *clusterReconciler) reconcile() error {
 func (r *clusterReconciler) delete() error {
 	var err error
 
+	if !controllerutil.ContainsFinalizer(r.infraCluster, v1alpha1.ClusterFinalizer) {
+		return nil
+	}
+
+	r.log.Info("reconciling resource deletion flow")
+
 	err = r.deleteControlPlaneIP()
 	if err != nil {
 		return fmt.Errorf("unable to delete control plane ip: %w", err)
 	}
+	r.infraCluster.Spec.ControlPlaneIP = nil
 
 	err = r.deleteNodeNetwork()
 	if err != nil {
 		return fmt.Errorf("unable to delete node network: %w", err)
 	}
+	r.infraCluster.Spec.NodeNetworkID = nil
+
+	r.log.Info("deletion finished, removing finalizer")
+	controllerutil.RemoveFinalizer(r.infraCluster, v1alpha1.ClusterFinalizer)
 
 	return err
 }
