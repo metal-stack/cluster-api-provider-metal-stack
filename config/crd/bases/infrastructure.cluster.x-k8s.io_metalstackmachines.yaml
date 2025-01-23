@@ -36,12 +36,13 @@ spec:
       jsonPath: .status.ready
       name: Ready
       type: string
+    - description: Health of the provider machine
+      jsonPath: .status.conditions[1].status
+      name: Healthy
+      type: string
     - jsonPath: .metadata.creationTimestamp
       name: Age
       type: date
-    - jsonPath: .status.conditions[1].status
-      name: Healthy
-      type: string
     name: v1alpha1
     schema:
       openAPIV3Schema:

@@ -28,12 +28,12 @@ spec:
       name: Partition
       priority: 1
       type: string
-    - description: The project ID within metal-stack
+    - description: The project within metal-stack
       jsonPath: .spec.projectID
       name: Project
       priority: 1
       type: string
-    - description: The network ID within metal-stack
+    - description: The network within metal-stack
       jsonPath: .status.nodeNetworkID
       name: Network
       priority: 1
