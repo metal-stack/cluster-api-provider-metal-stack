@@ -396,10 +396,6 @@ func (r *clusterReconciler) ensureControlPlaneIP() (string, error) {
 }
 
 func (r *clusterReconciler) deleteControlPlaneIP() error {
-	if r.infraCluster.Spec.ControlPlaneIP != nil {
-		r.log.Info("skip deletion of provided control plane ip")
-		return nil
-	}
 	ip, err := r.findControlPlaneIP()
 	if err != nil && errors.Is(err, errProviderIPNotFound) {
 		return nil
