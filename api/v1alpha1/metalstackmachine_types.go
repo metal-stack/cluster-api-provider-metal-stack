@@ -72,6 +72,13 @@ type MetalStackMachineStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="Cluster",type="string",JSONPath=".metadata.labels.cluster\\.x-k8s\\.io/cluster-name",description="Cluster to which this MetalStackMachine belongs"
+// +kubebuilder:printcolumn:name="ProviderID",type="string",JSONPath=".spec.providerID",description="ProviderID reference for the MetalStackMachine"
+// +kubebuilder:printcolumn:name="Size",type="string",JSONPath=".spec.size",priority=1,description="Size of the MetalStackMachine"
+// +kubebuilder:printcolumn:name="Image",type="string",JSONPath=".spec.image",description="OS image of the MetalStackMachine"
+// +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.ready",description="MetalStackMachine is ready for worker nodes"
+// +kubebuilder:printcolumn:name="Healthy",type="string",JSONPath=".status.conditions[1].status",description="Health of the provider machine"
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 
 // MetalStackMachine is the Schema for the metalstackmachines API.
 type MetalStackMachine struct {

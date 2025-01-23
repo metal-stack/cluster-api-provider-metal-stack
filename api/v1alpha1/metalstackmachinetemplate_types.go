@@ -29,6 +29,9 @@ type MetalStackMachineTemplateSpec struct {
 }
 
 // +kubebuilder:object:root=true
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
+// +kubebuilder:printcolumn:name="Size",type="string",JSONPath=".spec.template.spec.size",description="Size of the MetalStackMachine"
+// +kubebuilder:printcolumn:name="Image",type="string",JSONPath=".spec.template.spec.image",description="OS image of the MetalStackMachine"
 
 // MetalStackMachineTemplate is the Schema for the inframachinetemplates API.
 type MetalStackMachineTemplate struct {
