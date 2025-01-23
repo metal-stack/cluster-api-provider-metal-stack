@@ -1,6 +1,13 @@
 .DEFAULT_GOAL := up
+.EXPORT_ALL_VARIABLES:
 
+ANSIBLE_EXTRA_VARS_FILE=$(shell pwd)/mini-lab-overrides/extra-vars.yaml
+KIND_EXPERIMENTAL_DOCKER_NETWORK=mini_lab_ext
 KUBECONFIG := $(shell pwd)/mini-lab/.kubeconfig
+MINI_LAB_FLAVOR=capms
+METALCTL_API_URL=http://metal.203.0.113.1.nip.io:8080
+METALCTL_HMAC=metal-admin
+
 IMG ?= ghcr.io/metal-stack/cluster-api-metal-stack-controller:latest
 
 .PHONY: up
@@ -8,7 +15,7 @@ up: bake deploy-capi
 
 .PHONY: bake
 bake:
-	cd mini-lab && make up	MINI_LAB_FLAVOR=capms ANSIBLE_EXTRA_VARS_FILE=../mini-lab-overrides/extra-vars.yaml
+	cd mini-lab && make external_network up # change directory required for gen-certs
 
 .PHONY: deploy-capi
 deploy-capi:
@@ -23,9 +30,9 @@ cleanup:
 
 .PHONY: dev-env
 dev-env:
-	@echo "export METALCTL_API_URL=http://metal.172.17.0.1.nip.io:8080"
-	@echo "export METALCTL_HMAC=metal-admin"
-	@echo "export KUBECONFIG=$(shell pwd)/mini-lab/.kubeconfig"
+	@echo "export METALCTL_API_URL=${METALCTL_API_URL}"
+	@echo "export METALCTL_HMAC=${METALCTL_HMAC}"
+	@echo "export KUBECONFIG=${KUBECONFIG}"
 
 .PHONY: controller
 controller:

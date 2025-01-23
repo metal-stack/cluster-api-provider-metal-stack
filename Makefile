@@ -166,7 +166,7 @@ ifndef ignore-not-found
 endif
 
 # this is configured to work with the capi-lab
-export METAL_API_URL := "http://metal.172.17.0.1.nip.io:8080"
+export METAL_API_URL := "http://metal.203.0.113.1.nip.io:8080"
 export METAL_API_HMAC := "metal-admin"
 
 .PHONY: install
