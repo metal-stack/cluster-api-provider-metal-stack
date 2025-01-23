@@ -43,6 +43,7 @@ import (
 	ipmodels "github.com/metal-stack/metal-go/api/client/ip"
 	metalmachine "github.com/metal-stack/metal-go/api/client/machine"
 	"github.com/metal-stack/metal-go/api/models"
+	"github.com/metal-stack/metal-lib/pkg/pointer"
 	"github.com/metal-stack/metal-lib/pkg/tag"
 )
 
@@ -231,7 +232,7 @@ func (r *machineReconciler) reconcile() error {
 		return err
 	}
 
-	r.infraMachine.Spec.ProviderID = "metal://" + *m.ID
+	r.infraMachine.Spec.ProviderID = encodeProviderID(m)
 
 	err = helper.Patch(r.ctx, r.infraMachine) // TODO:check whether patch is not executed when no changes occur
 	if err != nil {
@@ -354,7 +355,7 @@ func (r *machineReconciler) status() error {
 				conditions.MarkFalse(r.infraMachine, v1alpha1.ProviderMachineHealthy, "NotHealthy", clusterv1.ConditionSeverityWarning, "machine not created")
 				conditions.MarkFalse(r.infraMachine, v1alpha1.ProviderMachineReady, "NotReady", clusterv1.ConditionSeverityWarning, "machine not created")
 			default:
-				if r.infraMachine.Spec.ProviderID == "metal://"+*m.ID {
+				if r.infraMachine.Spec.ProviderID == encodeProviderID(m) {
 					conditions.MarkTrue(r.infraMachine, v1alpha1.ProviderMachineCreated)
 				} else {
 					conditions.MarkFalse(r.infraMachine, v1alpha1.ProviderMachineCreated, "NotSet", clusterv1.ConditionSeverityWarning, "provider id was not yet patched into the machine's spec")
@@ -440,7 +441,7 @@ func (r *machineReconciler) status() error {
 
 func (r *machineReconciler) findProviderMachine() (*models.V1MachineResponse, error) {
 	mfr := &models.V1MachineFindRequest{
-		ID:                strings.TrimPrefix(r.infraMachine.Spec.ProviderID, "metal://"),
+		ID:                decodeProviderID(r.infraMachine.Spec.ProviderID),
 		AllocationProject: r.infraCluster.Spec.ProjectID,
 		Tags:              r.machineTags(),
 	}
@@ -472,4 +473,14 @@ func (r *machineReconciler) machineTags() []string {
 	}
 
 	return tags
+}
+
+func encodeProviderID(m *models.V1MachineResponse) string {
+	return fmt.Sprintf("metal://%s/%s", pointer.SafeDeref(pointer.SafeDeref(m.Partition).ID), pointer.SafeDeref(m.ID))
+}
+
+func decodeProviderID(id string) string {
+	withPartition := strings.TrimPrefix(id, "metal://")
+	_, res, _ := strings.Cut(withPartition, "/")
+	return res
 }

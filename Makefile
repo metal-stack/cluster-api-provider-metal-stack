@@ -64,6 +64,10 @@ push-to-capi-lab: generate manifests build install deploy
 	kubectl --kubeconfig=$(KUBECONFIG) patch deployments.apps -n capms-system capms-controller-manager --patch='{"spec":{"template":{"spec":{"containers":[{"name": "manager","imagePullPolicy":"IfNotPresent","image":"$(IMG)"}]}}}}'
 	kubectl --kubeconfig=$(KUBECONFIG) delete pod -n capms-system -l control-plane=controller-manager
 
+.PHONY: deploy-metal-ccm
+deploy-metal-ccm:
+	cat capi-lab/metal-ccm.yaml | envsubst | kubectl --kubeconfig=.capms-cluster-kubeconfig.yaml apply -f -
+
 .PHONY: manifests
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
 	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases

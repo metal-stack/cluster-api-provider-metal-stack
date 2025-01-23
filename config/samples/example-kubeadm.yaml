@@ -61,14 +61,24 @@ spec:
     format: ignition
     clusterConfiguration:
       controlPlaneEndpoint: 203.0.113.129:443
+      apiServer:
+        extraArgs:
+          cloud-provider: external
+      controllerManager:
+        extraArgs:
+          cloud-provider: external
     initConfiguration:
       localAPIEndpoint:
         advertiseAddress: 127.0.0.1
         bindPort: 443
-      nodeRegistration: {}
+      nodeRegistration:
+        kubeletExtraArgs:
+          cloud-provider: external
     joinConfiguration:
       controlPlane: {}
-      nodeRegistration: {}
+      nodeRegistration:
+        kubeletExtraArgs:
+          cloud-provider: external
 ---
 apiVersion: cluster.x-k8s.io/v1beta1
 kind: MachineDeployment
@@ -113,5 +123,13 @@ spec:
       format: ignition
       clusterConfiguration:
         controlPlaneEndpoint: 203.0.113.129:443
+        apiServer:
+          extraArgs:
+            cloud-provider: external
+        controllerManager:
+          extraArgs:
+            cloud-provider: external
       joinConfiguration:
-        nodeRegistration: {}
+        nodeRegistration:
+          kubeletExtraArgs:
+            cloud-provider: external

@@ -13,6 +13,12 @@ egress:
   protocol: TCP
   to:
   - 0.0.0.0/0
+- comment: allow outgoing traffic to control plane for ccm
+  ports:
+  - 8080
+  protocol: TCP
+  to:
+  - 172.16.0.0/12 # Docker Networks
 - comment: allow outgoing DNS and NTP traffic via UDP
   ports:
   - 53
