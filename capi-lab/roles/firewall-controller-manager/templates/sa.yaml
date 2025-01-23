@@ -1,6 +1,0 @@
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: firewall-controller-manager
-  namespace: {{ firewall_controller_manager_namespace }}

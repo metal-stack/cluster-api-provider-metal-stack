@@ -26,7 +26,6 @@ import (
 	"github.com/stretchr/testify/mock"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	corev1 "k8s.io/api/core/v1"
@@ -115,11 +114,6 @@ var _ = Describe("MetalStackCluster Controller", func() {
 				NodeNetworkID:        nil,
 				ControlPlaneIP:       nil,
 				Partition:            "test-partition",
-				Firewall: &infrastructurev1alpha1.Firewall{
-					Size:               "v1-small-x86",
-					Image:              "firewall-ubuntu-3.0",
-					AdditionalNetworks: []string{"internet"},
-				},
 			}
 		})
 
@@ -266,25 +260,10 @@ var _ = Describe("MetalStackCluster Controller", func() {
 				"Status": Equal(corev1.ConditionTrue),
 			})))
 			Expect(resource.Status.Conditions).To(ContainElement(MatchFields(IgnoreExtras, Fields{
-				"Type":   Equal(v1alpha1.ClusterFirewallDeploymentReady),
-				"Status": Equal(corev1.ConditionTrue),
-			})))
-			Expect(resource.Status.Conditions).To(ContainElement(MatchFields(IgnoreExtras, Fields{
 				"Type":   Equal(v1alpha1.ClusterControlPlaneEndpointEnsured),
 				"Status": Equal(corev1.ConditionTrue),
 			})))
 			Expect(resource.Status.Ready).To(BeTrue())
-
-			By("ssh keypair generation")
-			sshSecret := &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      owner.Name + "-ssh-keypair",
-					Namespace: resource.Namespace,
-				},
-			}
-			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(sshSecret), sshSecret)).NotTo(HaveOccurred())
-			Expect(sshSecret.Data).To(HaveKey("id_rsa"))
-			Expect(sshSecret.Data).To(HaveKey("id_rsa.pub"))
 		})
 	})
 	Context("reconciliation when external resources are provided", func() {
@@ -304,7 +283,6 @@ var _ = Describe("MetalStackCluster Controller", func() {
 				NodeNetworkID:        &nodeNetworkID,
 				ControlPlaneIP:       &controlPlaneIP,
 				Partition:            "test-partition",
-				Firewall:             nil, // an empty firewall spec represents an existing one
 			}
 		})
 
@@ -380,10 +358,6 @@ var _ = Describe("MetalStackCluster Controller", func() {
 						"Status": Equal(corev1.ConditionTrue),
 					}),
 					MatchFields(IgnoreExtras, Fields{
-						"Type":   Equal(v1alpha1.ClusterFirewallDeploymentReady),
-						"Status": Equal(corev1.ConditionTrue),
-					}),
-					MatchFields(IgnoreExtras, Fields{
 						"Type":   Equal(v1alpha1.ClusterControlPlaneEndpointEnsured),
 						"Status": Equal(corev1.ConditionTrue),
 					}),
@@ -453,10 +427,6 @@ var _ = Describe("MetalStackCluster Controller", func() {
 					"Status":  Equal(corev1.ConditionFalse),
 					"Reason":  Equal("InternalError"),
 					"Message": ContainSubstring("network not found"),
-				})))
-				Expect(resource.Status.Conditions).To(ContainElement(MatchFields(IgnoreExtras, Fields{
-					"Type":   Equal(v1alpha1.ClusterFirewallDeploymentReady),
-					"Status": Equal(corev1.ConditionTrue),
 				})))
 				Expect(resource.Status.Conditions).To(ContainElement(MatchFields(IgnoreExtras, Fields{
 					"Type":    Equal(v1alpha1.ClusterControlPlaneEndpointEnsured),

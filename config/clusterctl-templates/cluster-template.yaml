@@ -27,10 +27,6 @@ metadata:
 spec:
   projectID: ${METAL_PROJECT_ID}
   partition: ${METAL_PARTITION}
-  firewall:
-    size: ${FIREWALL_MACHINE_SIZE}
-    image: ${FIREWALL_MACHINE_IMAGE}
-    networks: ${FIREWALL_NETWORKS:=[internet]}
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
 kind: MetalStackMachineTemplate
