@@ -42,12 +42,6 @@ When the control plane node was provisioned, you can obtain the kubeconfig like:
 kubectl get secret metal-test-kubeconfig -o jsonpath='{.data.value}' | base64 -d > .capms-cluster-kubeconfig.yaml
 ```
 
-The node's provider ID is provided by the [metal-ccm](https://github.com/metal-stack/metal-ccm), which needs to be deployed into the cluster:
-
-```bash
-make deploy-metal-ccm
-```
-
 It is now expected to deploy a CNI to the cluster:
 
 ```bash
@@ -76,6 +70,18 @@ EOF
 
 > [!note]
 > Actually, Calico should be configured using BGP (no overlay), eBPF and DSR. An example will be proposed in this repository at a later point in time.
+
+The node's provider ID is provided by the [metal-ccm](https://github.com/metal-stack/metal-ccm), which needs to be deployed into the cluster:
+
+```bash
+make deploy-metal-ccm
+```
+
+If you want to provide service's of type load balancer through MetalLB by the metal-ccm, you need to deploy MetalLB:
+
+```bash
+kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.14.9/config/manifests/metallb-native.yaml
+```
 
 That's it!
 
