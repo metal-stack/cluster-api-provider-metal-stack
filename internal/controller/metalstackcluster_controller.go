@@ -140,16 +140,6 @@ func (r *MetalStackClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 func (r *clusterReconciler) reconcile() error {
-	nodeNetworkID, err := r.ensureNodeNetwork()
-	if err != nil {
-		conditions.MarkFalse(r.infraCluster, v1alpha1.ClusterNodeNetworkEnsured, "InternalError", clusterv1.ConditionSeverityError, "%s", err.Error())
-		return fmt.Errorf("unable to ensure node network: %w", err)
-	}
-	conditions.MarkTrue(r.infraCluster, v1alpha1.ClusterNodeNetworkEnsured)
-	r.infraCluster.Spec.NodeNetworkID = &nodeNetworkID
-
-	r.log.Info("reconciled node network", "network-id", nodeNetworkID)
-
 	if r.infraCluster.Spec.ControlPlaneEndpoint.Host == "" {
 		ip, err := r.ensureControlPlaneIP()
 		if err != nil {
@@ -189,49 +179,10 @@ func (r *clusterReconciler) delete() error {
 	}
 	r.infraCluster.Spec.ControlPlaneIP = nil
 
-	err = r.deleteNodeNetwork()
-	if err != nil {
-		return fmt.Errorf("unable to delete node network: %w", err)
-	}
-	r.infraCluster.Spec.NodeNetworkID = nil
-
 	r.log.Info("deletion finished, removing finalizer")
 	controllerutil.RemoveFinalizer(r.infraCluster, v1alpha1.ClusterFinalizer)
 
 	return err
-}
-
-func (r *clusterReconciler) ensureNodeNetwork() (string, error) {
-	if r.infraCluster.Spec.NodeNetworkID != nil {
-		return *r.infraCluster.Spec.NodeNetworkID, nil
-	}
-
-	resp, err := r.metalClient.Network().AllocateNetwork(network.NewAllocateNetworkParams().WithBody(&models.V1NetworkAllocateRequest{
-		Projectid:   r.infraCluster.Spec.ProjectID,
-		Partitionid: r.infraCluster.Spec.Partition,
-		Name:        r.infraCluster.GetName(),
-		Description: fmt.Sprintf("%s/%s", r.infraCluster.GetNamespace(), r.infraCluster.GetName()),
-		Labels:      map[string]string{tag.ClusterID: string(r.infraCluster.GetUID())},
-	}).WithContext(r.ctx), nil)
-	if err != nil {
-		return "", fmt.Errorf("error creating node network: %w", err)
-	}
-
-	return *resp.Payload.ID, nil
-}
-
-func (r *clusterReconciler) deleteNodeNetwork() error {
-	if r.infraCluster.Spec.NodeNetworkID == nil {
-		return nil
-	}
-
-	_, err := r.metalClient.Network().FreeNetwork(network.NewFreeNetworkParams().WithID(*r.infraCluster.Spec.NodeNetworkID).WithContext(r.ctx), nil)
-	if err != nil {
-		return err
-	}
-	r.log.Info("deleted node network")
-
-	return nil
 }
 
 func (r *clusterReconciler) ensureControlPlaneIP() (string, error) {
