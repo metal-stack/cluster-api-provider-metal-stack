@@ -65,12 +65,11 @@ spec:
       name: ${CLUSTER_NAME}-controlplane
   kubeadmConfigSpec:
     format: ignition
-    clusterConfiguration:
-      controlPlaneEndpoint: ${CONTROL_PLANE_ENDPOINT}
+    clusterConfiguration: {}
     initConfiguration:
       localAPIEndpoint:
         advertiseAddress: 127.0.0.1
-        bindPort: ${CONTROL_PLANE_PORT:=443}
+        bindPort: 443
       nodeRegistration: {}
     joinConfiguration:
       controlPlane: {}
@@ -117,7 +116,6 @@ spec:
   template:
     spec:
       format: ignition
-      clusterConfiguration:
-        controlPlaneEndpoint: ${CONTROL_PLANE_ENDPOINT}
+      clusterConfiguration: {}
       joinConfiguration:
         nodeRegistration: {}
