@@ -191,11 +191,11 @@ spec:
           value: mini-lab
         # associates service type load balancer ips with this cluster:
         - name: METAL_CLUSTER_ID
-          value: 313f567a-2663-4310-8b0f-2415952c6c63
+          value: ${METAL_CLUSTER_ID}
         - name: METAL_DEFAULT_EXTERNAL_NETWORK_ID
           value: internet-mini-lab
         - name: METAL_ADDITIONAL_NETWORKS
-          value: internet-mini-lab,feb8021c-fec0-4e11-8242-d7e13e7845ca
+          value: internet-mini-lab,${METAL_NODE_NETWORK_ID}
         - name: METAL_SSH_PUBLICKEY
           value: ""
         image: ghcr.io/metal-stack/metal-ccm:v0.9.3

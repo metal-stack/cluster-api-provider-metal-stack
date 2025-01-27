@@ -8,6 +8,16 @@ MINI_LAB_FLAVOR=capms
 METALCTL_API_URL=http://metal.203.0.113.1.nip.io:8080
 METALCTL_HMAC=metal-admin
 
+METAL_CLUSTER_ID ?= $(shell kubectl get metalstackclusters.infrastructure.cluster.x-k8s.io metal-test -ojsonpath='{.metadata.uid}')
+METAL_PARTITION ?= mini-lab
+METAL_PROJECT_ID ?= 00000000-0000-0000-0000-000000000001
+METAL_NODE_NETWORK_ID ?= $(shell metalctl network list --name metal-test -o template --template '{{ .id }}')
+
+CONTROL_PLANE_MACHINE_IMAGE ?= ubuntu-24.04
+CONTROL_PLANE_MACHINE_SIZE ?= v1-small-x86
+WORKER_MACHINE_IMAGE ?= ubuntu-24.04
+WORKER_MACHINE_SIZE ?= v1-small-x86
+
 IMG ?= ghcr.io/metal-stack/cluster-api-metal-stack-controller:latest
 
 .PHONY: up
@@ -47,7 +57,35 @@ firewall:
 node-network:
 	metalctl network allocate --description "node network for metal-test cluster" --name metal-test --project 00000000-0000-0000-0000-000000000001 --partition mini-lab
 
+.PHONY: up
+up: bake deploy-cloud-stack
+
+.PHONY: apply-sample-cluster
+apply-sample-cluster: generate manifests
+	clusterctl generate cluster metal-test \
+		--kubeconfig=$(KUBECONFIG) \
+		--worker-machine-count 1 \
+		--control-plane-machine-count 1 \
+		--kubernetes-version 1.30.6 \
+		--from config/clusterctl-templates/cluster-template.yaml \
+		| kubectl --kubeconfig=$(KUBECONFIG) apply -f -
+
+.PHONY: delete-sample-cluster
+delete-sample-cluster: generate manifests
+	clusterctl generate cluster metal-test \
+		--kubeconfig=$(KUBECONFIG) \
+		--worker-machine-count 1 \
+		--control-plane-machine-count 1 \
+		--kubernetes-version 1.30.6 \
+		--from config/clusterctl-templates/cluster-template.yaml \
+		| kubectl --kubeconfig=$(KUBECONFIG) delete -f -
+
 .PHONY: mtu-fix
 mtu-fix:
 	cd mini-lab && ssh -F files/ssh/config leaf01 'ip link set dev vtep-1001 mtu 9100 && echo done'
 	cd mini-lab && ssh -F files/ssh/config leaf02 'ip link set dev vtep-1001 mtu 9100 && echo done'
+
+.PHONY: deploy-metal-ccm
+deploy-metal-ccm:
+	kubectl get metalstackclusters.infrastructure.cluster.x-k8s.io metal-test -ojsonpath='{.metadata.uid}'
+	cat metal-ccm.yaml | envsubst | kubectl --kubeconfig=.capms-cluster-kubeconfig.yaml apply -f -

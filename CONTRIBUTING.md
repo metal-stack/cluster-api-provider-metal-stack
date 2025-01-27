@@ -31,7 +31,7 @@ make -C capi-lab node-network firewall
 A basic cluster configuration that relies on `config/clusterctl-templates/cluster-template.yaml` and uses the aforementioned node network can be generated and applied to the management cluster using a make target.
 
 ```bash
-make apply-sample-cluster
+make -C capi-lab apply-sample-cluster
 ```
 
 Once the control plane node has phoned home, run:
@@ -43,14 +43,14 @@ make -C capi-lab mtu-fix
 When the control plane node was provisioned, you can obtain the kubeconfig like:
 
 ```bash
-kubectl get secret metal-test-kubeconfig -o jsonpath='{.data.value}' | base64 -d > .capms-cluster-kubeconfig.yaml
+kubectl get secret metal-test-kubeconfig -o jsonpath='{.data.value}' | base64 -d > capi-lab/.capms-cluster-kubeconfig.yaml
 ```
 
 It is now expected to deploy a CNI to the cluster:
 
 ```bash
-kubectl --kubeconfig=.capms-cluster-kubeconfig.yaml create -f https://raw.githubusercontent.com/projectcalico/calico/v3.28.2/manifests/tigera-operator.yaml
-cat <<EOF | kubectl --kubeconfig=.capms-cluster-kubeconfig.yaml create -f -
+kubectl --kubeconfig=capi-lab/.capms-cluster-kubeconfig.yaml create -f https://raw.githubusercontent.com/projectcalico/calico/v3.28.2/manifests/tigera-operator.yaml
+cat <<EOF | kubectl --kubeconfig=capi-lab/.capms-cluster-kubeconfig.yaml create -f -
 apiVersion: operator.tigera.io/v1
 kind: Installation
 metadata:
@@ -78,7 +78,7 @@ EOF
 The node's provider ID is provided by the [metal-ccm](https://github.com/metal-stack/metal-ccm), which needs to be deployed into the cluster:
 
 ```bash
-make deploy-metal-ccm
+make -C capi-lab deploy-metal-ccm
 ```
 
 If you want to provide service's of type load balancer through MetalLB by the metal-ccm, you need to deploy MetalLB:
@@ -119,14 +119,14 @@ privileges or be logged in as admin.
 You can apply the sample cluster configuration:
 
 ```sh
-make apply-sample-cluster
+make -C capi-lab apply-sample-cluster
 ```
 
 ### To Uninstall
 **Delete the instances (CRs) from the cluster:**
 
 ```sh
-make delete-sample-cluster
+make -C capi-lab delete-sample-cluster
 ```
 
 **Delete the APIs(CRDs) from the cluster:**
