@@ -239,7 +239,8 @@ func (r *machineReconciler) delete() error {
 
 	m, err := r.findProviderMachine()
 	if errors.Is(err, errProviderMachineNotFound) {
-		// metal-stack machine already freed
+		r.log.Info("machine already freed, removing finalizer")
+		controllerutil.RemoveFinalizer(r.infraMachine, v1alpha1.MachineFinalizer)
 		return nil
 	}
 	if err != nil {
