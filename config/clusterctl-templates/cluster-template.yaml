@@ -66,7 +66,6 @@ spec:
   kubeadmConfigSpec:
     format: ignition
     clusterConfiguration:
-      controlPlaneEndpoint: ${CONTROL_PLANE_ENDPOINT}
       apiServer:
         extraArgs:
           cloud-provider: external
@@ -76,7 +75,7 @@ spec:
     initConfiguration:
       localAPIEndpoint:
         advertiseAddress: 127.0.0.1
-        bindPort: ${CONTROL_PLANE_PORT:=443}
+        bindPort: 443
       nodeRegistration:
         kubeletExtraArgs:
           cloud-provider: external
@@ -128,7 +127,6 @@ spec:
     spec:
       format: ignition
       clusterConfiguration:
-        controlPlaneEndpoint: ${CONTROL_PLANE_ENDPOINT}
         apiServer:
           extraArgs:
             cloud-provider: external
