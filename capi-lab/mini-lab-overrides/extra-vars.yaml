@@ -1,12 +1,14 @@
 ---
+metal_control_plane_ingress_dns: 203.0.113.1.nip.io
 metal_check_api_health_endpoint: http://metal.{{ metal_control_plane_ingress_dns }}:8080/v1/health
 
 metal_api_base_path: "/"
 
 metal_ingress_dns: metal.{{ metal_control_plane_ingress_dns }}
 
-metal_partition_metal_api_addr: metal.172.17.0.1.nip.io
+metal_partition_metal_api_addr: metal.{{ metal_control_plane_ingress_dns }}
 metal_partition_metal_api_basepath: "/"
+metal_partition_mgmt_gateway: 203.0.113.1
 
 metal_api_images:
 - id: firewall-ubuntu-3.0
@@ -21,3 +23,10 @@ metal_api_images:
   url: https://images.metal-stack.io/metal-os/pull_requests/273-cluster-api-k8s-v1.30.6/cluster-api/cluster-api-k8s-1.30.6/img.tar.lz4
   features:
     - machine
+
+sonic_mgmtif_gateway: "203.0.113.1"
+
+sonic_nameservers:
+  - "203.0.113.1"
+  - "1.1.1.1"
+  - "1.0.0.1"
