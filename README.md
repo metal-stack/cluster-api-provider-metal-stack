@@ -37,7 +37,7 @@ providers:
 Now you are able to install the CAPMS into your cluster:
 
 ```bash
-export METALCTL_API_URL=http://metal.172.17.0.1.nip.io:8080
+export METALCTL_API_URL=http://metal.203.0.113.1.nip.io:8080
 export METALCTL_API_HMAC=metal-admin
 export EXP_KUBEADM_BOOTSTRAP_FORMAT_IGNITION=true
 
@@ -57,5 +57,5 @@ clusterctl generate cluster example --kubernetes-version v1.30.6 --infrastructur
 > Due to the early development stage the following manual actions are needed for the cluster to operate.
 
 1. The firewall needs to be created manually.
-1. The metal-ccm has to be deployed
-1. You need to install your CNI of choice. This is required due to CAPI.
+2. The metal-ccm has to be deployed
+3. You need to install your CNI of choice. This is required due to CAPI.

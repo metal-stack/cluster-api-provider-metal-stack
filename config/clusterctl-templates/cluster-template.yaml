@@ -75,6 +75,7 @@ spec:
           cloud-provider: external
     initConfiguration:
       localAPIEndpoint:
+        advertiseAddress: 127.0.0.1
         bindPort: ${CONTROL_PLANE_PORT:=443}
       nodeRegistration:
         kubeletExtraArgs:

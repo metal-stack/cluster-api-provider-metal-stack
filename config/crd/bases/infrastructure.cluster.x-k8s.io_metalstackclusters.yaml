@@ -92,9 +92,8 @@ spec:
                   Static ip addresses will not be deleted.
                 type: string
               nodeNetworkID:
-                description: |-
-                  NodeNetworkID is the network ID in metal-stack in which the worker nodes and the firewall of the cluster are placed.
-                  If not provided this will automatically be acquired during reconcile.
+                description: NodeNetworkID is the network ID in metal-stack in which
+                  the worker nodes and the firewall of the cluster are placed.
                 type: string
               partition:
                 description: Partition is the data center partition in which the resources
@@ -105,6 +104,7 @@ spec:
                   in which the associated metal-stack resources are created.
                 type: string
             required:
+            - nodeNetworkID
             - partition
             - projectID
             type: object
