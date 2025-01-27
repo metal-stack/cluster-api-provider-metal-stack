@@ -183,17 +183,17 @@ func (r *clusterReconciler) delete() error {
 
 	r.log.Info("reconciling resource deletion flow")
 
-	err = r.deleteControlPlaneIP()
-	if err != nil {
-		return fmt.Errorf("unable to delete control plane ip: %w", err)
-	}
-	r.infraCluster.Spec.ControlPlaneIP = nil
-
 	err = r.deleteNodeNetwork()
 	if err != nil {
 		return fmt.Errorf("unable to delete node network: %w", err)
 	}
 	r.infraCluster.Spec.NodeNetworkID = nil
+
+	err = r.deleteControlPlaneIP()
+	if err != nil {
+		return fmt.Errorf("unable to delete control plane ip: %w", err)
+	}
+	r.infraCluster.Spec.ControlPlaneIP = nil
 
 	r.log.Info("deletion finished, removing finalizer")
 	controllerutil.RemoveFinalizer(r.infraCluster, v1alpha1.ClusterFinalizer)
