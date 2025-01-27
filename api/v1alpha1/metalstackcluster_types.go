@@ -31,7 +31,6 @@ const (
 
 	ClusterControlPlaneEndpointDefaultPort = 443
 
-	ClusterNodeNetworkEnsured    clusterv1.ConditionType = "ClusterNodeNetworkEnsured"
 	ClusterControlPlaneIPEnsured clusterv1.ConditionType = "ClusterControlPlaneIPEnsured"
 )
 
@@ -52,9 +51,7 @@ type MetalStackClusterSpec struct {
 	ProjectID string `json:"projectID"`
 
 	// NodeNetworkID is the network ID in metal-stack in which the worker nodes and the firewall of the cluster are placed.
-	// If not provided this will automatically be acquired during reconcile.
-	// +optional
-	NodeNetworkID *string `json:"nodeNetworkID,omitempty"`
+	NodeNetworkID string `json:"nodeNetworkID"`
 
 	// ControlPlaneIP is the ip address in metal-stack on which the control plane will be exposed.
 	// If this ip and the control plane endpoint are not provided, an ephemeral ip will automatically be acquired during reconcile.
