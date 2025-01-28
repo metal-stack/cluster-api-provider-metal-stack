@@ -5,8 +5,19 @@ ANSIBLE_EXTRA_VARS_FILE=$(shell pwd)/mini-lab-overrides/extra-vars.yaml
 KIND_EXPERIMENTAL_DOCKER_NETWORK=mini_lab_ext
 KUBECONFIG := $(shell pwd)/mini-lab/.kubeconfig
 MINI_LAB_FLAVOR=capms
+
+METAL_API_URL=http://metal.203.0.113.1.nip.io:8080
+METAL_API_HMAC=metal-admin
 METALCTL_API_URL=http://metal.203.0.113.1.nip.io:8080
 METALCTL_HMAC=metal-admin
+
+METAL_PARTITION ?= mini-lab
+METAL_PROJECT_ID ?= 00000000-0000-0000-0000-000000000001
+
+CONTROL_PLANE_MACHINE_IMAGE ?= ubuntu-24.04
+CONTROL_PLANE_MACHINE_SIZE ?= v1-small-x86
+WORKER_MACHINE_IMAGE ?= ubuntu-24.04
+WORKER_MACHINE_SIZE ?= v1-small-x86
 
 IMG ?= ghcr.io/metal-stack/cluster-api-metal-stack-controller:latest
 
@@ -47,7 +58,35 @@ firewall:
 node-network:
 	metalctl network allocate --description "node network for metal-test cluster" --name metal-test --project 00000000-0000-0000-0000-000000000001 --partition mini-lab
 
+.PHONY: apply-sample-cluster
+apply-sample-cluster:
+	$(eval METAL_NODE_NETWORK_ID = $(shell metalctl network list --name metal-test -o template --template '{{ .id }}'))
+	clusterctl generate cluster metal-test \
+		--kubeconfig=$(KUBECONFIG) \
+		--worker-machine-count 1 \
+		--control-plane-machine-count 1 \
+		--kubernetes-version 1.30.6 \
+		--from ../config/clusterctl-templates/cluster-template.yaml \
+		| kubectl --kubeconfig=$(KUBECONFIG) apply -f -
+
+.PHONY: delete-sample-cluster
+delete-sample-cluster:
+	$(eval METAL_NODE_NETWORK_ID = $(shell metalctl network list --name metal-test -o template --template '{{ .id }}'))
+	clusterctl generate cluster metal-test \
+		--kubeconfig=$(KUBECONFIG) \
+		--worker-machine-count 1 \
+		--control-plane-machine-count 1 \
+		--kubernetes-version 1.30.6 \
+		--from ../config/clusterctl-templates/cluster-template.yaml \
+		| kubectl --kubeconfig=$(KUBECONFIG) delete -f -
+
 .PHONY: mtu-fix
 mtu-fix:
 	cd mini-lab && ssh -F files/ssh/config leaf01 'ip link set dev vtep-1001 mtu 9100 && echo done'
 	cd mini-lab && ssh -F files/ssh/config leaf02 'ip link set dev vtep-1001 mtu 9100 && echo done'
+
+.PHONY: deploy-metal-ccm
+deploy-metal-ccm:
+	$(eval METAL_CLUSTER_ID = $(shell kubectl get metalstackclusters.infrastructure.cluster.x-k8s.io metal-test -ojsonpath='{.metadata.uid}'))
+	$(eval METAL_NODE_NETWORK_ID = $(shell metalctl network list --name metal-test -o template --template '{{ .id }}'))
+	cat metal-ccm.yaml | envsubst | kubectl --kubeconfig=.capms-cluster-kubeconfig.yaml apply -f -

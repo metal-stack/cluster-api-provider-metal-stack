@@ -241,36 +241,3 @@ mv $(1) $(1)-$(3) ;\
 } ;\
 ln -sf $(1)-$(3) $(1)
 endef
-
-# mini-lab developer environment
-
-export METAL_PARTITION ?= mini-lab
-export METAL_PROJECT_ID ?= 00000000-0000-0000-0000-000000000001
-export METAL_NODE_NETWORK_ID ?= $(shell metalctl network list --name metal-test -o template --template '{{ .id }}')
-export CONTROL_PLANE_MACHINE_IMAGE ?= ubuntu-24.04
-export CONTROL_PLANE_MACHINE_SIZE ?= v1-small-x86
-export WORKER_MACHINE_IMAGE ?= ubuntu-24.04
-export WORKER_MACHINE_SIZE ?= v1-small-x86
-
-.PHONY: up
-up: bake deploy-cloud-stack
-
-.PHONY: apply-sample-cluster
-apply-sample-cluster: generate manifests
-	clusterctl generate cluster metal-test \
-		--kubeconfig=$(KUBECONFIG) \
-		--worker-machine-count 1 \
-		--control-plane-machine-count 1 \
-		--kubernetes-version 1.30.6 \
-		--from config/clusterctl-templates/cluster-template.yaml \
-		| kubectl --kubeconfig=$(KUBECONFIG) apply -f -
-
-.PHONY: delete-sample-cluster
-delete-sample-cluster: generate manifests
-	clusterctl generate cluster metal-test \
-		--kubeconfig=$(KUBECONFIG) \
-		--worker-machine-count 1 \
-		--control-plane-machine-count 1 \
-		--kubernetes-version 1.30.6 \
-		--from config/clusterctl-templates/cluster-template.yaml \
-		| kubectl --kubeconfig=$(KUBECONFIG) delete -f -

@@ -42,6 +42,7 @@ import (
 	ipmodels "github.com/metal-stack/metal-go/api/client/ip"
 	metalmachine "github.com/metal-stack/metal-go/api/client/machine"
 	"github.com/metal-stack/metal-go/api/models"
+	"github.com/metal-stack/metal-lib/pkg/pointer"
 	"github.com/metal-stack/metal-lib/pkg/tag"
 )
 
@@ -200,7 +201,7 @@ func (r *machineReconciler) reconcile() (ctrl.Result, error) {
 	if m.ID == nil {
 		return ctrl.Result{}, errors.New("machine allocated but got no provider ID")
 	}
-	r.infraMachine.Spec.ProviderID = "metal://" + *m.ID
+	r.infraMachine.Spec.ProviderID = encodeProviderID(m)
 
 	result := ctrl.Result{}
 
@@ -370,7 +371,7 @@ func (r *machineReconciler) getMachineAddresses(m *models.V1MachineResponse) clu
 
 func (r *machineReconciler) findProviderMachine() (*models.V1MachineResponse, error) {
 	mfr := &models.V1MachineFindRequest{
-		ID:                strings.TrimPrefix(r.infraMachine.Spec.ProviderID, "metal://"),
+		ID:                decodeProviderID(r.infraMachine.Spec.ProviderID),
 		AllocationProject: r.infraCluster.Spec.ProjectID,
 		Tags:              r.machineTags(),
 	}
@@ -402,4 +403,14 @@ func (r *machineReconciler) machineTags() []string {
 	}
 
 	return tags
+}
+
+func encodeProviderID(m *models.V1MachineResponse) string {
+	return fmt.Sprintf("metal://%s/%s", pointer.SafeDeref(pointer.SafeDeref(m.Partition).ID), pointer.SafeDeref(m.ID))
+}
+
+func decodeProviderID(id string) string {
+	withPartition := strings.TrimPrefix(id, "metal://")
+	_, res, _ := strings.Cut(withPartition, "/")
+	return res
 }
