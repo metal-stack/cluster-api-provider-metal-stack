@@ -87,17 +87,6 @@ If you want to provide service's of type load balancer through MetalLB by the me
 kubectl --kubeconfig capi-lab/.capms-cluster-kubeconfig.yaml apply --kustomize capi-lab/metallb
 ```
 
-If you want to announce the load balancer IP addresses, you need to create a BGP advertisement using the following command:
-```
-cat <<EOF | kubectl --kubeconfig=capi-lab/.capms-cluster-kubeconfig.yaml create -f -
-apiVersion: metallb.io/v1beta1
-kind: BGPAdvertisement
-metadata:
-  name: advertisement
-  namespace: "metallb-system"
-EOF
-```
-
 For each node in your Kubernetes cluster, you need to create a BGP peer configuration. Replace the placeholders ({{
 NODE_ASN }}, {{ NODE_HOSTNAME }}, and {{ NODE_ROUTER_ID }}) with the appropriate values for each node.
 
