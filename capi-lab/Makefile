@@ -5,6 +5,9 @@ ANSIBLE_EXTRA_VARS_FILE=$(shell pwd)/mini-lab-overrides/extra-vars.yaml
 KIND_EXPERIMENTAL_DOCKER_NETWORK=mini_lab_ext
 KUBECONFIG := $(shell pwd)/mini-lab/.kubeconfig
 MINI_LAB_FLAVOR=capms
+
+METAL_API_URL=http://metal.203.0.113.1.nip.io:8080
+METAL_API_HMAC=metal-admin
 METALCTL_API_URL=http://metal.203.0.113.1.nip.io:8080
 METALCTL_HMAC=metal-admin
 
