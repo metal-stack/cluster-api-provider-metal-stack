@@ -438,7 +438,6 @@ func (r *machineReconciler) machineTags() []string {
 	tags := []string{
 		tag.New(tag.ClusterID, string(r.infraCluster.GetUID())),
 		tag.New(v1alpha1.TagInfraMachineID, string(r.infraMachine.GetUID())),
-		tag.New(corev1.LabelTopologyZone, r.infraCluster.Spec.Partition),
 	}
 
 	if util.IsControlPlaneMachine(r.clusterMachine) {
@@ -450,6 +449,7 @@ func (r *machineReconciler) machineTags() []string {
 
 func (r *machineReconciler) additionalMachineTags(partition *models.V1PartitionResponse) []string {
 	tags := []string{
+		tag.New(corev1.LabelTopologyZone, r.infraCluster.Spec.Partition),
 		tag.New(corev1.LabelTopologyRegion, partition.Labels[tag.PartitionRegion]),
 	}
 
