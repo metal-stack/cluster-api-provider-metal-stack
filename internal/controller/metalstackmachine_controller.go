@@ -450,6 +450,7 @@ func (r *machineReconciler) machineTags() []string {
 func (r *machineReconciler) additionalMachineTags(partition *models.V1PartitionResponse) []string {
 	tags := []string{
 		tag.New(corev1.LabelTopologyZone, r.infraCluster.Spec.Partition),
+		tag.New(corev1.LabelHostname, r.infraMachine.Name),
 	}
 	if partition.Labels != nil && partition.Labels[tag.PartitionRegion] != "" {
 		tags = append(tags, partition.Labels[tag.PartitionRegion])
