@@ -84,7 +84,44 @@ make -C capi-lab deploy-metal-ccm
 If you want to provide service's of type load balancer through MetalLB by the metal-ccm, you need to deploy MetalLB:
 
 ```bash
-kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.14.9/config/manifests/metallb-native.yaml
+kubectl --kubeconfig capi-lab/.capms-cluster-kubeconfig.yaml apply --kustomize capi-lab/metallb
+```
+
+If you want to announce the load balancer IP addresses, you need to create a BGP advertisement using the following command:
+```
+cat <<EOF | kubectl --kubeconfig=capi-lab/.capms-cluster-kubeconfig.yaml create -f -
+apiVersion: metallb.io/v1beta1
+kind: BGPAdvertisement
+metadata:
+  name: advertisement
+  namespace: "metallb-system"
+EOF
+```
+
+For each node in your Kubernetes cluster, you need to create a BGP peer configuration. Replace the placeholders ({{
+NODE_ASN }}, {{ NODE_HOSTNAME }}, and {{ NODE_ROUTER_ID }}) with the appropriate values for each node.
+
+```bash
+cat <<EOF | kubectl --kubeconfig=capi-lab/.capms-cluster-kubeconfig.yaml create -f -
+apiVersion: metallb.io/v1beta2
+kind: BGPPeer
+metadata:
+  name: ${NODE_HOSTNAME}
+  namespace: metallb-system
+spec:
+  holdTime: 1m30s
+  keepaliveTime: 0s
+  myASN: ${NODE_ASN}
+  nodeSelectors:
+  - matchExpressions:
+    - key: kubernetes.io/hostname
+      operator: In
+      values:
+      - ${NODE_HOSTNAME}
+  passwordSecret: {}
+  peerASN: ${NODE_ASN}
+  peerAddress: ${NODE_ROUTER_ID}
+EOF
 ```
 
 That's it!
@@ -112,8 +149,7 @@ make install
 make deploy IMG=<some-registry>/cluster-api-provider-metal-stack:tag
 ```
 
-> **NOTE**: If you encounter RBAC errors, you may need to grant yourself cluster-admin
-privileges or be logged in as admin.
+> **NOTE**: If you encounter RBAC errors, you may need to grant yourself cluster-admin privileges or be logged in as admin.
 
 **Create instances of your solution**
 You can apply the sample cluster configuration:
