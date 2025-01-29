@@ -405,13 +405,11 @@ func (r *machineReconciler) patchMachineLabels(m *models.V1MachineResponse) {
 	if m.Partition != nil && m.Partition.ID != nil {
 		r.infraMachine.Labels[corev1.LabelTopologyZone] = *m.Partition.ID
 	}
+	if m.Rackid != "" {
+		r.infraMachine.Labels[tag.MachineRack] = m.Rackid
+	}
 
 	tagMap := tag.NewTagMap(m.Tags)
-
-	rack := m.Rackid
-	if rack != "" {
-		r.infraMachine.Labels[tag.MachineRack] = rack
-	}
 
 	if asn, ok := tagMap.Value(tag.MachineNetworkPrimaryASN); ok {
 		r.infraMachine.Labels[tag.MachineNetworkPrimaryASN] = asn
