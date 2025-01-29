@@ -9,7 +9,7 @@ The Cluster API provider for metal-stack (CAPMS) implements the declarative mana
 
 Currently we provide the following custom resources:
 
-- [`MetalStackCluster`](./api/v1alpha1/metalstackcluster_types.go) can be used as [infrastructure cluster](https://cluster-api.sigs.k8s.io/developer/providers/contracts/infra-cluster) and ensures that the metal-stack network and firewall are being prepared.
+- [`MetalStackCluster`](./api/v1alpha1/metalstackcluster_types.go) can be used as [infrastructure cluster](https://cluster-api.sigs.k8s.io/developer/providers/contracts/infra-cluster) and ensures that there is a control plane ip for the cluster.
 - [`MetalStackMachine`](./api/v1alpha1/metalstackmachine_types.go) bridges between [infrastructure machines](https://cluster-api.sigs.k8s.io/developer/providers/contracts/infra-machine) and metal-stack machines.
 
 > [!note]
@@ -21,8 +21,6 @@ Currently we provide the following custom resources:
 **Prerequisites:**
 
 - a running metal-stack installation
-- CRDs for Prometheus
-- CRDs for the Firewall Controller Manager
 
 First add the metal-stack infrastructure provider to your `clusterctl.yaml`:
 
@@ -30,7 +28,7 @@ First add the metal-stack infrastructure provider to your `clusterctl.yaml`:
 # ~/.config/cluster-api/clusterctl.yaml
 providers:
   - name: "metal-stack"
-    url: "https://github.com/metal-stack/cluster-api-provider-metal-stack/releases/latest/infrastructure-components.yaml"
+    url: "https://github.com/metal-stack/cluster-api-provider-metal-stack/releases/latest/download/infrastructure-components.yaml"
     type: InfrastructureProvider
 ```
 
@@ -56,6 +54,6 @@ clusterctl generate cluster example --kubernetes-version v1.30.6 --infrastructur
 > **Manual steps needed:**
 > Due to the early development stage the following manual actions are needed for the cluster to operate.
 
-1. The firewall needs to be created manually.
+1. The pod network and firewall need to be created manually.
 2. The metal-ccm has to be deployed
 3. You need to install your CNI of choice. This is required due to CAPI.
