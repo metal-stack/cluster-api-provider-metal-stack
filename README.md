@@ -54,6 +54,6 @@ clusterctl generate cluster example --kubernetes-version v1.30.6 --infrastructur
 > **Manual steps needed:**
 > Due to the early development stage the following manual actions are needed for the cluster to operate.
 
-1. The pod network and firewall need to be created manually.
+1. The node network and firewall need to be created manually.
 2. The metal-ccm has to be deployed
 3. You need to install your CNI of choice. This is required due to CAPI.
