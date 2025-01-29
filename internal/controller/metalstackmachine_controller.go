@@ -41,7 +41,6 @@ import (
 	metalgo "github.com/metal-stack/metal-go"
 	ipmodels "github.com/metal-stack/metal-go/api/client/ip"
 	metalmachine "github.com/metal-stack/metal-go/api/client/machine"
-	metalpartition "github.com/metal-stack/metal-go/api/client/partition"
 	"github.com/metal-stack/metal-go/api/models"
 	"github.com/metal-stack/metal-lib/pkg/pointer"
 	"github.com/metal-stack/metal-lib/pkg/tag"
@@ -295,16 +294,11 @@ func (r *machineReconciler) create() (*models.V1MachineResponse, error) {
 		})
 	}
 
-	partitionResp, err := r.metalClient.Partition().FindPartition(metalpartition.NewFindPartitionParamsWithContext(r.ctx).WithID(r.infraCluster.Spec.Partition), nil)
-	if err != nil {
-		return nil, err
-	}
-
 	resp, err := r.metalClient.Machine().AllocateMachine(metalmachine.NewAllocateMachineParamsWithContext(r.ctx).WithBody(&models.V1MachineAllocateRequest{
 		Partitionid:   &r.infraCluster.Spec.Partition,
 		Projectid:     &r.infraCluster.Spec.ProjectID,
 		PlacementTags: []string{tag.New(tag.ClusterID, string(r.infraCluster.GetUID()))},
-		Tags:          append(r.machineTags(), r.additionalMachineTags(partitionResp.Payload)...),
+		Tags:          append(r.machineTags(), r.additionalMachineTags()...),
 		Name:          r.infraMachine.Name,
 		Hostname:      r.infraMachine.Name,
 		Sizeid:        &r.infraMachine.Spec.Size,
@@ -412,16 +406,9 @@ func (r *machineReconciler) patchMachineLabels(m *models.V1MachineResponse) {
 		r.infraMachine.Labels[corev1.LabelTopologyZone] = *m.Partition.ID
 	}
 
-	if m.Partition != nil && m.Partition.Labels != nil && m.Partition.Labels[tag.PartitionRegion] != "" {
-		r.infraMachine.Labels[corev1.LabelTopologyRegion] = m.Partition.Labels[tag.PartitionRegion]
-	}
-
 	tagMap := tag.NewTagMap(m.Tags)
 
 	rack := m.Rackid
-	if rack == "" {
-		rack, _ = tagMap.Value(tag.MachineRack)
-	}
 	if rack != "" {
 		r.infraMachine.Labels[tag.MachineRack] = rack
 	}
@@ -447,13 +434,10 @@ func (r *machineReconciler) machineTags() []string {
 	return tags
 }
 
-func (r *machineReconciler) additionalMachineTags(partition *models.V1PartitionResponse) []string {
+func (r *machineReconciler) additionalMachineTags() []string {
 	tags := []string{
 		tag.New(corev1.LabelTopologyZone, r.infraCluster.Spec.Partition),
 		tag.New(corev1.LabelHostname, r.infraMachine.Name),
-	}
-	if partition.Labels != nil && partition.Labels[tag.PartitionRegion] != "" {
-		tags = append(tags, partition.Labels[tag.PartitionRegion])
 	}
 
 	return tags
