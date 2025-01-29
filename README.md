@@ -37,8 +37,8 @@ providers:
 Now you are able to install the CAPMS into your cluster:
 
 ```bash
-export METALCTL_API_URL=http://metal.203.0.113.1.nip.io:8080
-export METALCTL_API_HMAC=metal-admin
+export METAL_API_URL=http://metal.203.0.113.1.nip.io:8080
+export METAL_API_HMAC=metal-admin
 export EXP_KUBEADM_BOOTSTRAP_FORMAT_IGNITION=true
 
 clusterctl init --infrastructure metal-stack
