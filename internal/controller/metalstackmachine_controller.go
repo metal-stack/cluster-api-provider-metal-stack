@@ -203,6 +203,8 @@ func (r *machineReconciler) reconcile() (ctrl.Result, error) {
 	}
 	r.infraMachine.Spec.ProviderID = encodeProviderID(m)
 
+	r.patchMachineLabels(m)
+
 	result := ctrl.Result{}
 
 	isReady, err := r.getMachineStatus(m)
@@ -296,7 +298,7 @@ func (r *machineReconciler) create() (*models.V1MachineResponse, error) {
 		Partitionid:   &r.infraCluster.Spec.Partition,
 		Projectid:     &r.infraCluster.Spec.ProjectID,
 		PlacementTags: []string{tag.New(tag.ClusterID, string(r.infraCluster.GetUID()))},
-		Tags:          r.machineTags(),
+		Tags:          append(r.machineTags(), r.additionalMachineTags()...),
 		Name:          r.infraMachine.Name,
 		Hostname:      r.infraMachine.Name,
 		Sizeid:        &r.infraMachine.Spec.Size,
@@ -392,6 +394,31 @@ func (r *machineReconciler) findProviderMachine() (*models.V1MachineResponse, er
 	}
 }
 
+func (r *machineReconciler) patchMachineLabels(m *models.V1MachineResponse) {
+	if r.infraMachine.Labels == nil {
+		r.infraMachine.Labels = make(map[string]string)
+	}
+
+	if m.Allocation != nil && m.Allocation.Hostname != nil {
+		r.infraMachine.Labels[corev1.LabelHostname] = *m.Allocation.Hostname
+	}
+	if m.Partition != nil && m.Partition.ID != nil {
+		r.infraMachine.Labels[corev1.LabelTopologyZone] = *m.Partition.ID
+	}
+	if m.Rackid != "" {
+		r.infraMachine.Labels[tag.MachineRack] = m.Rackid
+	}
+
+	tagMap := tag.NewTagMap(m.Tags)
+
+	if asn, ok := tagMap.Value(tag.MachineNetworkPrimaryASN); ok {
+		r.infraMachine.Labels[tag.MachineNetworkPrimaryASN] = asn
+	}
+	if chassis, ok := tagMap.Value(tag.MachineChassis); ok {
+		r.infraMachine.Labels[tag.MachineChassis] = chassis
+	}
+}
+
 func (r *machineReconciler) machineTags() []string {
 	tags := []string{
 		tag.New(tag.ClusterID, string(r.infraCluster.GetUID())),
@@ -400,6 +427,15 @@ func (r *machineReconciler) machineTags() []string {
 
 	if util.IsControlPlaneMachine(r.clusterMachine) {
 		tags = append(tags, v1alpha1.TagControlPlanePurpose)
+	}
+
+	return tags
+}
+
+func (r *machineReconciler) additionalMachineTags() []string {
+	tags := []string{
+		tag.New(corev1.LabelTopologyZone, r.infraCluster.Spec.Partition),
+		tag.New(corev1.LabelHostname, r.infraMachine.Name),
 	}
 
 	return tags
