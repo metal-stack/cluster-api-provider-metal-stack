@@ -41,6 +41,7 @@ import (
 	metalgo "github.com/metal-stack/metal-go"
 	ipmodels "github.com/metal-stack/metal-go/api/client/ip"
 	metalmachine "github.com/metal-stack/metal-go/api/client/machine"
+	metalpartition "github.com/metal-stack/metal-go/api/client/partition"
 	"github.com/metal-stack/metal-go/api/models"
 	"github.com/metal-stack/metal-lib/pkg/pointer"
 	"github.com/metal-stack/metal-lib/pkg/tag"
@@ -203,6 +204,8 @@ func (r *machineReconciler) reconcile() (ctrl.Result, error) {
 	}
 	r.infraMachine.Spec.ProviderID = encodeProviderID(m)
 
+	r.patchMachineLabels(m)
+
 	result := ctrl.Result{}
 
 	isReady, err := r.getMachineStatus(m)
@@ -292,11 +295,16 @@ func (r *machineReconciler) create() (*models.V1MachineResponse, error) {
 		})
 	}
 
+	partitionResp, err := r.metalClient.Partition().FindPartition(metalpartition.NewFindPartitionParamsWithContext(r.ctx).WithID(r.infraCluster.Spec.Partition), nil)
+	if err != nil {
+		return nil, err
+	}
+
 	resp, err := r.metalClient.Machine().AllocateMachine(metalmachine.NewAllocateMachineParamsWithContext(r.ctx).WithBody(&models.V1MachineAllocateRequest{
 		Partitionid:   &r.infraCluster.Spec.Partition,
 		Projectid:     &r.infraCluster.Spec.ProjectID,
 		PlacementTags: []string{tag.New(tag.ClusterID, string(r.infraCluster.GetUID()))},
-		Tags:          r.machineTags(),
+		Tags:          append(r.machineTags(), r.additionalMachineTags(partitionResp.Payload)...),
 		Name:          r.infraMachine.Name,
 		Hostname:      r.infraMachine.Name,
 		Sizeid:        &r.infraMachine.Spec.Size,
@@ -392,14 +400,57 @@ func (r *machineReconciler) findProviderMachine() (*models.V1MachineResponse, er
 	}
 }
 
+func (r *machineReconciler) patchMachineLabels(m *models.V1MachineResponse) {
+	if r.infraMachine.Labels == nil {
+		r.infraMachine.Labels = make(map[string]string)
+	}
+
+	if m.Allocation != nil && m.Allocation.Hostname != nil {
+		r.infraMachine.Labels[corev1.LabelHostname] = *m.Allocation.Hostname
+	}
+	if m.Partition != nil && m.Partition.ID != nil {
+		r.infraMachine.Labels[corev1.LabelTopologyZone] = *m.Partition.ID
+	}
+
+	if m.Partition != nil && m.Partition.Labels != nil && m.Partition.Labels[tag.PartitionRegion] != "" {
+		r.infraMachine.Labels[corev1.LabelTopologyRegion] = m.Partition.Labels[tag.PartitionRegion]
+	}
+
+	tagMap := tag.NewTagMap(m.Tags)
+
+	rack := m.Rackid
+	if rack == "" {
+		rack, _ = tagMap.Value(tag.MachineRack)
+	}
+	if rack != "" {
+		r.infraMachine.Labels[tag.MachineRack] = rack
+	}
+
+	if asn, ok := tagMap.Value(tag.MachineNetworkPrimaryASN); ok {
+		r.infraMachine.Labels[tag.MachineNetworkPrimaryASN] = asn
+	}
+	if chassis, ok := tagMap.Value(tag.MachineChassis); ok {
+		r.infraMachine.Labels[tag.MachineChassis] = chassis
+	}
+}
+
 func (r *machineReconciler) machineTags() []string {
 	tags := []string{
 		tag.New(tag.ClusterID, string(r.infraCluster.GetUID())),
 		tag.New(v1alpha1.TagInfraMachineID, string(r.infraMachine.GetUID())),
+		tag.New(corev1.LabelTopologyZone, r.infraCluster.Spec.Partition),
 	}
 
 	if util.IsControlPlaneMachine(r.clusterMachine) {
 		tags = append(tags, v1alpha1.TagControlPlanePurpose)
+	}
+
+	return tags
+}
+
+func (r *machineReconciler) additionalMachineTags(partition *models.V1PartitionResponse) []string {
+	tags := []string{
+		tag.New(corev1.LabelTopologyRegion, partition.Labels[tag.PartitionRegion]),
 	}
 
 	return tags

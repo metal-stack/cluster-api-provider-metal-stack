@@ -10,6 +10,18 @@ metal_partition_metal_api_addr: metal.{{ metal_control_plane_ingress_dns }}
 metal_partition_metal_api_basepath: "/"
 metal_partition_mgmt_gateway: 203.0.113.1
 
+metal_api_partitions:
+- id: mini-lab
+  name: mini-lab
+  description: The mini-lab example partition
+  bootconfig:
+    kernelurl: "{{ metal_kernel_url }}"
+    imageurl: "{{ metal_hammer_image_url }}"
+    commandline: console=ttyS0,115200n8 ip=dhcp carrier_timeout=10
+  privatenetworkprefixlength: 22
+  labels:
+    partition.metal-stack.io/region: local
+
 metal_api_images:
 - id: firewall-ubuntu-3.0
   name: Firewall 3 Ubuntu

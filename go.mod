@@ -5,7 +5,7 @@ go 1.23.0
 require (
 	github.com/go-logr/logr v1.4.2
 	github.com/metal-stack/metal-go v0.37.2
-	github.com/metal-stack/metal-lib v0.19.0
+	github.com/metal-stack/metal-lib v0.19.1-0.20250128134137-f13d205267a0
 	github.com/onsi/ginkgo/v2 v2.22.0
 	github.com/onsi/gomega v1.36.0
 	github.com/stretchr/testify v1.9.0
