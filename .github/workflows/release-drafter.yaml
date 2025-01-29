@@ -34,7 +34,7 @@ jobs:
           make kustomize
       - name: generate release artifacts
         env:
-          IMG_TAG: ${{ github.ref_name }}
+          IMG_TAG: ${{ steps.draft_release.outputs.tag_name }}
           RELEASE_DIR: .release
         run: |
           make release-manifests
