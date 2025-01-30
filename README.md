@@ -117,9 +117,9 @@ spec:
       cidr: 10.240.0.0/12
       encapsulation: None
       mtu: 1440
-    cni:
-      ipam:
-        type: HostLocal
+  cni:
+    ipam:
+      type: HostLocal
     type: Calico
 EOF
 ```
