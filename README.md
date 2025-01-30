@@ -22,6 +22,8 @@ Currently, we provide the following custom resources:
 
 - Running metal-stack installation. See our [installation](https://docs.metal-stack.io/stable/installation/deployment/) section on how to get started with metal-stack. 
 - Management cluster (with network access to the metal-stack infrastructure).
+- CLI metalctl installed for communicating with the metal-api. Installation instructions can be found in the corresponding [repository](https://github.com/metal-stack/metalctl).
+- CLI clusterctl
 
 First, add the metal-stack infrastructure provider to your `clusterctl.yaml`:
 
@@ -51,12 +53,21 @@ clusterctl init --infrastructure metal-stack
 
 A node network needs to be created.
 ```bash
-metalctl network allocate --description "<description>" --name <name> --project <project-id> --partition <partition>
+export METAL_PARTITION=<partition>
+export METAL_PROJECT_ID=<project-id>
+metalctl network allocate --description "<description>" --name <name> --project $METAL_PROJECT_ID --partition $METAL_PARTITION
+
+# export environment variable for use in the next steps
+export METAL_NODE_NETWORK_ID=$(metalctl network list --name <name> -o template --template '{{ .id }}')
 ```
 
 A firewall needs to be created with appropriate firewall rules. An example can be found at [firewall-rules.yaml](capi-lab/firewall-rules.yaml).
 ```bash
-metalctl firewall create --description <description> --name <name> --hostname <hostname> --project <project-id> --partition <partition> --image <image> --size <size> --firewall-rules-file=<rules.yaml> --networks internet,$(metalctl network list --name <name> -o template --template '{{ .id }}')
+# export environment variable for the firewall image and size
+export FIREWALL_MACHINE_IMAGE=<firewall-image>
+export FIREWALL_MACHINE_SIZE=<machine-size>
+
+metalctl firewall create --description <description> --name <name> --hostname <hostname> --project $METAL_PROJECT_ID --partition $METAL_PARTITION --image $FIREWALL_MACHINE_IMAGE  --size $FIREWALL_MACHINE_SIZE --firewall-rules-file=<rules.yaml> --networks internet,$METAL_NODE_NETWORK_ID
 ```
 
 For your first cluster, it is advised to start with our generated template.
@@ -65,11 +76,11 @@ For your first cluster, it is advised to start with our generated template.
 # display required environment variables
 clusterctl generate cluster <cluster-name> --infrastructure metal-stack --list-variables
 
-# set environment variables
-export METAL_NODE_NETWORK_ID=<network-id>
-export METAL_PARTITION=<partition-id>
-export METAL_PROJECT_ID=<project-id>
-# ...
+# set additional environment variables
+export CONTROL_PLANE_MACHINE_IMAGE=<machine-image>
+export CONTROL_PLANE_MACHINE_SIZE=<machine-size>
+export WORKER_MACHINE_IMAGE=<machine-image>
+export WORKER_MACHINE_SIZE=<machine-size>
 
 # generate manifest
 clusterctl generate cluster <cluster-name> --kubernetes-version v1.30.6 --infrastructure metal-stack
@@ -86,28 +97,30 @@ Once your control plane and worker machines have been provisioned, you need to i
 ```bash
 # get the kubeconfig
 clusterctl get kubeconfig metal-test > capms-cluster.kubeconfig
-# install the operator
+ 
+# install the calico operator
 kubectl --kubeconfig=capms-cluster.kubeconfig create -f https://raw.githubusercontent.com/projectcalico/calico/v3.28.2/manifests/tigera-operator.yaml
-# install the CNI
+ 
+# install the calico CNI
 cat <<EOF | kubectl --kubeconfig=capms-cluster.kubeconfig create -f -
 apiVersion: operator.tigera.io/v1
 kind: Installation
 metadata:
   name: default
-spec:
-  # Configures Calico networking.
-  calicoNetwork:
-    bgp: Disabled
-    ipPools:
-    - name: default-ipv4-ippool
-      blockSize: 26
-      cidr: 10.240.0.0/12
-      encapsulation: None
-    mtu: 1440
-  cni:
-    ipam:
-      type: HostLocal
-    type: Calico
+  spec:
+    # Configures Calico networking.
+    calicoNetwork:
+      bgp: Disabled
+      ipPools:
+      - name: default-ipv4-ippool
+        blockSize: 26
+        cidr: 10.240.0.0/12
+        encapsulation: None
+        mtu: 1440
+      cni:
+        ipam:
+          type: HostLocal
+      type: Calico
 EOF
 ```
 
@@ -127,6 +140,16 @@ For each worker node in your Kubernetes cluster, you need to create a BGP peer c
 NODE_ASN }}, {{ NODE_HOSTNAME }}, and {{ NODE_ROUTER_ID }}) with the appropriate values for each node.
 
 ```bash
+# in metal-stack, list all machines of your cluster
+metalctl machine ls --project $METAL_PROJECT_ID
+ 
+# for each worker machine collect the information as follows
+export NODE_ID=<worker-machine-id>
+export NODE_HOSTNAME=$(metalctl machine describe $NODE_ID -o template --template '{{ .allocation.hostname }}')
+export NODE_ASN=$(metalctl machine describe $NODE_ID -o template --template '{{ printf "%.0f" (index .allocation.networks 0).asn }}')
+export NODE_ROUTER_ID=$(metalctl machine describe $NODE_ID -o template --template '{{ (index (index .allocation.networks 0).ips 0) }}')
+ 
+# for each worker machine generate and apply the BGPPeer resource
 cat <<EOF | kubectl --kubeconfig=capms-cluster.kubeconfig create -f -
 apiVersion: metallb.io/v1beta2
 kind: BGPPeer
@@ -147,4 +170,22 @@ spec:
   peerASN: ${NODE_ASN}
   peerAddress: ${NODE_ROUTER_ID}
 EOF
+```
+
+## Frequently Asked Questions
+
+### I need to know the Control Plane IP address in advance. Can I provide a static IP address in advance?
+
+Yes, simply create a static IP address and set it to `metalstackcluster/<name>.spec.controlPlaneIP`.
+
+```bash
+metalctl network ip create --name <name> --project $METAL_PROJECT_ID --type static
+```
+
+### I'd like to have a specific Pod CIDR. How can I achieve this?
+
+When generating your cluster, set `POD_CIDR` to your desired value.
+
+```bash
+export POD_CIDR=["10.240.0.0/12"]
 ```
