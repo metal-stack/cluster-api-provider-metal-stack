@@ -54,7 +54,7 @@ A node network needs to be created.
 metalctl network allocate --description "<description>" --name <name> --project <project-id> --partition <partition>
 ```
 
-A firewall needs to be created with appropriate firewall rules. An example can be found at [firewall-fules.yaml](capi-lab/firewall-rules.yaml).
+A firewall needs to be created with appropriate firewall rules. An example can be found at [firewall-rules.yaml](capi-lab/firewall-rules.yaml).
 ```bash
 metalctl firewall create --description <description> --name <name> --hostname <hostname> --project <project-id> --partition <partition> --image <image> --size <size> --firewall-rules-file=<rules.yaml> --networks internet,$(shell metalctl network list --name <name> -o template --template '{{ .id }}')
 ```
