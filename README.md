@@ -107,20 +107,20 @@ apiVersion: operator.tigera.io/v1
 kind: Installation
 metadata:
   name: default
-  spec:
-    # Configures Calico networking.
-    calicoNetwork:
-      bgp: Disabled
-      ipPools:
-      - name: default-ipv4-ippool
-        blockSize: 26
-        cidr: 10.240.0.0/12
-        encapsulation: None
-        mtu: 1440
-      cni:
-        ipam:
-          type: HostLocal
-      type: Calico
+spec:
+  # Configures Calico networking.
+  calicoNetwork:
+    bgp: Disabled
+    ipPools:
+    - name: default-ipv4-ippool
+      blockSize: 26
+      cidr: 10.240.0.0/12
+      encapsulation: None
+      mtu: 1440
+    cni:
+      ipam:
+        type: HostLocal
+    type: Calico
 EOF
 ```
 
