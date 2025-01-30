@@ -44,6 +44,8 @@ When the control plane node was provisioned, you can obtain the kubeconfig like:
 
 ```bash
 kubectl get secret metal-test-kubeconfig -o jsonpath='{.data.value}' | base64 -d > capi-lab/.capms-cluster-kubeconfig.yaml
+# alternatively:
+clusterctl get kubeconfig metal-test > capi-lab/.capms-cluster-kubeconfig.yaml
 ```
 
 It is now expected to deploy a CNI to the cluster:
