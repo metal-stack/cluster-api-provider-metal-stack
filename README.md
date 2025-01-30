@@ -116,7 +116,7 @@ spec:
       blockSize: 26
       cidr: 10.240.0.0/12
       encapsulation: None
-      mtu: 1440
+    mtu: 1440
   cni:
     ipam:
       type: HostLocal
