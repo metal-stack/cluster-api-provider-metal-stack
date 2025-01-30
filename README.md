@@ -56,7 +56,7 @@ metalctl network allocate --description "<description>" --name <name> --project 
 
 A firewall needs to be created with appropriate firewall rules. An example can be found at [firewall-rules.yaml](capi-lab/firewall-rules.yaml).
 ```bash
-metalctl firewall create --description <description> --name <name> --hostname <hostname> --project <project-id> --partition <partition> --image <image> --size <size> --firewall-rules-file=<rules.yaml> --networks internet,$(shell metalctl network list --name <name> -o template --template '{{ .id }}')
+metalctl firewall create --description <description> --name <name> --hostname <hostname> --project <project-id> --partition <partition> --image <image> --size <size> --firewall-rules-file=<rules.yaml> --networks internet,$(metalctl network list --name <name> -o template --template '{{ .id }}')
 ```
 
 For your first cluster, it is advised to start with our generated template.
@@ -112,6 +112,10 @@ EOF
 ```
 
 Additionally, the `metal-ccm` has to be deployed for the machines to reach `Running` phase. For this use the [template](capi-lab/metal-ccm.yaml) and fill in the required variables.
+
+```bash
+cat capi-lab/metal-ccm.yaml | envsubst | kubectl --kubeconfig capms-cluster.kubeconfig apply -f -
+```
 
 If you want to provide service's of type `LoadBalancer` through MetalLB by the `metal-ccm`, you need to deploy MetalLB:
 
