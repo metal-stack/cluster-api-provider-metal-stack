@@ -34,7 +34,7 @@ spec:
       priority: 1
       type: string
     - description: The network within metal-stack
-      jsonPath: .status.nodeNetworkID
+      jsonPath: .spec.nodeNetworkID
       name: Network
       priority: 1
       type: string

@@ -100,7 +100,7 @@ type MetalStackClusterStatus struct {
 // +kubebuilder:printcolumn:name="Endpoint",type="string",JSONPath=".spec.controlPlaneEndpoint.host",description="Control plane API endpoint"
 // +kubebuilder:printcolumn:name="Partition",type="string",priority=1,JSONPath=".spec.partition",description="The partition within metal-stack"
 // +kubebuilder:printcolumn:name="Project",type="string",priority=1,JSONPath=".spec.projectID",description="The project within metal-stack"
-// +kubebuilder:printcolumn:name="Network",type="string",priority=1,JSONPath=".status.nodeNetworkID",description="The network within metal-stack"
+// +kubebuilder:printcolumn:name="Network",type="string",priority=1,JSONPath=".spec.nodeNetworkID",description="The network within metal-stack"
 // +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.ready",description="MetalStackCluster is ready"
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp",description="Uptime of the cluster"
 
