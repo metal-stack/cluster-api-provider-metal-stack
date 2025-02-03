@@ -202,5 +202,5 @@ func newMetalClient() (metalgo.Client, error) {
 		return nil, errors.New("METAL_API_HMAC environment variable must be set")
 	}
 
-	return metalgo.NewDriver(url, "", hmac)
+	return metalgo.NewDriver(url, "", hmac, metalgo.AuthType("Metal-Edit"))
 }
