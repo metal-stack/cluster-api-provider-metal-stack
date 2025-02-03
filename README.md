@@ -41,6 +41,7 @@ Now, you are able to install the CAPMS into your management cluster:
 # export the following environment variables
 export METAL_API_URL=<url>
 export METAL_API_HMAC=<hmac>
+export METAL_API_HMAC_AUTH_TYPE=<Metal-Admin or Metal-Edit>
 export EXP_KUBEADM_BOOTSTRAP_FORMAT_IGNITION=true
 
 # initialize the management cluster

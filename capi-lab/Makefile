@@ -7,9 +7,11 @@ KUBECONFIG := $(shell pwd)/mini-lab/.kubeconfig
 MINI_LAB_FLAVOR=capms
 
 METAL_API_URL=http://metal.203.0.113.1.nip.io:8080
-METAL_API_HMAC=metal-admin
+METAL_API_HMAC=metal-edit
+METAL_API_HMAC_AUTH_TYPE=Metal-Edit
 METALCTL_API_URL=http://metal.203.0.113.1.nip.io:8080
-METALCTL_HMAC=metal-admin
+METALCTL_HMAC=metal-edit
+METALCTL_HMAC_AUTH_TYPE=Metal-Edit
 
 METAL_PARTITION ?= mini-lab
 METAL_PROJECT_ID ?= 00000000-0000-0000-0000-000000000001

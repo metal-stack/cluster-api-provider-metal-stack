@@ -202,5 +202,10 @@ func newMetalClient() (metalgo.Client, error) {
 		return nil, errors.New("METAL_API_HMAC environment variable must be set")
 	}
 
-	return metalgo.NewDriver(url, "", hmac)
+	hmacAuthType := os.Getenv("METAL_API_HMAC_AUTH_TYPE")
+	if hmacAuthType == "" {
+		return nil, errors.New("METAL_API_HMAC_AUTH_TYPE environment variable must be set")
+	}
+
+	return metalgo.NewDriver(url, "", hmac, metalgo.AuthType(hmacAuthType))
 }
