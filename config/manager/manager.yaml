@@ -6,6 +6,7 @@ metadata:
 stringData:
   api-url: ${METAL_API_URL}
   api-hmac: ${METAL_API_HMAC}
+  api-hmac-auth-type: ${METAL_API_HMAC_AUTH_TYPE}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -44,6 +45,11 @@ spec:
               secretKeyRef:
                 name: controller-manager-config
                 key: api-hmac
+          - name: METAL_API_HMAC_AUTH_TYPE
+            valueFrom:
+              secretKeyRef:
+                name: controller-manager-config
+                key: api-hmac-auth-type
         command:
         - /manager
         args:
