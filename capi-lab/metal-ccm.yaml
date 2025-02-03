@@ -7,6 +7,7 @@ metadata:
 stringData:
   api-url: ${METAL_API_URL}
   api-hmac: ${METAL_API_HMAC}
+  api-hmac-auth-type: ${METAL_API_HMAC_AUTH_TYPE}
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -172,6 +173,11 @@ spec:
             secretKeyRef:
               key: api-hmac
               name: cloud-controller-manager
+        - name: METAL_AUTH_HMAC_AUTH_TYPE
+          valueFrom:
+            secretKeyRef:
+              key: api-hmac-auth-type
+              name: cloud-controller-manager
         - name: METAL_PROJECT_ID
           value: 00000000-0000-0000-0000-000000000001
         - name: METAL_PARTITION_ID
@@ -185,7 +191,7 @@ spec:
           value: internet-mini-lab,${METAL_NODE_NETWORK_ID}
         - name: METAL_SSH_PUBLICKEY
           value: ""
-        image: ghcr.io/metal-stack/metal-ccm:v0.9.3
+        image: ghcr.io/metal-stack/metal-ccm:run-with-edit-privileges
         imagePullPolicy: IfNotPresent
         livenessProbe:
           failureThreshold: 2
