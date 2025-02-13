@@ -116,11 +116,6 @@ func (r *MetalStackMachineReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		return ctrl.Result{}, err
 	}
 
-	if annotations.IsPaused(cluster, infraMachine) {
-		log.Info("reconciliation is paused")
-		return ctrl.Result{}, nil
-	}
-
 	infraCluster := &v1alpha1.MetalStackCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: cluster.Spec.InfrastructureRef.Namespace,
