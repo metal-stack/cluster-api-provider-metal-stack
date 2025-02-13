@@ -113,9 +113,9 @@ func (r *MetalStackClusterReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	}
 
 	if annotations.IsPaused(cluster, infraCluster) {
-		conditions.MarkTrue(infraCluster, clusterv1.PausedV1Beta2Condition)
+		conditions.MarkTrue(infraCluster, v1alpha1.ClusterPaused)
 	} else {
-		conditions.MarkFalse(infraCluster, clusterv1.PausedV1Beta2Condition, clusterv1.PausedV1Beta2Reason, clusterv1.ConditionSeverityInfo, "")
+		conditions.MarkFalse(infraCluster, v1alpha1.ClusterPaused, clusterv1.PausedV1Beta2Reason, clusterv1.ConditionSeverityInfo, "")
 	}
 
 	switch {

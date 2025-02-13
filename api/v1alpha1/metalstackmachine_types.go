@@ -31,6 +31,7 @@ const (
 	ProviderMachineCreated clusterv1.ConditionType = "MachineCreated"
 	ProviderMachineReady   clusterv1.ConditionType = "MachineReady"
 	ProviderMachineHealthy clusterv1.ConditionType = "MachineHealthy"
+	ProviderMachinePaused  clusterv1.ConditionType = clusterv1.PausedV1Beta2Condition
 )
 
 // MetalStackMachineSpec defines the desired state of MetalStackMachine.

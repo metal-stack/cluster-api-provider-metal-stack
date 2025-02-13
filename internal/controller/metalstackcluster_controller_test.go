@@ -37,7 +37,6 @@ import (
 	metalgoclient "github.com/metal-stack/metal-go/test/client"
 	"github.com/metal-stack/metal-lib/pkg/testcommon"
 
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	clusterv1beta1 "sigs.k8s.io/cluster-api/api/v1beta1"
 )
 
@@ -103,7 +102,7 @@ var _ = Describe("MetalStackCluster Controller", func() {
 		})
 	})
 
-	Context("when cluster is paused", func() {
+	Context("when reconcile is paused", func() {
 		BeforeEach(func() {
 			resource.Spec = v1alpha1.MetalStackClusterSpec{
 				ControlPlaneEndpoint: v1alpha1.APIEndpoint{},
@@ -114,7 +113,7 @@ var _ = Describe("MetalStackCluster Controller", func() {
 			}
 		})
 
-		It("should skip reconciles", func() {
+		It("should skip reconciles due to cluster.spec.ready", func() {
 			Expect(k8sClient.Create(ctx, resource)).To(Succeed())
 
 			By("creating the cluster resource and setting the owner reference")
@@ -149,7 +148,7 @@ var _ = Describe("MetalStackCluster Controller", func() {
 			Expect(resource.Generation).To(Equal(firstGen))
 
 			Expect(resource.Status.Conditions).To(ContainElement(MatchFields(IgnoreExtras, Fields{
-				"Type":   Equal(clusterv1.PausedV1Beta2Condition),
+				"Type":   Equal(v1alpha1.ClusterPaused),
 				"Status": Equal(corev1.ConditionTrue),
 			})))
 
@@ -163,7 +162,62 @@ var _ = Describe("MetalStackCluster Controller", func() {
 				Expect(resource.Generation).To(Equal(firstGen))
 
 				Expect(resource.Status.Conditions).To(ContainElement(MatchFields(IgnoreExtras, Fields{
-					"Type":   Equal(clusterv1.PausedV1Beta2Condition),
+					"Type":   Equal(v1alpha1.ClusterPaused),
+					"Status": Equal(corev1.ConditionTrue),
+				})))
+			})
+		})
+
+		It("should skip reconciles due to infra annotation", func() {
+			resource.Annotations = map[string]string{
+				clusterv1beta1.PausedAnnotation: "true",
+			}
+			Expect(k8sClient.Create(ctx, resource)).To(Succeed())
+
+			By("creating the cluster resource and setting the owner reference")
+			owner := &clusterv1beta1.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "owner-",
+					Namespace:    "default",
+				},
+			}
+			Expect(k8sClient.Create(ctx, owner)).To(Succeed())
+
+			resource.OwnerReferences = []metav1.OwnerReference{
+				*metav1.NewControllerRef(owner, clusterv1beta1.GroupVersion.WithKind("Cluster")),
+			}
+			Expect(k8sClient.Update(ctx, resource)).To(Succeed())
+
+			typeNamespacedName := types.NamespacedName{
+				Name:      resource.Name,
+				Namespace: "default",
+			}
+			const firstGen = int64(1)
+
+			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: typeNamespacedName,
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			Expect(k8sClient.Get(ctx, typeNamespacedName, resource)).To(Succeed())
+			Expect(resource.Generation).To(Equal(firstGen))
+
+			Expect(resource.Status.Conditions).To(ContainElement(MatchFields(IgnoreExtras, Fields{
+				"Type":   Equal(v1alpha1.ClusterPaused),
+				"Status": Equal(corev1.ConditionTrue),
+			})))
+
+			By("idempotence", func() {
+				_, err = controllerReconciler.Reconcile(ctx, reconcile.Request{
+					NamespacedName: typeNamespacedName,
+				})
+				Expect(err).NotTo(HaveOccurred())
+
+				Expect(k8sClient.Get(ctx, typeNamespacedName, resource)).To(Succeed())
+				Expect(resource.Generation).To(Equal(firstGen))
+
+				Expect(resource.Status.Conditions).To(ContainElement(MatchFields(IgnoreExtras, Fields{
+					"Type":   Equal(v1alpha1.ClusterPaused),
 					"Status": Equal(corev1.ConditionTrue),
 				})))
 			})
@@ -179,6 +233,14 @@ var _ = Describe("MetalStackCluster Controller", func() {
 				ControlPlaneIP:       nil,
 				Partition:            "test-partition",
 			}
+		})
+
+		AfterEach(func() {
+			Expect(resource.Status.Conditions).To(ContainElement(MatchFields(IgnoreExtras, Fields{
+				"Type":   Equal(v1alpha1.ClusterPaused),
+				"Status": Equal(corev1.ConditionFalse),
+				"Reason": Equal(clusterv1beta1.PausedV1Beta2Reason),
+			})))
 		})
 
 		It("should successfully reconcile", func() {
@@ -293,6 +355,14 @@ var _ = Describe("MetalStackCluster Controller", func() {
 				ControlPlaneIP:       &controlPlaneIP,
 				Partition:            "test-partition",
 			}
+		})
+
+		AfterEach(func() {
+			Expect(resource.Status.Conditions).To(ContainElement(MatchFields(IgnoreExtras, Fields{
+				"Type":   Equal(v1alpha1.ClusterPaused),
+				"Status": Equal(corev1.ConditionFalse),
+				"Reason": Equal(clusterv1beta1.PausedV1Beta2Reason),
+			})))
 		})
 
 		When("creating a resource and setting an ownership", func() {

@@ -149,9 +149,9 @@ func (r *MetalStackMachineReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	var result ctrl.Result
 
 	if annotations.IsPaused(cluster, infraMachine) {
-		conditions.MarkTrue(infraMachine, clusterv1.PausedV1Beta2Condition)
+		conditions.MarkTrue(infraMachine, v1alpha1.ProviderMachinePaused)
 	} else {
-		conditions.MarkFalse(infraMachine, clusterv1.PausedV1Beta2Condition, clusterv1.PausedV1Beta2Reason, clusterv1.ConditionSeverityInfo, "")
+		conditions.MarkFalse(infraMachine, v1alpha1.ProviderMachinePaused, clusterv1.PausedV1Beta2Reason, clusterv1.ConditionSeverityInfo, "")
 	}
 
 	switch {
