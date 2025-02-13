@@ -31,6 +31,7 @@ import (
 
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/util"
+	"sigs.k8s.io/cluster-api/util/annotations"
 	"sigs.k8s.io/cluster-api/util/conditions"
 	"sigs.k8s.io/cluster-api/util/patch"
 	"sigs.k8s.io/cluster-api/util/predicates"
@@ -94,6 +95,11 @@ func (r *MetalStackClusterReconciler) Reconcile(ctx context.Context, req ctrl.Re
 
 	if cluster == nil {
 		log.Info("infrastructure cluster resource has no ownership yet")
+		return ctrl.Result{}, nil
+	}
+
+	if annotations.IsPaused(cluster, infraCluster) {
+		log.Info("reconciliation is paused")
 		return ctrl.Result{}, nil
 	}
 

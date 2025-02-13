@@ -29,6 +29,7 @@ import (
 	"k8s.io/utils/ptr"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/util"
+	"sigs.k8s.io/cluster-api/util/annotations"
 	"sigs.k8s.io/cluster-api/util/conditions"
 	"sigs.k8s.io/cluster-api/util/patch"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -114,6 +115,11 @@ func (r *MetalStackMachineReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	if cluster == nil {
 		log.Info("machine resource has no cluster yet")
 		return ctrl.Result{}, err
+	}
+
+	if annotations.IsPaused(cluster, infraMachine) {
+		log.Info("reconciliation is paused")
+		return ctrl.Result{}, nil
 	}
 
 	infraCluster := &v1alpha1.MetalStackCluster{
