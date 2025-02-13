@@ -94,6 +94,11 @@ func (r *MetalStackClusterReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		return ctrl.Result{}, nil
 	}
 
+	if annotations.IsPaused(cluster, infraCluster) {
+		log.Info("reconciliation is paused")
+		return ctrl.Result{}, nil
+	}
+
 	reconciler := &clusterReconciler{
 		metalClient:  r.MetalClient,
 		client:       r.Client,
