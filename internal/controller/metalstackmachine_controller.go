@@ -117,11 +117,6 @@ func (r *MetalStackMachineReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		return ctrl.Result{}, err
 	}
 
-	if annotations.IsPaused(cluster, infraMachine) {
-		log.Info("reconciliation is paused")
-		return ctrl.Result{}, nil
-	}
-
 	infraCluster := &v1alpha1.MetalStackCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: cluster.Spec.InfrastructureRef.Namespace,
@@ -153,12 +148,21 @@ func (r *MetalStackMachineReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	}
 	var result ctrl.Result
 
-	if !infraMachine.DeletionTimestamp.IsZero() {
+	if annotations.IsPaused(cluster, infraMachine) {
+		conditions.MarkTrue(infraMachine, clusterv1.PausedV1Beta2Condition)
+	} else {
+		conditions.MarkFalse(infraMachine, clusterv1.PausedV1Beta2Condition, clusterv1.PausedV1Beta2Reason, clusterv1.ConditionSeverityInfo, "")
+	}
+
+	switch {
+	case annotations.IsPaused(cluster, infraMachine):
+		log.Info("reconciliation is paused")
+	case !infraMachine.DeletionTimestamp.IsZero():
 		err = reconciler.delete()
-	} else if !controllerutil.ContainsFinalizer(infraMachine, v1alpha1.MachineFinalizer) {
+	case !controllerutil.ContainsFinalizer(infraMachine, v1alpha1.MachineFinalizer):
 		log.Info("adding finalizer")
 		controllerutil.AddFinalizer(infraMachine, v1alpha1.MachineFinalizer)
-	} else {
+	default:
 		result, err = reconciler.reconcile()
 	}
 

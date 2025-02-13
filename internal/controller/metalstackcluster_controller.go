@@ -98,11 +98,6 @@ func (r *MetalStackClusterReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		return ctrl.Result{}, nil
 	}
 
-	if annotations.IsPaused(cluster, infraCluster) {
-		log.Info("reconciliation is paused")
-		return ctrl.Result{}, nil
-	}
-
 	reconciler := &clusterReconciler{
 		metalClient:  r.MetalClient,
 		client:       r.Client,
@@ -117,12 +112,21 @@ func (r *MetalStackClusterReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		return ctrl.Result{}, err
 	}
 
-	if !infraCluster.DeletionTimestamp.IsZero() {
+	if annotations.IsPaused(cluster, infraCluster) {
+		conditions.MarkTrue(infraCluster, clusterv1.PausedV1Beta2Condition)
+	} else {
+		conditions.MarkFalse(infraCluster, clusterv1.PausedV1Beta2Condition, clusterv1.PausedV1Beta2Reason, clusterv1.ConditionSeverityInfo, "")
+	}
+
+	switch {
+	case annotations.IsPaused(cluster, infraCluster):
+		log.Info("reconciliation is paused")
+	case !infraCluster.DeletionTimestamp.IsZero():
 		err = reconciler.delete()
-	} else if !controllerutil.ContainsFinalizer(infraCluster, v1alpha1.ClusterFinalizer) {
+	case !controllerutil.ContainsFinalizer(infraCluster, v1alpha1.ClusterFinalizer):
 		log.Info("adding finalizer")
 		controllerutil.AddFinalizer(infraCluster, v1alpha1.ClusterFinalizer)
-	} else {
+	default:
 		log.Info("reconciling cluster")
 		err = reconciler.reconcile()
 	}
