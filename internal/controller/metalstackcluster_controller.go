@@ -216,7 +216,7 @@ func (r *clusterReconciler) ensureControlPlaneIP() (string, error) {
 		Networkid:   defaultNetwork.ID,
 		Projectid:   &r.infraCluster.Spec.ProjectID,
 		Tags: []string{
-			tag.New(tag.ClusterID, string(r.infraCluster.GetUID())),
+			tag.New(tag.ClusterID, r.infraCluster.Spec.NodeNetworkID),
 			v1alpha1.TagControlPlanePurpose,
 		},
 		Type: ptr.To(models.V1IPBaseTypeEphemeral),

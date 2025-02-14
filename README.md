@@ -125,10 +125,10 @@ spec:
 EOF
 ```
 
-Additionally, the `metal-ccm` has to be deployed for the machines to reach `Running` phase. For this use the [template](capi-lab/metal-ccm.yaml) and fill in the required variables.
+Meanwhile, the `metal-ccm` has to be deployed for the machines to reach `Running` phase. For this use the [template](config/target-cluster/metal-ccm.yaml) and fill in the required variables.
 
 ```bash
-cat capi-lab/metal-ccm.yaml | envsubst | kubectl --kubeconfig capms-cluster.kubeconfig apply -f -
+cat config/target-cluster/metal-ccm.yaml | envsubst | kubectl --kubeconfig capms-cluster.kubeconfig apply -f -
 ```
 
 If you want to provide service's of type `LoadBalancer` through MetalLB by the `metal-ccm`, you need to deploy MetalLB:
@@ -137,8 +137,8 @@ If you want to provide service's of type `LoadBalancer` through MetalLB by the `
 kubectl --kubeconfig capms-cluster.kubeconfig apply --kustomize capi-lab/metallb
 ```
 
-For each worker node in your Kubernetes cluster, you need to create a BGP peer configuration. Replace the placeholders ({{
-NODE_ASN }}, {{ NODE_HOSTNAME }}, and {{ NODE_ROUTER_ID }}) with the appropriate values for each node.
+For each worker node in your Kubernetes cluster, you need to create a BGP peer configuration. Replace the placeholders (`{{
+NODE_ASN }}`, `{{ NODE_HOSTNAME }}`, and `{{ NODE_ROUTER_ID }}`) with the appropriate values for each node.
 
 ```bash
 # in metal-stack, list all machines of your cluster
