@@ -26,7 +26,7 @@ const (
 	// MachineFinalizer allows to clean up resources associated with before removing it from the apiserver.
 	MachineFinalizer = "metal-stack.infrastructure.cluster.x-k8s.io/machine"
 
-	TagInfraMachineID = "metal-stack.infrastructure.cluster.x-k8s.io/machine-id"
+	TagInfraMachineResource = "metal-stack.infrastructure.cluster.x-k8s.io/machine-resource"
 
 	ProviderMachineCreated clusterv1.ConditionType = "MachineCreated"
 	ProviderMachineReady   clusterv1.ConditionType = "MachineReady"

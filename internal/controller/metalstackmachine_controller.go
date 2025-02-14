@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
@@ -28,6 +29,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	capierrors "sigs.k8s.io/cluster-api/errors" //nolint:staticcheck
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/annotations"
 	"sigs.k8s.io/cluster-api/util/conditions"
@@ -49,10 +51,7 @@ import (
 
 const defaultProviderMachineRequeueTime = time.Second * 30
 
-var (
-	errProviderMachineNotFound     = errors.New("provider machine not found")
-	errProviderMachineTooManyFound = errors.New("multiple provider machines found")
-)
+var errProviderMachineNotFound = errors.New("provider machine not found")
 
 // MetalStackMachineReconciler reconciles a MetalStackMachine object
 type MetalStackMachineReconciler struct {
@@ -193,19 +192,30 @@ func (r *machineReconciler) reconcile() (ctrl.Result, error) {
 
 	r.log.Info("reconciling machine")
 
-	m, err := r.findProviderMachine()
-	if err != nil && !errors.Is(err, errProviderMachineNotFound) {
-		conditions.MarkFalse(r.infraMachine, v1alpha1.ProviderMachineCreated, "InternalError", clusterv1.ConditionSeverityError, "%s", err.Error())
-		return ctrl.Result{}, err
-	}
+	var (
+		m   *models.V1MachineResponse
+		err error
+	)
 
-	if errors.Is(err, errProviderMachineNotFound) {
+	if r.infraMachine.Spec.ProviderID != "" {
+		m, err = r.findProviderMachine()
+		if errors.Is(err, errProviderMachineNotFound) {
+			r.infraMachine.Status.FailureReason = pointer.Pointer(capierrors.UpdateMachineError)
+			r.infraMachine.Status.FailureMessage = pointer.Pointer("machine has been deleted externally")
+			return ctrl.Result{}, errors.New("machine has been deleted externally")
+		}
+		if err != nil {
+			conditions.MarkFalse(r.infraMachine, v1alpha1.ProviderMachineCreated, "InternalError", clusterv1.ConditionSeverityError, "%s", err.Error())
+			return ctrl.Result{}, err
+		}
+	} else {
 		m, err = r.create()
 		if err != nil {
 			conditions.MarkFalse(r.infraMachine, v1alpha1.ProviderMachineCreated, "InternalError", clusterv1.ConditionSeverityError, "%s", err.Error())
 			return ctrl.Result{}, fmt.Errorf("unable to create machine at provider: %w", err)
 		}
 	}
+
 	conditions.MarkTrue(r.infraMachine, v1alpha1.ProviderMachineCreated)
 
 	if m.ID == nil {
@@ -382,26 +392,22 @@ func (r *machineReconciler) getMachineAddresses(m *models.V1MachineResponse) clu
 }
 
 func (r *machineReconciler) findProviderMachine() (*models.V1MachineResponse, error) {
-	mfr := &models.V1MachineFindRequest{
-		ID:                decodeProviderID(r.infraMachine.Spec.ProviderID),
-		AllocationProject: r.infraCluster.Spec.ProjectID,
-		Tags:              r.machineTags(),
-	}
+	resp, err := r.metalClient.Machine().FindMachine(metalmachine.NewFindMachineParams().WithContext(r.ctx).WithID(decodeProviderID(r.infraMachine.Spec.ProviderID)), nil)
 
-	resp, err := r.metalClient.Machine().FindMachines(metalmachine.NewFindMachinesParamsWithContext(r.ctx).WithBody(mfr), nil)
+	var errResp *metalmachine.FindMachineDefault
+	if errors.As(err, &errResp) && errResp.Code() == http.StatusNotFound {
+		return nil, errProviderMachineNotFound
+	}
 	if err != nil {
+		conditions.MarkFalse(r.infraMachine, v1alpha1.ProviderMachineCreated, "InternalError", clusterv1.ConditionSeverityError, "%s", err.Error())
 		return nil, err
 	}
 
-	switch len(resp.Payload) {
-	case 0:
-		// metal-stack machine already freed
+	if resp.Payload.Allocation == nil || resp.Payload.Allocation.Project == nil || *resp.Payload.Allocation.Project != r.infraCluster.Spec.ProjectID {
 		return nil, errProviderMachineNotFound
-	case 1:
-		return resp.Payload[0], nil
-	default:
-		return nil, errProviderMachineTooManyFound
 	}
+
+	return resp.Payload, nil
 }
 
 func (r *machineReconciler) patchMachineLabels(m *models.V1MachineResponse) {
@@ -431,8 +437,8 @@ func (r *machineReconciler) patchMachineLabels(m *models.V1MachineResponse) {
 
 func (r *machineReconciler) machineTags() []string {
 	tags := []string{
-		tag.New(tag.ClusterID, string(r.infraCluster.GetUID())),
-		tag.New(v1alpha1.TagInfraMachineID, string(r.infraMachine.GetUID())),
+		tag.New(v1alpha1.TagInfraClusterResource, fmt.Sprintf("%s/%s", r.infraCluster.Namespace, r.infraCluster.Name)),
+		tag.New(v1alpha1.TagInfraMachineResource, fmt.Sprintf("%s/%s", r.infraMachine.Namespace, r.infraMachine.Name)),
 	}
 
 	if util.IsControlPlaneMachine(r.clusterMachine) {
