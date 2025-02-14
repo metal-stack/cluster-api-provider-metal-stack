@@ -48,11 +48,6 @@ import (
 	metalgo "github.com/metal-stack/metal-go"
 )
 
-var (
-	errProviderIPNotFound     = errors.New("provider ip not found")
-	errProviderIPTooManyFound = errors.New("multiple provider ips found")
-)
-
 // MetalStackClusterReconciler reconciles a MetalStackCluster object
 type MetalStackClusterReconciler struct {
 	MetalClient metalgo.Client
