@@ -317,7 +317,7 @@ func (r *machineReconciler) create() (*models.V1MachineResponse, error) {
 	resp, err := r.metalClient.Machine().AllocateMachine(metalmachine.NewAllocateMachineParamsWithContext(r.ctx).WithBody(&models.V1MachineAllocateRequest{
 		Partitionid:   &r.infraCluster.Spec.Partition,
 		Projectid:     &r.infraCluster.Spec.ProjectID,
-		PlacementTags: []string{tag.New(tag.ClusterID, string(r.infraCluster.GetUID()))},
+		PlacementTags: []string{tag.New(tag.ClusterID, r.infraCluster.GetClusterID())},
 		Tags:          append(r.machineTags(), r.additionalMachineTags()...),
 		Name:          r.infraMachine.Name,
 		Hostname:      r.infraMachine.Name,

@@ -17,6 +17,8 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"fmt"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
@@ -137,4 +139,8 @@ func (c *MetalStackCluster) GetConditions() clusterv1.Conditions {
 // SetConditions will set the given conditions.
 func (c *MetalStackCluster) SetConditions(conditions clusterv1.Conditions) {
 	c.Status.Conditions = conditions
+}
+
+func (c *MetalStackCluster) GetClusterID() string {
+	return fmt.Sprintf("%s/%s", c.GetNamespace(), c.GetName())
 }

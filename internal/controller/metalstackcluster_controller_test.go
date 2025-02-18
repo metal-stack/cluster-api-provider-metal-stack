@@ -271,7 +271,7 @@ var _ = Describe("MetalStackCluster Controller", func() {
 				IP: func(m *mock.Mock) {
 					m.On("AllocateIP", testcommon.MatchIgnoreContext(testingT, metalip.NewAllocateIPParams().WithBody(&models.V1IPAllocateRequest{
 						Tags: []string{
-							"cluster.metal-stack.io/id=node-network-id",
+							"cluster.metal-stack.io/id=" + resource.GetClusterID(),
 							"metal-stack.infrastructure.cluster.x-k8s.io/purpose=control-plane",
 						},
 						Name:        resource.Name + "-control-plane",
