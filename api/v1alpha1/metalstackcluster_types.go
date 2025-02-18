@@ -29,9 +29,12 @@ const (
 	// ClusterFinalizer allows to clean up resources associated with before removing it from the apiserver.
 	ClusterFinalizer = "metal-stack.infrastructure.cluster.x-k8s.io/cluster"
 
+	TagInfraClusterResource = "metal-stack.infrastructure.cluster.x-k8s.io/cluster-resource"
+
 	ClusterControlPlaneEndpointDefaultPort = 443
 
 	ClusterControlPlaneIPEnsured clusterv1.ConditionType = "ClusterControlPlaneIPEnsured"
+	ClusterPaused                clusterv1.ConditionType = clusterv1.PausedV1Beta2Condition
 )
 
 var (
