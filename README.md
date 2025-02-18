@@ -71,7 +71,7 @@ export FIREWALL_MACHINE_SIZE=<machine-size>
 metalctl firewall create --description <description> --name <name> --hostname <hostname> --project $METAL_PROJECT_ID --partition $METAL_PARTITION --image $FIREWALL_MACHINE_IMAGE  --size $FIREWALL_MACHINE_SIZE --firewall-rules-file=<rules.yaml> --networks internet,$METAL_NODE_NETWORK_ID
 ```
 
-For your first cluster, it is advised to start with our generated template.
+For your first cluster, it is advised to start with our generated template. Ensure that the namespaced cluster name is unique within the metal stack project.
 
 ```bash
 # display required environment variables
