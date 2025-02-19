@@ -128,6 +128,8 @@ EOF
 Meanwhile, the `metal-ccm` has to be deployed for the machines to reach `Running` phase. For this use the [template](config/target-cluster/metal-ccm.yaml) and fill in the required variables.
 
 ```bash
+export NAMESPACE=<namespace>
+export CLUSTER_NAME=<cluster name>
 cat config/target-cluster/metal-ccm.yaml | envsubst | kubectl --kubeconfig capms-cluster.kubeconfig apply -f -
 ```
 

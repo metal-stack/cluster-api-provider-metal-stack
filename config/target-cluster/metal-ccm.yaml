@@ -184,7 +184,7 @@ spec:
               value: ${METAL_PARTITION}
             # associates service type load balancer ips with this cluster:
             - name: METAL_CLUSTER_ID
-              value: ${METAL_NODE_NETWORK_ID}
+              value: ${NAMESPACE}/${CLUSTER_NAME}
             - name: METAL_DEFAULT_EXTERNAL_NETWORK_ID
               value: internet
             - name: METAL_ADDITIONAL_NETWORKS
