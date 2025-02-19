@@ -125,7 +125,7 @@ spec:
 EOF
 ```
 
-Meanwhile, the `metal-ccm` has to be deployed for the machines to reach `Running` phase. For this use the [template](config/target-cluster/metal-ccm.yaml) and fill in the required variables.
+Meanwhile, the `metal-ccm` has to be deployed for the machines to reach `Running` phase. For this use the [`config/target-cluster/metal-ccm.yaml` template](config/target-cluster/metal-ccm.yaml) and fill in the required variables.
 
 ```bash
 export NAMESPACE=<namespace>
