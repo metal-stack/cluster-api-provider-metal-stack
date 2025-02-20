@@ -317,7 +317,7 @@ func (r *machineReconciler) create() (*models.V1MachineResponse, error) {
 	resp, err := r.metalClient.Machine().AllocateMachine(metalmachine.NewAllocateMachineParamsWithContext(r.ctx).WithBody(&models.V1MachineAllocateRequest{
 		Partitionid:   &r.infraCluster.Spec.Partition,
 		Projectid:     &r.infraCluster.Spec.ProjectID,
-		PlacementTags: []string{tag.New(tag.ClusterID, string(r.infraCluster.GetUID()))},
+		PlacementTags: []string{tag.New(tag.ClusterID, r.infraCluster.GetClusterID())},
 		Tags:          append(r.machineTags(), r.additionalMachineTags()...),
 		Name:          r.infraMachine.Name,
 		Hostname:      r.infraMachine.Name,
@@ -437,6 +437,7 @@ func (r *machineReconciler) patchMachineLabels(m *models.V1MachineResponse) {
 
 func (r *machineReconciler) machineTags() []string {
 	tags := []string{
+		tag.New(tag.ClusterID, r.infraCluster.Spec.NodeNetworkID),
 		tag.New(v1alpha1.TagInfraClusterResource, fmt.Sprintf("%s/%s", r.infraCluster.Namespace, r.infraCluster.Name)),
 		tag.New(v1alpha1.TagInfraMachineResource, fmt.Sprintf("%s/%s", r.infraMachine.Namespace, r.infraMachine.Name)),
 	}
