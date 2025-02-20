@@ -137,3 +137,50 @@ spec:
         nodeRegistration:
           kubeletExtraArgs:
             cloud-provider: external
+---
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: MachineDeployment
+metadata:
+  name: ${CLUSTER_NAME}-firewall
+  labels:
+    cluster.x-k8s.io/cluster-name: ${CLUSTER_NAME}
+    nodepool: firewall
+spec:
+  clusterName: ${CLUSTER_NAME}
+  replicas: 1
+  selector:
+    matchLabels:
+      cluster.x-k8s.io/cluster-name: ${CLUSTER_NAME}
+      nodepool: firewall
+  template:
+    metadata:
+      labels:
+        cluster.x-k8s.io/cluster-name: ${CLUSTER_NAME}
+        nodepool: firewall
+    spec:
+      nodeDrainTimeout: 120s
+      clusterName: ${CLUSTER_NAME}
+      version: "${KUBERNETES_VERSION}"
+      bootstrap:
+        dataSecretName: ${CLUSTER_NAME}-firewall-data
+      infrastructureRef:
+        name: ${CLUSTER_NAME}-firewall
+        apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+        kind: MetalStackMachineTemplate
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+kind: MetalStackMachineTemplate
+metadata:
+  name: ${CLUSTER_NAME}-firewall
+spec:
+  template:
+    spec:
+      size: ${FIREWALL_MACHINE_SIZE}
+      image: ${FIREWALL_MACHINE_IMAGE}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ${CLUSTER_NAME}-firewall-data
+stringData:
+  value: "{}"

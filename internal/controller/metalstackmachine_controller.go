@@ -42,6 +42,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/metal-stack/cluster-api-provider-metal-stack/api/v1alpha1"
 	metalgo "github.com/metal-stack/metal-go"
+	metalfirewall "github.com/metal-stack/metal-go/api/client/firewall"
 	ipmodels "github.com/metal-stack/metal-go/api/client/ip"
 	metalmachine "github.com/metal-stack/metal-go/api/client/machine"
 	"github.com/metal-stack/metal-go/api/models"
@@ -314,26 +315,81 @@ func (r *machineReconciler) create() (*models.V1MachineResponse, error) {
 		})
 	}
 
-	resp, err := r.metalClient.Machine().AllocateMachine(metalmachine.NewAllocateMachineParamsWithContext(r.ctx).WithBody(&models.V1MachineAllocateRequest{
-		Partitionid:   &r.infraCluster.Spec.Partition,
-		Projectid:     &r.infraCluster.Spec.ProjectID,
-		PlacementTags: []string{tag.New(tag.ClusterID, r.infraCluster.GetClusterID())},
-		Tags:          append(r.machineTags(), r.additionalMachineTags()...),
-		Name:          r.infraMachine.Name,
-		Hostname:      r.infraMachine.Name,
-		Sizeid:        &r.infraMachine.Spec.Size,
-		Imageid:       &r.infraMachine.Spec.Image,
-		Description:   fmt.Sprintf("%s/%s for cluster %s/%s", r.infraMachine.Namespace, r.infraMachine.Name, r.infraCluster.Namespace, r.infraCluster.Name),
-		Networks:      nws,
-		Ips:           ips,
-		UserData:      string(bootstrapSecret.Data["value"]),
-		// TODO: SSHPubKeys, ...
-	}), nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to allocate machine: %w", err)
+	var m *models.V1MachineResponse
+
+	if strings.Contains(r.infraMachine.Name, "firewall") {
+		fireResp, err := r.metalClient.Firewall().AllocateFirewall(metalfirewall.NewAllocateFirewallParamsWithContext(r.ctx).WithBody(&models.V1FirewallCreateRequest{
+			FirewallRules: &models.V1FirewallRules{
+				Egress: []*models.V1FirewallEgressRule{
+					{
+						Comment:  "allow all",
+						Ports:    []int32{53, 80, 443, 8080},
+						Protocol: "TCP",
+						To:       []string{"0.0.0.0/0"},
+					},
+					{
+						Comment:  "allow all",
+						Ports:    []int32{53, 123},
+						Protocol: "UDP",
+						To:       []string{"0.0.0.0/0"},
+					},
+				},
+				Ingress: []*models.V1FirewallIngressRule{
+					{
+						Comment:  "allow all",
+						Ports:    []int32{80, 443, 8080},
+						Protocol: "TCP",
+						From:     []string{"0.0.0.0/0"},
+					},
+				},
+			},
+			Partitionid:   &r.infraCluster.Spec.Partition,
+			Projectid:     &r.infraCluster.Spec.ProjectID,
+			PlacementTags: []string{tag.New(tag.ClusterID, r.infraCluster.GetClusterID())},
+			Tags:          append(r.machineTags(), r.additionalMachineTags()...),
+			Name:          r.infraMachine.Name,
+			Hostname:      r.infraMachine.Name,
+			Sizeid:        &r.infraMachine.Spec.Size,
+			Imageid:       &r.infraMachine.Spec.Image,
+			Description:   fmt.Sprintf("firewall %s/%s for cluster %s/%s", r.infraMachine.Namespace, r.infraMachine.Name, r.infraCluster.Namespace, r.infraCluster.Name),
+			Networks: append(nws, &models.V1MachineAllocationNetwork{
+				Autoacquire: ptr.To(true),
+				Networkid:   ptr.To("internet-mini-lab"),
+			}),
+			Ips:      ips,
+			UserData: string(bootstrapSecret.Data["value"]),
+		}), nil)
+		if err != nil {
+			return nil, fmt.Errorf("failed to allocate firewall: %w", err)
+		}
+		resp, err := r.metalClient.Machine().FindMachine(metalmachine.NewFindMachineParamsWithContext(r.ctx).WithID(*fireResp.Payload.ID), nil)
+		if err != nil {
+			return nil, fmt.Errorf("failed to allocate firewall: %w", err)
+		}
+		m = resp.Payload
+	} else {
+		resp, err := r.metalClient.Machine().AllocateMachine(metalmachine.NewAllocateMachineParamsWithContext(r.ctx).WithBody(&models.V1MachineAllocateRequest{
+			Partitionid:   &r.infraCluster.Spec.Partition,
+			Projectid:     &r.infraCluster.Spec.ProjectID,
+			PlacementTags: []string{tag.New(tag.ClusterID, r.infraCluster.GetClusterID())},
+			Tags:          append(r.machineTags(), r.additionalMachineTags()...),
+			Name:          r.infraMachine.Name,
+			Hostname:      r.infraMachine.Name,
+			Sizeid:        &r.infraMachine.Spec.Size,
+			Imageid:       &r.infraMachine.Spec.Image,
+			Description:   fmt.Sprintf("%s/%s for cluster %s/%s", r.infraMachine.Namespace, r.infraMachine.Name, r.infraCluster.Namespace, r.infraCluster.Name),
+			Networks:      nws,
+			Ips:           ips,
+			UserData:      string(bootstrapSecret.Data["value"]),
+			// TODO: SSHPubKeys, ...
+		}), nil)
+		if err != nil {
+			return nil, fmt.Errorf("failed to allocate machine: %w", err)
+		}
+		m = resp.Payload
 	}
 
-	return resp.Payload, nil
+	return m, nil
 }
 
 func (r *machineReconciler) getMachineStatus(mr *models.V1MachineResponse) (bool, error) {

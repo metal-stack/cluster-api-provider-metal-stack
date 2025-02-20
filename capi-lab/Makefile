@@ -20,6 +20,8 @@ CONTROL_PLANE_MACHINE_IMAGE ?= ubuntu-24.04
 CONTROL_PLANE_MACHINE_SIZE ?= v1-small-x86
 WORKER_MACHINE_IMAGE ?= ubuntu-24.04
 WORKER_MACHINE_SIZE ?= v1-small-x86
+FIREWALL_MACHINE_IMAGE ?= firewall-ubuntu-3.0
+FIREWALL_MACHINE_SIZE ?= v1-small-x86
 
 IMG ?= ghcr.io/metal-stack/cluster-api-metal-stack-controller:latest
 
