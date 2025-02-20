@@ -71,7 +71,7 @@ export FIREWALL_MACHINE_SIZE=<machine-size>
 metalctl firewall create --description <description> --name <name> --hostname <hostname> --project $METAL_PROJECT_ID --partition $METAL_PARTITION --image $FIREWALL_MACHINE_IMAGE  --size $FIREWALL_MACHINE_SIZE --firewall-rules-file=<rules.yaml> --networks internet,$METAL_NODE_NETWORK_ID
 ```
 
-For your first cluster, it is advised to start with our generated template.
+For your first cluster, it is advised to start with our generated template. Ensure that the namespaced cluster name is unique within the metal stack project.
 
 ```bash
 # display required environment variables
@@ -125,10 +125,12 @@ spec:
 EOF
 ```
 
-Additionally, the `metal-ccm` has to be deployed for the machines to reach `Running` phase. For this use the [template](capi-lab/metal-ccm.yaml) and fill in the required variables.
+Meanwhile, the `metal-ccm` has to be deployed for the machines to reach `Running` phase. For this use the [`config/target-cluster/metal-ccm.yaml` template](config/target-cluster/metal-ccm.yaml) and fill in the required variables.
 
 ```bash
-cat capi-lab/metal-ccm.yaml | envsubst | kubectl --kubeconfig capms-cluster.kubeconfig apply -f -
+export NAMESPACE=<namespace>
+export CLUSTER_NAME=<cluster name>
+cat config/target-cluster/metal-ccm.yaml | envsubst | kubectl --kubeconfig capms-cluster.kubeconfig apply -f -
 ```
 
 If you want to provide service's of type `LoadBalancer` through MetalLB by the `metal-ccm`, you need to deploy MetalLB:
@@ -137,8 +139,8 @@ If you want to provide service's of type `LoadBalancer` through MetalLB by the `
 kubectl --kubeconfig capms-cluster.kubeconfig apply --kustomize capi-lab/metallb
 ```
 
-For each worker node in your Kubernetes cluster, you need to create a BGP peer configuration. Replace the placeholders ({{
-NODE_ASN }}, {{ NODE_HOSTNAME }}, and {{ NODE_ROUTER_ID }}) with the appropriate values for each node.
+For each worker node in your Kubernetes cluster, you need to create a BGP peer configuration. Replace the placeholders (`{{
+NODE_ASN }}`, `{{ NODE_HOSTNAME }}`, and `{{ NODE_ROUTER_ID }}`) with the appropriate values for each node.
 
 ```bash
 # in metal-stack, list all machines of your cluster

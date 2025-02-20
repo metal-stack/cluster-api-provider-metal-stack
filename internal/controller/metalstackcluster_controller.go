@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -31,6 +32,7 @@ import (
 
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/util"
+	"sigs.k8s.io/cluster-api/util/annotations"
 	"sigs.k8s.io/cluster-api/util/conditions"
 	"sigs.k8s.io/cluster-api/util/patch"
 	"sigs.k8s.io/cluster-api/util/predicates"
@@ -44,11 +46,6 @@ import (
 	"github.com/metal-stack/metal-lib/pkg/tag"
 
 	metalgo "github.com/metal-stack/metal-go"
-)
-
-var (
-	errProviderIPNotFound     = errors.New("provider ip not found")
-	errProviderIPTooManyFound = errors.New("multiple provider ips found")
 )
 
 // MetalStackClusterReconciler reconciles a MetalStackCluster object
@@ -111,12 +108,21 @@ func (r *MetalStackClusterReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		return ctrl.Result{}, err
 	}
 
-	if !infraCluster.DeletionTimestamp.IsZero() {
+	if annotations.IsPaused(cluster, infraCluster) {
+		conditions.MarkTrue(infraCluster, v1alpha1.ClusterPaused)
+	} else {
+		conditions.MarkFalse(infraCluster, v1alpha1.ClusterPaused, clusterv1.PausedV1Beta2Reason, clusterv1.ConditionSeverityInfo, "")
+	}
+
+	switch {
+	case annotations.IsPaused(cluster, infraCluster):
+		log.Info("reconciliation is paused")
+	case !infraCluster.DeletionTimestamp.IsZero():
 		err = reconciler.delete()
-	} else if !controllerutil.ContainsFinalizer(infraCluster, v1alpha1.ClusterFinalizer) {
+	case !controllerutil.ContainsFinalizer(infraCluster, v1alpha1.ClusterFinalizer):
 		log.Info("adding finalizer")
 		controllerutil.AddFinalizer(infraCluster, v1alpha1.ClusterFinalizer)
-	} else {
+	default:
 		log.Info("reconciling cluster")
 		err = reconciler.reconcile()
 	}
@@ -210,7 +216,7 @@ func (r *clusterReconciler) ensureControlPlaneIP() (string, error) {
 		Networkid:   defaultNetwork.ID,
 		Projectid:   &r.infraCluster.Spec.ProjectID,
 		Tags: []string{
-			tag.New(tag.ClusterID, string(r.infraCluster.GetUID())),
+			tag.New(tag.ClusterID, r.infraCluster.GetClusterID()),
 			v1alpha1.TagControlPlanePurpose,
 		},
 		Type: ptr.To(models.V1IPBaseTypeEphemeral),
@@ -226,13 +232,22 @@ func (r *clusterReconciler) ensureControlPlaneIP() (string, error) {
 }
 
 func (r *clusterReconciler) deleteControlPlaneIP() error {
-	ip, err := r.findControlPlaneIP()
-	if err != nil && errors.Is(err, errProviderIPNotFound) {
+	if r.infraCluster.Spec.ControlPlaneIP == nil {
 		return nil
 	}
+
+	resp, err := r.metalClient.IP().FindIP(ipmodels.NewFindIPParams().WithID(*r.infraCluster.Spec.ControlPlaneIP).WithContext(r.ctx), nil)
 	if err != nil {
-		return fmt.Errorf("unable to delete control plane ip: %w", err)
+		var r *ipmodels.FindIPDefault
+		if errors.As(err, &r) && r.Code() == http.StatusNotFound {
+			return nil
+		}
+
+		return err
 	}
+
+	ip := resp.Payload
+
 	if ip.Type != nil && *ip.Type == models.V1IPBaseTypeStatic {
 		r.log.Info("skip deletion of static control plane ip")
 		return nil
@@ -242,46 +257,12 @@ func (r *clusterReconciler) deleteControlPlaneIP() error {
 		return fmt.Errorf("control plane ip address not set")
 	}
 
-	if ip.Type != nil && *ip.Type == models.V1IPAllocateRequestTypeStatic {
-		r.log.Info("skipping deletion of static control plane ip", "ip", *ip.Ipaddress)
-		return nil
-	}
 	_, err = r.metalClient.IP().FreeIP(ipmodels.NewFreeIPParams().WithID(*ip.Ipaddress).WithContext(r.ctx), nil)
 	if err != nil {
 		return err
 	}
+
 	r.log.Info("deleted control plane ip", "address", *ip.Ipaddress)
 
 	return nil
-}
-
-func (r *clusterReconciler) findControlPlaneIP() (*models.V1IPResponse, error) {
-	if r.infraCluster.Spec.ControlPlaneIP != nil {
-		resp, err := r.metalClient.IP().FindIP(ipmodels.NewFindIPParams().WithID(*r.infraCluster.Spec.ControlPlaneIP).WithContext(r.ctx), nil)
-		if err != nil {
-			return nil, err
-		}
-
-		return resp.Payload, nil
-	}
-
-	resp, err := r.metalClient.IP().FindIPs(ipmodels.NewFindIPsParams().WithBody(&models.V1IPFindRequest{
-		Projectid: r.infraCluster.Spec.ProjectID,
-		Tags: []string{
-			tag.New(tag.ClusterID, string(r.infraCluster.GetUID())),
-			v1alpha1.TagControlPlanePurpose,
-		},
-	}).WithContext(r.ctx), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	switch len(resp.Payload) {
-	case 0:
-		return nil, errProviderIPNotFound
-	case 1:
-		return resp.Payload[0], nil
-	default:
-		return nil, errProviderIPTooManyFound
-	}
 }
