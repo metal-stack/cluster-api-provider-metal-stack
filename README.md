@@ -5,7 +5,7 @@ The Cluster API provider for metal-stack (CAPMS) implements the declarative mana
 > [!CAUTION]
 > This project is currently under heavy development and is not advised to be used in production any time soon.
 > Please use our stack on top of [Gardener](https://docs.metal-stack.io/stable/installation/deployment/#Gardener-with-metal-stack) instead.
-> User documentation will follow as soon. Until then, head to our [CONTRIBUTING.md](/CONTRIBUTING.md).
+> For developing this project head to our [DEVELOPMENT.md](/DEVELOPMENT.md).
 
 Currently, we provide the following custom resources:
 
@@ -20,7 +20,7 @@ Currently, we provide the following custom resources:
 
 **Prerequisites:**
 
-- Running metal-stack installation. See our [installation](https://docs.metal-stack.io/stable/installation/deployment/) section on how to get started with metal-stack. 
+- Running metal-stack installation. See our [installation](https://docs.metal-stack.io/stable/installation/deployment/) section on how to get started with metal-stack.
 - Management cluster (with network access to the metal-stack infrastructure).
 - CLI metalctl installed for communicating with the metal-api. Installation instructions can be found in the corresponding [repository](https://github.com/metal-stack/metalctl).
 - CLI clusterctl
@@ -93,15 +93,15 @@ Apply the generated manifest from the `clusterctl` output.
 kubectl apply -f <manifest>
 ```
 
-Once your control plane and worker machines have been provisioned, you need to install your CNI of choice into your created cluster. This is required due to CAPI. An example is provided below: 
+Once your control plane and worker machines have been provisioned, you need to install your CNI of choice into your created cluster. This is required due to CAPI. An example is provided below:
 
 ```bash
 # get the kubeconfig
 clusterctl get kubeconfig metal-test > capms-cluster.kubeconfig
- 
+
 # install the calico operator
 kubectl --kubeconfig=capms-cluster.kubeconfig create -f https://raw.githubusercontent.com/projectcalico/calico/v3.28.2/manifests/tigera-operator.yaml
- 
+
 # install the calico CNI
 cat <<EOF | kubectl --kubeconfig=capms-cluster.kubeconfig create -f -
 apiVersion: operator.tigera.io/v1
@@ -145,13 +145,13 @@ NODE_ASN }}`, `{{ NODE_HOSTNAME }}`, and `{{ NODE_ROUTER_ID }}`) with the approp
 ```bash
 # in metal-stack, list all machines of your cluster
 metalctl machine ls --project $METAL_PROJECT_ID
- 
+
 # for each worker machine collect the information as follows
 export NODE_ID=<worker-machine-id>
 export NODE_HOSTNAME=$(metalctl machine describe $NODE_ID -o template --template '{{ .allocation.hostname }}')
 export NODE_ASN=$(metalctl machine describe $NODE_ID -o template --template '{{ printf "%.0f" (index .allocation.networks 0).asn }}')
 export NODE_ROUTER_ID=$(metalctl machine describe $NODE_ID -o template --template '{{ (index (index .allocation.networks 0).ips 0) }}')
- 
+
 # for each worker machine generate and apply the BGPPeer resource
 cat <<EOF | kubectl --kubeconfig=capms-cluster.kubeconfig create -f -
 apiVersion: metallb.io/v1beta2
