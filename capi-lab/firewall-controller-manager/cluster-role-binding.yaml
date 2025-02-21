@@ -6,8 +6,8 @@ metadata:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: firewall-controller-manager
+  name: cluster-admin
+  # TODO: restrict further
 subjects:
 - kind: ServiceAccount
   name: firewall-controller-manager
-  namespace: {{ firewall_controller_manager_namespace }}

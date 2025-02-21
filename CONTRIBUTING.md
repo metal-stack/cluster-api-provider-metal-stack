@@ -25,7 +25,13 @@ make push-to-capi-lab
 Before creating a cluster some manual steps are required beforehand: you need to allocate a node network and a firewall.
 
 ```bash
-make -C capi-lab node-network firewall
+make -C capi-lab node-network
+```
+
+If you want to allow management of the metal-stack firewall by cluster-api, deploy the [firewall-controller-manager](https://github.com/metal-stack/firewall-controller-manager), too.
+
+```bash
+make -C capi-lab deploy-fcm
 ```
 
 A basic cluster configuration that relies on `config/clusterctl-templates/cluster-template.yaml` and uses the aforementioned node network can be generated and applied to the management cluster using a make target.

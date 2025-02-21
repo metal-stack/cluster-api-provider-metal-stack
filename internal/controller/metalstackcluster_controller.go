@@ -181,7 +181,6 @@ func (r *clusterReconciler) reconcile() error {
 			Host: ip,
 			Port: v1alpha1.ClusterControlPlaneEndpointDefaultPort,
 		}
-
 	}
 
 	fwdeploy, err := r.ensureFirewallDeployment(r.infraCluster.Spec.NodeNetworkID, sshPubKey)

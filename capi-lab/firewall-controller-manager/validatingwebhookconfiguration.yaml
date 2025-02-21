@@ -2,22 +2,19 @@
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
 metadata:
-  name: firewall-controller-manager-{{ firewall_controller_manager_namespace }}
+  name: firewall-controller-manager
+  annotations:
+    cert-manager.io/inject-ca-from: namespace/firewall-controller-manager-webhooks
 webhooks:
 - admissionReviewVersions:
   - v1
   clientConfig:
-    caBundle: {{ firewall_controller_manager_ca | b64encode }}
     service:
       name: firewall-controller-manager
-      namespace: {{ firewall_controller_manager_namespace }}
       port: 9443
       path: /validate-firewall-metal-stack-io-v2-firewall
   failurePolicy: Fail
   name: firewall.metal-stack.io
-  namespaceSelector:
-    matchLabels:
-      kubernetes.io/metadata.name: {{ firewall_controller_manager_namespace }}
   rules:
   - apiGroups:
     - firewall.metal-stack.io
@@ -32,17 +29,12 @@ webhooks:
 - admissionReviewVersions:
   - v1
   clientConfig:
-    caBundle: {{ firewall_controller_manager_ca | b64encode }}
     service:
       name: firewall-controller-manager
-      namespace: {{ firewall_controller_manager_namespace }}
       port: 9443
       path: /validate-firewall-metal-stack-io-v2-firewallset
   failurePolicy: Fail
   name: firewallset.metal-stack.io
-  namespaceSelector:
-    matchLabels:
-      kubernetes.io/metadata.name: {{ firewall_controller_manager_namespace }}
   rules:
   - apiGroups:
     - firewall.metal-stack.io
@@ -57,17 +49,12 @@ webhooks:
 - admissionReviewVersions:
   - v1
   clientConfig:
-    caBundle: {{ firewall_controller_manager_ca | b64encode }}
     service:
       name: firewall-controller-manager
-      namespace: {{ firewall_controller_manager_namespace }}
       port: 9443
       path: /validate-firewall-metal-stack-io-v2-firewalldeployment
   failurePolicy: Fail
   name: firewalldeployment.metal-stack.io
-  namespaceSelector:
-    matchLabels:
-      kubernetes.io/metadata.name: {{ firewall_controller_manager_namespace }}
   rules:
   - apiGroups:
     - firewall.metal-stack.io

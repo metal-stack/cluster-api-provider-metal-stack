@@ -2,15 +2,15 @@
 apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
-  name: firewall-controller-manager-{{ firewall_controller_manager_namespace }}
+  name: firewall-controller-manager
+  annotations:
+    cert-manager.io/inject-ca-from: namespace/firewall-controller-manager-webhooks
 webhooks:
 - admissionReviewVersions:
   - v1
   clientConfig:
-    caBundle: {{ firewall_controller_manager_ca | b64encode }}
     service:
       name: firewall-controller-manager
-      namespace: {{ firewall_controller_manager_namespace }}
       port: 9443
       path: /mutate-firewall-metal-stack-io-v2-firewall
   failurePolicy: Fail
@@ -29,10 +29,8 @@ webhooks:
 - admissionReviewVersions:
   - v1
   clientConfig:
-    caBundle: {{ firewall_controller_manager_ca | b64encode }}
     service:
       name: firewall-controller-manager
-      namespace: {{ firewall_controller_manager_namespace }}
       port: 9443
       path: /mutate-firewall-metal-stack-io-v2-firewallset
   failurePolicy: Fail
@@ -51,10 +49,8 @@ webhooks:
 - admissionReviewVersions:
   - v1
   clientConfig:
-    caBundle: {{ firewall_controller_manager_ca | b64encode }}
     service:
       name: firewall-controller-manager
-      namespace: {{ firewall_controller_manager_namespace }}
       port: 9443
       path: /mutate-firewall-metal-stack-io-v2-firewalldeployment
   failurePolicy: Fail

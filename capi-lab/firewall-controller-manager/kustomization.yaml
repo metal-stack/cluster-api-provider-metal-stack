@@ -3,15 +3,18 @@ namespace: capms-system
 namePrefix: capms-
 
 resources:
-- bases/cluster-role-binding.yaml
-- bases/cluster-role.yaml
-- bases/deployment.yaml
-- bases/mutatingwebhookconfiguration.yaml
-- bases/sa.yaml
-- bases/secret-ca.yaml
-- bases/secret.yaml
-- bases/service.yaml
-- bases/validatingwebhookconfiguration.yaml
+- bases/firewall.metal-stack.io_firewalldeployments.yaml
+- bases/firewall.metal-stack.io_firewallmonitors.yaml
+- bases/firewall.metal-stack.io_firewallsets.yaml
+- bases/firewall.metal-stack.io_firewalls.yaml
+- cluster-role-binding.yaml
+- cluster-role.yaml
+- deployment.yaml
+- mutatingwebhookconfiguration.yaml
+- sa.yaml
+- service.yaml
+- validatingwebhookconfiguration.yaml
+- webhook-certs.yaml
 
 labels:
 - includeSelectors: true
@@ -20,18 +23,113 @@ labels:
     # or cluster.x-k8s.io/provider: infrastructure-metal-stack?
 
 patches:
-# [WEBHOOK] To enable webhook, uncomment all the sections with [WEBHOOK] prefix.
-# patches here are for enabling the conversion webhook for each CRD
-# +kubebuilder:scaffold:crdkustomizewebhookpatch
-
-# [CERTMANAGER] To enable cert-manager, uncomment all the sections with [CERTMANAGER] prefix.
-# patches here are for enabling the CA injection for each CRD
-#- path: patches/cainjection_in_metalstackclusters.yaml
-#- path: patches/cainjection_in_metalstackmachines.yaml
-# +kubebuilder:scaffold:crdkustomizecainjectionpatch
-
-# [WEBHOOK] To enable webhook, uncomment the following section
-# the following config is for teaching kustomize how to do kustomization for CRDs.
 
 configurations:
 - kustomizeconfig.yaml
+
+replacements:
+ - source:
+     kind: Certificate
+     group: cert-manager.io
+     version: v1
+     name: capms-firewall-controller-manager-webhooks
+     fieldPath: .metadata.namespace
+   targets:
+     - select:
+         kind: ValidatingWebhookConfiguration
+         name: capms-firewall-controller-manager
+       fieldPaths:
+         - .metadata.annotations.[cert-manager.io/inject-ca-from]
+       options:
+         delimiter: '/'
+         index: 0
+         create: true
+
+ - source:
+     kind: Certificate
+     group: cert-manager.io
+     version: v1
+     name: capms-firewall-controller-manager-webhooks
+     fieldPath: .metadata.name
+   targets:
+     - select:
+         kind: ValidatingWebhookConfiguration
+         name: capms-firewall-controller-manager
+       fieldPaths:
+         - .metadata.annotations.[cert-manager.io/inject-ca-from]
+       options:
+         delimiter: '/'
+         index: 1
+         create: true
+
+ - source:
+     kind: Certificate
+     group: cert-manager.io
+     version: v1
+     name: capms-firewall-controller-manager-webhooks
+     fieldPath: .metadata.namespace
+   targets:
+     - select:
+         kind: MutatingWebhookConfiguration
+         name: capms-firewall-controller-manager
+       fieldPaths:
+         - .metadata.annotations.[cert-manager.io/inject-ca-from]
+       options:
+         delimiter: '/'
+         index: 0
+         create: true
+
+ - source:
+     kind: Certificate
+     group: cert-manager.io
+     version: v1
+     name: capms-firewall-controller-manager-webhooks
+     fieldPath: .metadata.name
+   targets:
+     - select:
+         kind: MutatingWebhookConfiguration
+         name: capms-firewall-controller-manager
+       fieldPaths:
+         - .metadata.annotations.[cert-manager.io/inject-ca-from]
+       options:
+         delimiter: '/'
+         index: 1
+         create: true
+
+ - source:
+     kind: Service
+     version: v1
+     name: firewall-controller-manager
+     fieldPath: .metadata.name
+   targets:
+     - select:
+         kind: Certificate
+         group: cert-manager.io
+         version: v1
+         name: firewall-controller-manager-webhooks
+       fieldPaths:
+         - .spec.dnsNames.0
+         - .spec.dnsNames.1
+       options:
+         delimiter: '.'
+         index: 0
+         create: true
+
+ - source:
+     kind: Service
+     version: v1
+     name: firewall-controller-manager
+     fieldPath: .metadata.namespace
+   targets:
+     - select:
+         kind: Certificate
+         group: cert-manager.io
+         version: v1
+         name: firewall-controller-manager-webhooks
+       fieldPaths:
+         - .spec.dnsNames.0
+         - .spec.dnsNames.1
+       options:
+         delimiter: '.'
+         index: 1
+         create: true
