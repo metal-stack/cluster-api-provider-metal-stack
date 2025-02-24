@@ -27,6 +27,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/utils/ptr"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	capierrors "sigs.k8s.io/cluster-api/errors" //nolint:staticcheck
@@ -34,9 +35,12 @@ import (
 	"sigs.k8s.io/cluster-api/util/annotations"
 	"sigs.k8s.io/cluster-api/util/conditions"
 	"sigs.k8s.io/cluster-api/util/patch"
+	"sigs.k8s.io/cluster-api/util/predicates"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/go-logr/logr"
@@ -178,7 +182,140 @@ func (r *MetalStackMachineReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.MetalStackMachine{}).
 		Named("metalstackmachine").
+		WithEventFilter(predicates.ResourceIsNotExternallyManaged(mgr.GetScheme(), mgr.GetLogger())).
+		WithEventFilter(predicates.ResourceNotPaused(mgr.GetScheme(), mgr.GetLogger())).
+		Watches(
+			&clusterv1.Cluster{},
+			handler.EnqueueRequestsFromMapFunc(r.clusterToMetalStackMachine(mgr.GetLogger())),
+			builder.WithPredicates(predicates.ClusterUnpaused(mgr.GetScheme(), mgr.GetLogger())),
+		).
+		Watches(
+			&v1alpha1.MetalStackCluster{},
+			handler.EnqueueRequestsFromMapFunc(r.metalStackClusterToMetalStackMachine(mgr.GetLogger())),
+			builder.WithPredicates(predicates.ResourceNotPaused(mgr.GetScheme(), mgr.GetLogger())),
+		).
+		Watches(
+			&clusterv1.Machine{},
+			handler.EnqueueRequestsFromMapFunc(r.machineToMetalStackMachine(mgr.GetLogger())),
+			builder.WithPredicates(predicates.ResourceNotPaused(mgr.GetScheme(), mgr.GetLogger())),
+		).
 		Complete(r)
+}
+
+func (r *MetalStackMachineReconciler) clusterToMetalStackMachine(log logr.Logger) handler.MapFunc {
+	return func(ctx context.Context, o client.Object) []ctrl.Request {
+		cluster, ok := o.(*clusterv1.Cluster)
+		if !ok {
+			log.Error(fmt.Errorf("expected a cluster, got %T", o), "failed to get cluster", "object", o)
+			return nil
+		}
+
+		log := log.WithValues("cluster", cluster)
+
+		infraMachineList := &v1alpha1.MetalStackMachineList{}
+		err := r.Client.List(ctx, infraMachineList, &client.ListOptions{
+			Namespace: cluster.Namespace,
+			LabelSelector: labels.SelectorFromSet(labels.Set{
+				clusterv1.ClusterNameLabel: cluster.Name,
+			}),
+		})
+		if err != nil {
+			log.Error(err, "failed to get infra machines")
+			return nil
+		}
+
+		var reqs []ctrl.Request
+		for _, infraMachine := range infraMachineList.Items {
+			reqs = append(reqs, ctrl.Request{
+				NamespacedName: client.ObjectKeyFromObject(&infraMachine),
+			})
+		}
+		return reqs
+	}
+}
+
+func (r *MetalStackMachineReconciler) metalStackClusterToMetalStackMachine(log logr.Logger) handler.MapFunc {
+	return func(ctx context.Context, o client.Object) []ctrl.Request {
+		infraCluster, ok := o.(*v1alpha1.MetalStackCluster)
+		if !ok {
+			log.Error(fmt.Errorf("expected an infra cluster, got %T", o), "failed to get cluster", "object", o)
+			return nil
+		}
+
+		log := log.WithValues("infraCluster", infraCluster)
+
+		clusterName, ok := infraCluster.Labels[clusterv1.ClusterNameLabel]
+		if !ok {
+			return nil
+		}
+
+		infraMachineList := &v1alpha1.MetalStackMachineList{}
+		err := r.Client.List(ctx, infraMachineList, &client.ListOptions{
+			Namespace: infraCluster.Namespace,
+			LabelSelector: labels.SelectorFromSet(labels.Set{
+				clusterv1.ClusterNameLabel: clusterName,
+			}),
+		})
+		if err != nil {
+			log.Error(err, "failed to get infra machines")
+			return nil
+		}
+
+		var reqs []ctrl.Request
+		for _, infraMachine := range infraMachineList.Items {
+			reqs = append(reqs, ctrl.Request{
+				NamespacedName: client.ObjectKeyFromObject(&infraMachine),
+			})
+		}
+		return reqs
+	}
+}
+
+func (r *MetalStackMachineReconciler) machineToMetalStackMachine(log logr.Logger) handler.MapFunc {
+	return func(ctx context.Context, o client.Object) []ctrl.Request {
+		machine, ok := o.(*clusterv1.Machine)
+		if !ok {
+			log.Error(fmt.Errorf("expected a machine, got %T", o), "failed to get machine", "object", o)
+			return nil
+		}
+
+		log := log.WithValues("machine", machine)
+
+		clusterName, ok := machine.Labels[clusterv1.ClusterNameLabel]
+		if !ok {
+			return nil
+		}
+		deploymentName, ok := machine.Labels[clusterv1.MachineDeploymentNameLabel]
+		if !ok {
+			return nil
+		}
+		machineSetName, ok := machine.Labels[clusterv1.MachineSetNameLabel]
+		if !ok {
+			return nil
+		}
+
+		infraMachineList := &v1alpha1.MetalStackMachineList{}
+		err := r.Client.List(ctx, infraMachineList, &client.ListOptions{
+			Namespace: machine.Namespace,
+			LabelSelector: labels.SelectorFromSet(labels.Set{
+				clusterv1.ClusterNameLabel:           clusterName,
+				clusterv1.MachineDeploymentNameLabel: deploymentName,
+				clusterv1.MachineSetNameLabel:        machineSetName,
+			}),
+		})
+		if err != nil {
+			log.Error(err, "failed to get infra machines")
+			return nil
+		}
+
+		var reqs []ctrl.Request
+		for _, infraMachine := range infraMachineList.Items {
+			reqs = append(reqs, ctrl.Request{
+				NamespacedName: client.ObjectKeyFromObject(&infraMachine),
+			})
+		}
+		return reqs
+	}
 }
 
 func (r *machineReconciler) reconcile() (ctrl.Result, error) {
