@@ -31,7 +31,7 @@ spec:
   firewall:
     size: ${FIREWALL_MACHINE_SIZE}
     image: ${FIREWALL_MACHINE_IMAGE}
-    networks: ${FIREWALL_NETWORKS:=["${METAL_NODE_NETWORK_ID}"]}
+    networks: ${FIREWALL_NETWORKS:=[]}
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
 kind: MetalStackMachineTemplate
