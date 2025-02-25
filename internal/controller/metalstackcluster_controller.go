@@ -166,7 +166,7 @@ func (r *MetalStackClusterReconciler) clusterToMetalStackCluster(log logr.Logger
 			return nil
 		}
 
-		log := log.WithValues("cluster", cluster)
+		log := log.WithValues("cluster", cluster.Name, "namespace", cluster.Namespace)
 
 		if cluster.Spec.InfrastructureRef == nil {
 			return nil
@@ -189,7 +189,7 @@ func (r *MetalStackClusterReconciler) clusterToMetalStackCluster(log logr.Logger
 			return nil
 		}
 
-		log.Info("cluster watch reconcile", "infraCluster", infraCluster.Name)
+		log.Info("cluster changed, reconcile", "infraCluster", infraCluster.Name)
 		return []ctrl.Request{
 			{
 				NamespacedName: infraName,
@@ -256,7 +256,7 @@ func (r *MetalStackClusterReconciler) metalStackMachineToMetalStackCluster(log l
 			return nil
 		}
 
-		log.Info("ms machine watch reconcile", "infraCluster", infraCluster.Name)
+		log.Info("metalstackmachine changed, reconcile", "infraCluster", infraCluster.Name)
 		return []ctrl.Request{
 			{
 				NamespacedName: client.ObjectKeyFromObject(infraCluster),
