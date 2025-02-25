@@ -210,7 +210,7 @@ func (r *MetalStackMachineReconciler) clusterToMetalStackMachine(log logr.Logger
 			return nil
 		}
 
-		log := log.WithValues("cluster", cluster)
+		log := log.WithValues("cluster", cluster.Name, "namespace", cluster.Namespace)
 
 		infraMachineList := &v1alpha1.MetalStackMachineList{}
 		err := r.Client.List(ctx, infraMachineList, &client.ListOptions{
@@ -226,7 +226,7 @@ func (r *MetalStackMachineReconciler) clusterToMetalStackMachine(log logr.Logger
 
 		var reqs []ctrl.Request
 		for _, infraMachine := range infraMachineList.Items {
-			log.Info("cluster watch reconcile", "infraMachine", infraMachine.Name)
+			log.Info("cluster changed, reconcile", "infraMachine", infraMachine.Name)
 			reqs = append(reqs, ctrl.Request{
 				NamespacedName: client.ObjectKeyFromObject(&infraMachine),
 			})
@@ -243,7 +243,7 @@ func (r *MetalStackMachineReconciler) metalStackClusterToMetalStackMachine(log l
 			return nil
 		}
 
-		log := log.WithValues("infraCluster", infraCluster)
+		log := log.WithValues("infraCluster", infraCluster.Name, "namespace", infraCluster.Namespace)
 
 		clusterName, ok := infraCluster.Labels[clusterv1.ClusterNameLabel]
 		if !ok {
@@ -264,7 +264,7 @@ func (r *MetalStackMachineReconciler) metalStackClusterToMetalStackMachine(log l
 
 		var reqs []ctrl.Request
 		for _, infraMachine := range infraMachineList.Items {
-			log.Info("mscluster watch reconcile", "infraMachine", infraMachine.Name)
+			log.Info("metalstackcluster changed, reconcile", "infraMachine", infraMachine.Name)
 			reqs = append(reqs, ctrl.Request{
 				NamespacedName: client.ObjectKeyFromObject(&infraMachine),
 			})
@@ -281,7 +281,7 @@ func (r *MetalStackMachineReconciler) machineToMetalStackMachine(log logr.Logger
 			return nil
 		}
 
-		log := log.WithValues("machine", machine)
+		log := log.WithValues("machine", machine.Name, "namespace", machine.Namespace)
 
 		clusterName, ok := machine.Labels[clusterv1.ClusterNameLabel]
 		if !ok {
@@ -312,7 +312,7 @@ func (r *MetalStackMachineReconciler) machineToMetalStackMachine(log logr.Logger
 
 		var reqs []ctrl.Request
 		for _, infraMachine := range infraMachineList.Items {
-			log.Info("machine watch reconcile", "infraMachine", infraMachine.Name)
+			log.Info("machine changed, reconcile", "infraMachine", infraMachine.Name)
 			reqs = append(reqs, ctrl.Request{
 				NamespacedName: client.ObjectKeyFromObject(&infraMachine),
 			})
