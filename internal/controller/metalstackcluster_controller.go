@@ -28,6 +28,7 @@ import (
 	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/utils/ptr"
 
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
@@ -179,6 +180,11 @@ func (r *clusterReconciler) delete() error {
 
 	r.log.Info("reconciling resource deletion flow")
 
+	err = r.ensureAllMetalStackMachinesAreGone()
+	if err != nil {
+		return err
+	}
+
 	err = r.deleteControlPlaneIP()
 	if err != nil {
 		return fmt.Errorf("unable to delete control plane ip: %w", err)
@@ -229,6 +235,25 @@ func (r *clusterReconciler) ensureControlPlaneIP() (string, error) {
 	}
 
 	return *resp.Payload.Ipaddress, nil
+}
+
+func (r *clusterReconciler) ensureAllMetalStackMachinesAreGone() error {
+	infraMachines := &v1alpha1.MetalStackMachineList{}
+	err := r.client.List(r.ctx, infraMachines, &client.ListOptions{
+		Limit:     1,
+		Namespace: r.cluster.Namespace,
+		LabelSelector: labels.SelectorFromSet(labels.Set{
+			clusterv1.ClusterNameLabel: r.cluster.Name,
+		}),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to fetch machines: %w", err)
+	}
+
+	if len(infraMachines.Items) > 0 {
+		return errors.New("waiting for all infra machines to be gone")
+	}
+	return nil
 }
 
 func (r *clusterReconciler) deleteControlPlaneIP() error {
