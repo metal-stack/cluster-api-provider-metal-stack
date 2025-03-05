@@ -1,0 +1,39 @@
+---
+# used for metalctl firewall create --firewall-rules-file
+egress:
+  - comment: allow outgoing HTTP and HTTPS traffic
+    ports:
+      - 80
+      - 443
+    protocol: TCP
+    to:
+      - 0.0.0.0/0
+  - comment: allow outgoing DNS traffic via TCP
+    ports:
+      - 53
+    protocol: TCP
+    to:
+      - 0.0.0.0/0
+  - comment: allow outgoing traffic to control plane for ccm
+    ports:
+      - 8080
+    protocol: TCP
+    to:
+      - 0.0.0.0/0 # could be more specific
+  - comment: allow outgoing DNS and NTP traffic via UDP
+    ports:
+      - 53
+      - 123
+    protocol: UDP
+    to:
+      - 0.0.0.0/0
+ingress:
+  - comment: allow incoming HTTP and HTTPS traffic
+    ports:
+      - 80
+      - 443
+    protocol: TCP
+    from:
+      - 0.0.0.0/0 # could be more specific
+    to:
+      - 0.0.0.0/0 # could be more specific

@@ -186,3 +186,129 @@ Users can just run kubectl apply -f <URL for YAML BUNDLE> to install the project
 ```sh
 kubectl apply -f https://raw.githubusercontent.com/<org>/cluster-api-provider-metal-stack/<tag or branch>/dist/install.yaml
 ```
+
+## Quick opinionated Cluster Bootstrap and move
+
+This is a short and opinionated fast track to create and move a cluster using our provider.
+In contrast to a guide and the README, we do not explain all commands and try to be concise.
+
+Configure your clusterctl:
+
+```yaml
+# ~/.config/cluster-api/clusterctl.yaml
+providers:
+  - name: "metal-stack"
+    url: "https://github.com/metal-stack/cluster-api-provider-metal-stack/releases/latest/download/infrastructure-components.yaml"
+    # or for PRs
+    # url: "${HOME}/path/to/infrastructure-metal-stack/v0.4.0/infrastructure-components.yaml"
+    # generate with:
+    # IMG_TAG=branch-name RELEASE_DIR=${HOME}/path/to/infrastructure-metal-stack/v0.4.0 make release-manifests
+    type: InfrastructureProvider
+```
+
+Set environment variables. Don't forget to update them along the way.
+
+```bash
+export EXP_KUBEADM_BOOTSTRAP_FORMAT_IGNITION=true
+
+export METAL_API_HMAC=
+export METAL_API_HMAC_AUTH_TYPE=
+export METAL_API_URL=
+
+export METAL_PARTITION=
+export METAL_PROJECT_ID=
+export METAL_NODE_NETWORK_ID=
+
+export FIREWALL_MACHINE_IMAGE=
+export FIREWALL_MACHINE_SIZE=
+
+export CONTROL_PLANE_MACHINE_IMAGE=
+export CONTROL_PLANE_MACHINE_SIZE=
+export WORKER_MACHINE_IMAGE=
+export WORKER_MACHINE_SIZE=
+
+export CLUSTER_NAME=
+export NAMESPACE=default
+export KUBERNETES_VERSION=v1.30.6
+
+export CONTROL_PLANE_MACHINE_COUNT=1
+export WORKER_MACHINE_COUNT=1
+
+# Additional envs
+export repo_path=$HOME/path/to/cluster-api-provider-metal-stack
+export project_name=
+export tenant_name=
+export firewall_id=
+```
+
+Create firewall if needed:
+
+```bash
+metalctl project create --name $project_name --tenant $tenant_name --description "Cluster API test project"
+metalctl network allocate --description "Node network for $CLUSTER_NAME" --name $CLUSTER_NAME --project $METAL_PROJECT_ID --partition $METAL_PARTITION
+metalctl firewall create --description "Firewall for $CLUSTER_NAME cluster" --name firewall-$CLUSTER_NAME --hostname firewall-$CLUSTER_NAME --project $METAL_PROJECT_ID --partition $METAL_PARTITION --image $FIREWALL_MACHINE_IMAGE  --size $FIREWALL_MACHINE_SIZE --firewall-rules-file $repo_path/config/target-cluster/firewall-rules.yaml --networks internet,$METAL_NODE_NETWORK_ID
+```
+
+```bash
+kind create cluster --name bootstrap
+kind export kubeconfig --name bootstrap --kubeconfig kind-bootstrap.kubeconfig
+
+clusterctl init --infrastructure metal-stack --kubeconfig kind-bootstrap.kubeconfig
+clusterctl generate cluster $CLUSTER_NAME --infrastructure metal-stack > cluster-$CLUSTER_NAME.yaml
+kubectl apply -f cluster-$CLUSTER_NAME.yaml
+
+# once the control plane node is in phoned home
+metalctl machine consolepassword $firewall_id
+metalctl machine console --ipmi $firewall_id
+# sudo systemctl restart frr
+# ~.
+
+kubectl --kubeconfig kind-bootstrap.kubeconfig get metalstackmachines.infrastructure.cluster.x-k8s.io
+cp_machine_id=TODO metalctl machine console --ipmi $cp_machine_id
+# ip r
+# sudo systemctl restart kubeadm
+# crictl ps 
+# ~.
+
+clusterctl get kubeconfig > capms-cluster.kubeconfig
+
+# metal-ccm
+cat $repo_path/config/target-cluster/metal-ccm.yaml | envsubst | kubectl --kubeconfig capms-cluster.kubeconfig apply -f -
+
+# cni
+kubectl --kubeconfig=capms-cluster.kubeconfig create -f https://raw.githubusercontent.com/projectcalico/calico/v3.28.2/manifests/tigera-operator.yaml
+cat <<EOF | kubectl --kubeconfig=capms-cluster.kubeconfig create -f -
+apiVersion: operator.tigera.io/v1
+kind: Installation
+metadata:
+  name: default
+spec:
+  # Configures Calico networking.
+  calicoNetwork:
+    bgp: Disabled
+    ipPools:
+    - name: default-ipv4-ippool
+      blockSize: 26
+      cidr: 10.240.0.0/12
+      encapsulation: None
+    mtu: 1440
+  cni:
+    ipam:
+      type: HostLocal
+    type: Calico
+EOF
+
+watch kubectl --kubeconfig kind-bootstrap.kubeconfig get cluster,metalstackcluster,machine,metalstackmachine,kubeadmcontrolplanes,kubeadmconfigs
+# until everything is ready
+```
+
+Now you are able to move the cluster resources as you wish:
+
+```bash
+clusterctl init --infrastructure metal-stack --kubeconfig capms-cluster.kubeconfig
+
+clusterctl move --kubeconfig kind-bootstrap.kubeconfig --to-kubeconfig capms-cluster.kubeconfig 
+# everything as expected
+kubectl --kubeconfig kind-bootstrap.kubeconfig get cluster,metalstackcluster,machine,metalstackmachine,kubeadmcontrolplanes,kubeadmconfigs
+kubectl --kubeconfig capms-cluster.kubeconfig get cluster,metalstackcluster,machine,metalstackmachine,kubeadmcontrolplanes,kubeadmconfigs
+```
