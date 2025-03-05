@@ -255,7 +255,7 @@ kind export kubeconfig --name bootstrap --kubeconfig kind-bootstrap.kubeconfig
 
 clusterctl init --infrastructure metal-stack --kubeconfig kind-bootstrap.kubeconfig
 clusterctl generate cluster $CLUSTER_NAME --infrastructure metal-stack > cluster-$CLUSTER_NAME.yaml
-kubectl apply -f cluster-$CLUSTER_NAME.yaml
+kubectl apply -n $NAMESPACE -f cluster-$CLUSTER_NAME.yaml
 
 # once the control plane node is in phoned home
 metalctl machine consolepassword $firewall_id
@@ -263,7 +263,7 @@ metalctl machine console --ipmi $firewall_id
 # sudo systemctl restart frr
 # ~.
 
-kubectl --kubeconfig kind-bootstrap.kubeconfig get metalstackmachines.infrastructure.cluster.x-k8s.io
+kubectl --kubeconfig kind-bootstrap.kubeconfig -n $NAMESPACE get metalstackmachines.infrastructure.cluster.x-k8s.io
 cp_machine_id=TODO metalctl machine console --ipmi $cp_machine_id
 # ip r
 # sudo systemctl restart kubeadm
@@ -298,7 +298,7 @@ spec:
     type: Calico
 EOF
 
-watch kubectl --kubeconfig kind-bootstrap.kubeconfig get cluster,metalstackcluster,machine,metalstackmachine,kubeadmcontrolplanes,kubeadmconfigs
+watch kubectl -n $NAMESPACE --kubeconfig kind-bootstrap.kubeconfig get cluster,metalstackcluster,machine,metalstackmachine,kubeadmcontrolplanes,kubeadmconfigs
 # until everything is ready
 ```
 
@@ -307,8 +307,8 @@ Now you are able to move the cluster resources as you wish:
 ```bash
 clusterctl init --infrastructure metal-stack --kubeconfig capms-cluster.kubeconfig
 
-clusterctl move --kubeconfig kind-bootstrap.kubeconfig --to-kubeconfig capms-cluster.kubeconfig 
+clusterctl move -n $NAMESPACE --kubeconfig kind-bootstrap.kubeconfig --to-kubeconfig capms-cluster.kubeconfig 
 # everything as expected
-kubectl --kubeconfig kind-bootstrap.kubeconfig get cluster,metalstackcluster,machine,metalstackmachine,kubeadmcontrolplanes,kubeadmconfigs
-kubectl --kubeconfig capms-cluster.kubeconfig get cluster,metalstackcluster,machine,metalstackmachine,kubeadmcontrolplanes,kubeadmconfigs
+kubectl --kubeconfig -n $NAMESPACE kind-bootstrap.kubeconfig get cluster,metalstackcluster,machine,metalstackmachine,kubeadmcontrolplanes,kubeadmconfigs
+kubectl --kubeconfig -n $NAMESPACE capms-cluster.kubeconfig get cluster,metalstackcluster,machine,metalstackmachine,kubeadmcontrolplanes,kubeadmconfigs
 ```
