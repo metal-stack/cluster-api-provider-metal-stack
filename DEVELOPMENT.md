@@ -264,7 +264,8 @@ metalctl machine console --ipmi $firewall_id
 # ~.
 
 kubectl --kubeconfig kind-bootstrap.kubeconfig -n $NAMESPACE get metalstackmachines.infrastructure.cluster.x-k8s.io
-cp_machine_id=TODO metalctl machine console --ipmi $cp_machine_id
+export control_plane_machine_id=
+metalctl machine console --ipmi $control_plane_machine_id
 # ip r
 # sudo systemctl restart kubeadm
 # crictl ps 
