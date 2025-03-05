@@ -62,7 +62,7 @@ metalctl network allocate --description "<description>" --name <name> --project 
 export METAL_NODE_NETWORK_ID=$(metalctl network list --name <name> -o template --template '{{ .id }}')
 ```
 
-A firewall needs to be created with appropriate firewall rules. An example can be found at [firewall-rules.yaml](capi-lab/firewall-rules.yaml).
+A firewall needs to be created with appropriate firewall rules. An example can be found at [firewall-rules.yaml](config/target-cluster/firewall-rules.yaml).
 ```bash
 # export environment variable for the firewall image and size
 export FIREWALL_MACHINE_IMAGE=<firewall-image>
