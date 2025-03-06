@@ -29,13 +29,17 @@ import (
 
 	"golang.org/x/crypto/ssh"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 
 	fcmv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
@@ -153,8 +157,124 @@ func (r *MetalStackClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&v1alpha1.MetalStackCluster{}).
 		Named("metalstackcluster").
 		WithEventFilter(predicates.ResourceIsNotExternallyManaged(mgr.GetScheme(), mgr.GetLogger())).
-		// TODO: implement resource paused from cluster-api's predicates?
+		WithEventFilter(predicates.ResourceNotPaused(mgr.GetScheme(), mgr.GetLogger())).
+		Watches(
+			&clusterv1.Cluster{},
+			handler.EnqueueRequestsFromMapFunc(r.clusterToMetalStackCluster(mgr.GetLogger())),
+			builder.WithPredicates(predicates.ClusterUnpaused(mgr.GetScheme(), mgr.GetLogger())),
+		).
+		Watches(&v1alpha1.MetalStackMachine{},
+			handler.EnqueueRequestsFromMapFunc(r.metalStackMachineToMetalStackCluster(mgr.GetLogger())),
+			builder.WithPredicates(predicates.ResourceNotPaused(mgr.GetScheme(), mgr.GetLogger())),
+		).
 		Complete(r)
+}
+
+func (r *MetalStackClusterReconciler) clusterToMetalStackCluster(log logr.Logger) handler.MapFunc {
+	return func(ctx context.Context, o client.Object) []ctrl.Request {
+		cluster, ok := o.(*clusterv1.Cluster)
+		if !ok {
+			log.Error(fmt.Errorf("expected a cluster, got %T", o), "failed to get cluster", "object", o)
+			return nil
+		}
+
+		log := log.WithValues("cluster", cluster.Name, "namespace", cluster.Namespace)
+
+		if cluster.Spec.InfrastructureRef == nil {
+			return nil
+		}
+		if cluster.Spec.InfrastructureRef.GroupVersionKind().Kind != "MetalStackCluster" {
+			return nil
+		}
+
+		infraCluster := &v1alpha1.MetalStackCluster{}
+		infraName := types.NamespacedName{
+			Namespace: cluster.Spec.InfrastructureRef.Namespace,
+			Name:      cluster.Spec.InfrastructureRef.Name,
+		}
+
+		if err := r.Client.Get(ctx, infraName, infraCluster); err != nil {
+			log.Error(err, "failed to get infra cluster")
+			return nil
+		}
+		if annotations.IsExternallyManaged(infraCluster) {
+			return nil
+		}
+
+		log.Info("cluster changed, reconcile", "infraCluster", infraCluster.Name)
+		return []ctrl.Request{
+			{
+				NamespacedName: infraName,
+			},
+		}
+	}
+}
+
+func (r *MetalStackClusterReconciler) metalStackMachineToMetalStackCluster(log logr.Logger) handler.MapFunc {
+	return func(ctx context.Context, o client.Object) []ctrl.Request {
+		infraMachine, ok := o.(*v1alpha1.MetalStackMachine)
+		if !ok {
+			log.Error(fmt.Errorf("expected an infra cluster, got %T", o), "failed to get infra machine", "object", o)
+			return nil
+		}
+
+		log := log.WithValues("namespace", infraMachine.Namespace, "infraMachine", infraMachine.Name)
+
+		machine, err := util.GetOwnerMachine(ctx, r.Client, infraMachine.ObjectMeta)
+		if err != nil {
+			log.Error(err, "failed to get owner machine")
+		}
+		if machine == nil {
+			return nil
+		}
+
+		log = log.WithValues("machine", machine.Name)
+
+		cluster, err := util.GetClusterFromMetadata(ctx, r.Client, machine.ObjectMeta)
+		if err != nil {
+			log.Error(err, "failed to get owner cluster")
+			return nil
+		}
+		if cluster == nil {
+			log.Info("machine resource has no cluster yet")
+			return nil
+		}
+
+		log = log.WithValues("cluster", cluster.Name)
+
+		infraCluster := &v1alpha1.MetalStackCluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: cluster.Spec.InfrastructureRef.Namespace,
+				Name:      cluster.Spec.InfrastructureRef.Name,
+			},
+		}
+		err = r.Client.Get(ctx, client.ObjectKeyFromObject(infraCluster), infraCluster)
+		if apierrors.IsNotFound(err) {
+			log.Info("infrastructure cluster no longer exists")
+			return nil
+		}
+		if err != nil {
+			log.Error(err, "failed to get infra cluster")
+			return nil
+		}
+
+		if cluster.Spec.InfrastructureRef.GroupVersionKind().Kind != "MetalStackCluster" {
+			log.Info("different infra cluster", "kind", cluster.Spec.InfrastructureRef.GroupVersionKind().Kind)
+			return nil
+		}
+
+		if annotations.IsExternallyManaged(infraCluster) {
+			log.Info("infra cluster is externally managed")
+			return nil
+		}
+
+		log.Info("metalstackmachine changed, reconcile", "infraCluster", infraCluster.Name)
+		return []ctrl.Request{
+			{
+				NamespacedName: client.ObjectKeyFromObject(infraCluster),
+			},
+		}
+	}
 }
 
 func (r *clusterReconciler) reconcile() error {
@@ -207,6 +327,11 @@ func (r *clusterReconciler) delete() error {
 	err = r.deleteFirewallDeployment()
 	if err != nil {
 		return fmt.Errorf("unable to delete firewall deployment: %w", err)
+	}
+
+	err = r.ensureAllMetalStackMachinesAreGone()
+	if err != nil {
+		return err
 	}
 
 	err = r.deleteControlPlaneIP()
@@ -264,6 +389,25 @@ func (r *clusterReconciler) ensureControlPlaneIP() (string, error) {
 	}
 
 	return *resp.Payload.Ipaddress, nil
+}
+
+func (r *clusterReconciler) ensureAllMetalStackMachinesAreGone() error {
+	infraMachines := &v1alpha1.MetalStackMachineList{}
+	err := r.client.List(r.ctx, infraMachines, &client.ListOptions{
+		Limit:     1,
+		Namespace: r.cluster.Namespace,
+		LabelSelector: labels.SelectorFromSet(labels.Set{
+			clusterv1.ClusterNameLabel: r.cluster.Name,
+		}),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to fetch machines: %w", err)
+	}
+
+	if len(infraMachines.Items) > 0 {
+		return errors.New("waiting for all infra machines to be gone")
+	}
+	return nil
 }
 
 func (r *clusterReconciler) deleteControlPlaneIP() error {
