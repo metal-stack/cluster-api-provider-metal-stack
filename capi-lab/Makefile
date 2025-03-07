@@ -21,6 +21,9 @@ CONTROL_PLANE_MACHINE_SIZE ?= v1-small-x86
 WORKER_MACHINE_IMAGE ?= ubuntu-24.04
 WORKER_MACHINE_SIZE ?= v1-small-x86
 
+FIREWALL_MACHINE_IMAGE ?= firewall-ubuntu-3.0
+FIREWALL_MACHINE_SIZE ?= v1-small-x86
+
 IMG ?= ghcr.io/metal-stack/cluster-api-metal-stack-controller:latest
 
 .PHONY: up
@@ -43,6 +46,7 @@ cleanup:
 dev-env:
 	@echo "export METALCTL_API_URL=${METALCTL_API_URL}"
 	@echo "export METALCTL_HMAC=${METALCTL_HMAC}"
+	@echo "export METALCTL_HMAC_AUTH_TYPE=${METALCTL_HMAC_AUTH_TYPE}"
 	@echo "export KUBECONFIG=${KUBECONFIG}"
 
 .PHONY: controller
@@ -63,6 +67,7 @@ node-network:
 .PHONY: apply-sample-cluster
 apply-sample-cluster:
 	$(eval METAL_NODE_NETWORK_ID = $(shell metalctl network list --name metal-test -o template --template '{{ .id }}'))
+	$(eval FIREWALL_NETWORKS =  ["internet-mini-lab"])
 	clusterctl generate cluster metal-test \
 		--kubeconfig=$(KUBECONFIG) \
 		--worker-machine-count 1 \
@@ -74,6 +79,7 @@ apply-sample-cluster:
 .PHONY: delete-sample-cluster
 delete-sample-cluster:
 	$(eval METAL_NODE_NETWORK_ID = $(shell metalctl network list --name metal-test -o template --template '{{ .id }}'))
+	$(eval FIREWALL_NETWORKS =  ["internet-mini-lab"])
 	clusterctl generate cluster metal-test \
 		--kubeconfig=$(KUBECONFIG) \
 		--worker-machine-count 1 \
@@ -91,4 +97,9 @@ mtu-fix:
 deploy-metal-ccm:
 	$(eval METAL_CLUSTER_ID = $(shell kubectl get metalstackclusters.infrastructure.cluster.x-k8s.io metal-test -ojsonpath='{.metadata.uid}'))
 	$(eval METAL_NODE_NETWORK_ID = $(shell metalctl network list --name metal-test -o template --template '{{ .id }}'))
+	$(eval FIREWALL_NETWORKS =  ["internet-mini-lab"])
 	cat metal-ccm.yaml | envsubst | kubectl --kubeconfig=.capms-cluster-kubeconfig.yaml apply -f -
+
+.PHONY: deploy-fcm
+deploy-fcm:
+	kubectl apply -k firewall-controller-manager

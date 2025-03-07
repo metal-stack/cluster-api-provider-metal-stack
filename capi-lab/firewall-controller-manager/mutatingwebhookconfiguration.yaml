@@ -1,0 +1,68 @@
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: firewall-controller-manager
+  annotations:
+    cert-manager.io/inject-ca-from: namespace/firewall-controller-manager-webhooks
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: firewall-controller-manager
+      port: 9443
+      path: /mutate-firewall-metal-stack-io-v2-firewall
+  failurePolicy: Fail
+  name: firewall.metal-stack.io
+  objectSelector: {}
+  rules:
+  - apiGroups:
+    - firewall.metal-stack.io
+    apiVersions:
+    - v2
+    operations:
+    - CREATE
+    resources:
+    - firewalls
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: firewall-controller-manager
+      port: 9443
+      path: /mutate-firewall-metal-stack-io-v2-firewallset
+  failurePolicy: Fail
+  name: firewallset.metal-stack.io
+  objectSelector: {}
+  rules:
+  - apiGroups:
+    - firewall.metal-stack.io
+    apiVersions:
+    - v2
+    operations:
+    - CREATE
+    resources:
+    - firewallsets
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: firewall-controller-manager
+      port: 9443
+      path: /mutate-firewall-metal-stack-io-v2-firewalldeployment
+  failurePolicy: Fail
+  name: firewalldeployment.metal-stack.io
+  objectSelector: {}
+  rules:
+  - apiGroups:
+    - firewall.metal-stack.io
+    apiVersions:
+    - v2
+    operations:
+    - CREATE
+    resources:
+    - firewalldeployments
+  sideEffects: None

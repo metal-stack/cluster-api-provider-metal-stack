@@ -9,8 +9,11 @@ rules:
   resources:
   - secrets
   verbs:
+  - create
+  - delete
   - get
   - list
+  - update
   - watch
 - apiGroups:
   - cluster.x-k8s.io
@@ -20,6 +23,18 @@ rules:
   verbs:
   - get
   - list
+  - watch
+- apiGroups:
+  - firewall.metal-stack.io
+  resources:
+  - firewalldeployments
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
   - watch
 - apiGroups:
   - infrastructure.cluster.x-k8s.io
