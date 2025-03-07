@@ -532,6 +532,10 @@ func (r *machineReconciler) getMachineAddresses(m *models.V1MachineResponse) clu
 }
 
 func (r *machineReconciler) findProviderMachine() (*models.V1MachineResponse, error) {
+	if r.infraMachine.Spec.ProviderID == "" {
+		return nil, errProviderMachineNotFound
+	}
+
 	resp, err := r.metalClient.Machine().FindMachine(metalmachine.NewFindMachineParams().WithContext(r.ctx).WithID(decodeProviderID(r.infraMachine.Spec.ProviderID)), nil)
 
 	var errResp *metalmachine.FindMachineDefault
