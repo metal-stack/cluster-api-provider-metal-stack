@@ -125,8 +125,10 @@ func (r *MetalStackClusterReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	}
 
 	if annotations.IsPaused(cluster, infraCluster) {
+		// TODO: pause firewalldeployment
 		conditions.MarkTrue(infraCluster, v1alpha1.ClusterPaused)
 	} else {
+		// TODO: unpause firewalldeployment if needed
 		conditions.MarkFalse(infraCluster, v1alpha1.ClusterPaused, clusterv1.PausedV1Beta2Reason, clusterv1.ConditionSeverityInfo, "")
 	}
 
@@ -482,10 +484,15 @@ func (r *clusterReconciler) ensureSshKeyPair(ctx context.Context) (string, error
 		return "", err
 	}
 
+	secret.Type = clusterv1.ClusterSecretType
 	secret.Data = map[string][]byte{
 		"id_rsa":     pem.EncodeToMemory(privateKeyBlock),
 		"id_rsa.pub": ssh.MarshalAuthorizedKey(pubKey),
 	}
+	secret.Labels = map[string]string{
+		clusterv1.ClusterNameLabel: r.cluster.Name,
+	}
+	secret.OwnerReferences = append(secret.OwnerReferences, *metav1.NewControllerRef(r.infraCluster, r.infraCluster.GroupVersionKind()))
 
 	err = r.client.Create(ctx, secret)
 	if err != nil {
@@ -552,6 +559,8 @@ func (r *clusterReconciler) ensureFirewallDeployment(nodeNetworkID, sshPubKey st
 		if deploy.Labels == nil {
 			deploy.Labels = map[string]string{}
 		}
+
+		deploy.Labels[clusterv1.ClusterNameLabel] = r.cluster.Name
 
 		deploy.Spec.Replicas = 1
 		deploy.Spec.Selector = map[string]string{
@@ -647,6 +656,7 @@ func (r *clusterReconciler) ensureFirewallDeployment(nodeNetworkID, sshPubKey st
 			deploy.Spec.Template.Labels = map[string]string{}
 		}
 		deploy.Spec.Template.Labels[tag.ClusterID] = string(r.infraCluster.GetUID())
+		deploy.Spec.Template.Labels[clusterv1.ClusterNameLabel] = r.cluster.Name
 
 		deploy.Spec.Template.Spec.Size = r.infraCluster.Spec.Firewall.Size
 		deploy.Spec.Template.Spec.Image = r.infraCluster.Spec.Firewall.Image
