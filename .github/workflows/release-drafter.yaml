@@ -11,6 +11,7 @@ permissions:
 
 jobs:
   build:
+    name: Release Drafter
     runs-on: ubuntu-latest
     steps:
       - name: Draft Release
