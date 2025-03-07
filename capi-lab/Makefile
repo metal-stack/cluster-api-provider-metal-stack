@@ -67,7 +67,7 @@ node-network:
 .PHONY: apply-sample-cluster
 apply-sample-cluster:
 	$(eval METAL_NODE_NETWORK_ID = $(shell metalctl network list --name metal-test -o template --template '{{ .id }}'))
-	$(eval FIREWALL_NETWORKS =  ["internet-mini-lab", "$(shell metalctl network list --name metal-test -o template --template '{{ .id }}')"])
+	$(eval FIREWALL_NETWORKS =  ["internet-mini-lab"])
 	clusterctl generate cluster metal-test \
 		--kubeconfig=$(KUBECONFIG) \
 		--worker-machine-count 1 \
@@ -79,7 +79,7 @@ apply-sample-cluster:
 .PHONY: delete-sample-cluster
 delete-sample-cluster:
 	$(eval METAL_NODE_NETWORK_ID = $(shell metalctl network list --name metal-test -o template --template '{{ .id }}'))
-	$(eval FIREWALL_NETWORKS =  ["internet-mini-lab", "$(shell metalctl network list --name metal-test -o template --template '{{ .id }}')"])
+	$(eval FIREWALL_NETWORKS =  ["internet-mini-lab"])
 	clusterctl generate cluster metal-test \
 		--kubeconfig=$(KUBECONFIG) \
 		--worker-machine-count 1 \
@@ -97,7 +97,7 @@ mtu-fix:
 deploy-metal-ccm:
 	$(eval METAL_CLUSTER_ID = $(shell kubectl get metalstackclusters.infrastructure.cluster.x-k8s.io metal-test -ojsonpath='{.metadata.uid}'))
 	$(eval METAL_NODE_NETWORK_ID = $(shell metalctl network list --name metal-test -o template --template '{{ .id }}'))
-	$(eval FIREWALL_NETWORKS =  ["internet-mini-lab", "$(shell metalctl network list --name metal-test -o template --template '{{ .id }}')"])
+	$(eval FIREWALL_NETWORKS =  ["internet-mini-lab"])
 	cat metal-ccm.yaml | envsubst | kubectl --kubeconfig=.capms-cluster-kubeconfig.yaml apply -f -
 
 .PHONY: deploy-fcm

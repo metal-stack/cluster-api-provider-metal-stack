@@ -167,6 +167,7 @@ func (r *MetalStackClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			handler.EnqueueRequestsFromMapFunc(r.metalStackMachineToMetalStackCluster(mgr.GetLogger())),
 			builder.WithPredicates(predicates.ResourceNotPaused(mgr.GetScheme(), mgr.GetLogger())),
 		).
+		// TODO: watch firewalldeployment for deletion?
 		Complete(r)
 }
 
@@ -278,6 +279,7 @@ func (r *MetalStackClusterReconciler) metalStackMachineToMetalStackCluster(log l
 }
 
 func (r *clusterReconciler) reconcile() error {
+	r.log.Info("reconcile ssh....")
 	sshPubKey, err := r.ensureSshKeyPair(r.ctx)
 	if err != nil {
 		return fmt.Errorf("unable to ensure ssh key pair: %w", err)
@@ -582,6 +584,30 @@ func (r *clusterReconciler) ensureFirewallDeployment(nodeNetworkID, sshPubKey st
 					Protocol: fcmv2.NetworkProtocolUDP,
 					To:       []string{"0.0.0.0/0"},
 				},
+				{
+					Comment:  "allow outgoing http ip version six",
+					Ports:    []int32{80},
+					Protocol: fcmv2.NetworkProtocolTCP,
+					To:       []string{"::/0"},
+				},
+				{
+					Comment:  "allow outgoing https ip version six",
+					Ports:    []int32{443},
+					Protocol: fcmv2.NetworkProtocolTCP,
+					To:       []string{"::/0"},
+				},
+				{
+					Comment:  "allow outgoing dns via tcp ip version six",
+					Ports:    []int32{53},
+					Protocol: fcmv2.NetworkProtocolTCP,
+					To:       []string{"::/0"},
+				},
+				{
+					Comment:  "allow outgoing dns and ntp via udp ip version six",
+					Ports:    []int32{53, 123},
+					Protocol: fcmv2.NetworkProtocolUDP,
+					To:       []string{"::/0"},
+				},
 			},
 			Ingress: []fcmv2.IngressRule{
 				{
@@ -595,6 +621,18 @@ func (r *clusterReconciler) ensureFirewallDeployment(nodeNetworkID, sshPubKey st
 					Ports:    []int32{443},
 					Protocol: fcmv2.NetworkProtocolTCP,
 					From:     []string{"0.0.0.0/0"}, // TODO: restrict cidr
+				},
+				{
+					Comment:  "allow incoming ssh ip version six",
+					Ports:    []int32{22},
+					Protocol: fcmv2.NetworkProtocolTCP,
+					From:     []string{"::/0"}, // TODO: restrict cidr
+				},
+				{
+					Comment:  "allow incoming https to kube-apiserver ip version six",
+					Ports:    []int32{443},
+					Protocol: fcmv2.NetworkProtocolTCP,
+					From:     []string{"::/0"}, // TODO: restrict cidr
 				},
 			},
 		}
