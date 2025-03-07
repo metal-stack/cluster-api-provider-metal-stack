@@ -5,7 +5,7 @@ services:
     environment:
       - EXP_KUBEADM_BOOTSTRAP_FORMAT_IGNITION=true
       - KUBECONFIG=/kubeconfig
-    image: registry.k8s.io/cluster-api/clusterctl:v1.9.4
+    image: registry.k8s.io/cluster-api/clusterctl:v1.9.5
     network_mode: host
     user: root
     volumes:
