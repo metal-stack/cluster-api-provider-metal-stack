@@ -573,6 +573,12 @@ func (r *clusterReconciler) ensureFirewallDeployment(nodeNetworkID, sshPubKey st
 					To:       []string{"0.0.0.0/0"},
 				},
 				{
+					Comment:  "allow outgoing traffic to control plane for ccm",
+					Ports:    []int32{8080},
+					Protocol: fcmv2.NetworkProtocolTCP,
+					To:       []string{"0.0.0.0/0"},
+				},
+				{
 					Comment:  "allow outgoing dns via tcp",
 					Ports:    []int32{53},
 					Protocol: fcmv2.NetworkProtocolTCP,

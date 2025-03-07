@@ -17,16 +17,17 @@ resources:
 - validatingwebhookconfiguration.yaml
 - webhook-certs.yaml
 
-labels:
-- includeSelectors: true
-  pairs:
-    clusterctl.cluster.x-k8s.io/move: ""
-    # or cluster.x-k8s.io/provider: infrastructure-metal-stack?
-
 patches:
-
-configurations:
-- kustomizeconfig.yaml
+- patch: |-
+    apiVersion: apiextensions.k8s.io/v1
+    kind: CustomResourceDefinition
+    metadata:
+      name: firewalls.firewall.metal-stack.io
+      labels:
+        clusterctl.cluster.x-k8s.io/move: ""
+  target:
+    kind: CustomResourceDefinition
+    name: firewalls.firewall.metal-stack.io
 
 replacements:
  - source:
