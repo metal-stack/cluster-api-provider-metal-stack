@@ -2,6 +2,13 @@
 namespace: capms-system
 namePrefix: capms-
 
+labels:
+  - includeSelectors: false
+    pairs:
+      cluster.x-k8s.io/v1beta1: v1alpha1
+      # TODO this only needs to be set because we currently do not install everything using clusterctl
+      clusterctl.cluster.x-k8s.io: ""
+
 resources:
   - bases/firewall.metal-stack.io_firewalldeployments.yaml
   - bases/firewall.metal-stack.io_firewallmonitors.yaml

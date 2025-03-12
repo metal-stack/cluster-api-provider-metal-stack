@@ -492,7 +492,7 @@ func (r *clusterReconciler) ensureSshKeyPair(ctx context.Context) (string, error
 	secret.Labels = map[string]string{
 		clusterv1.ClusterNameLabel: r.cluster.Name,
 	}
-	secret.OwnerReferences = append(secret.OwnerReferences, *metav1.NewControllerRef(r.infraCluster, r.infraCluster.GroupVersionKind()))
+	secret.OwnerReferences = r.ownerReferences()
 
 	err = r.client.Create(ctx, secret)
 	if err != nil {
@@ -561,6 +561,7 @@ func (r *clusterReconciler) ensureFirewallDeployment(nodeNetworkID, sshPubKey st
 		}
 
 		deploy.Labels[clusterv1.ClusterNameLabel] = r.cluster.Name
+		deploy.OwnerReferences = r.ownerReferences()
 
 		deploy.Spec.Replicas = 1
 		deploy.Spec.Selector = map[string]string{
@@ -719,4 +720,10 @@ func (r *clusterReconciler) deleteFirewallDeployment() error {
 	}
 
 	return errors.New("firewall deployment is still ongoing")
+}
+
+func (r *clusterReconciler) ownerReferences() []metav1.OwnerReference {
+	return []metav1.OwnerReference{
+		*metav1.NewControllerRef(r.infraCluster, r.infraCluster.GroupVersionKind()),
+	}
 }
