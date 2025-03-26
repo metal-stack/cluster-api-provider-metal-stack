@@ -70,7 +70,7 @@ var _ = Describe("MetalStackCluster Controller", func() {
 
 	Context("without owning cluster resource", func() {
 		BeforeEach(func() {
-			resource.ObjectMeta.OwnerReferences = nil
+			resource.OwnerReferences = nil
 		})
 
 		It("should skip reconciles", func() {
