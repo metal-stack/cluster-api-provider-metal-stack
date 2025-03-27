@@ -18,10 +18,16 @@ Next install our CAPMS provider into the cluster.
 make push-to-capi-lab
 ```
 
-Before creating a cluster some manual steps are required beforehand: you need to allocate a node network and a firewall.
+Before creating a cluster some manual steps are required beforehand: you need to allocate a node network.
 
 ```bash
-make -C capi-lab node-network firewall
+make -C capi-lab node-network
+```
+
+If you want to allow management of the metal-stack firewall by cluster-api, deploy the [firewall-controller-manager](https://github.com/metal-stack/firewall-controller-manager), too.
+
+```bash
+make -C capi-lab deploy-fcm
 ```
 
 A basic cluster configuration that relies on `config/clusterctl-templates/cluster-template.yaml` and uses the aforementioned node network can be generated and applied to the management cluster using a make target.
@@ -268,7 +274,7 @@ export control_plane_machine_id=
 metalctl machine console --ipmi $control_plane_machine_id
 # ip r
 # sudo systemctl restart kubeadm
-# crictl ps 
+# crictl ps
 # ~.
 
 clusterctl get kubeconfig > capms-cluster.kubeconfig
@@ -308,7 +314,7 @@ Now you are able to move the cluster resources as you wish:
 ```bash
 clusterctl init --infrastructure metal-stack --kubeconfig capms-cluster.kubeconfig
 
-clusterctl move -n $NAMESPACE --kubeconfig kind-bootstrap.kubeconfig --to-kubeconfig capms-cluster.kubeconfig 
+clusterctl move -n $NAMESPACE --kubeconfig kind-bootstrap.kubeconfig --to-kubeconfig capms-cluster.kubeconfig
 # everything as expected
 kubectl --kubeconfig -n $NAMESPACE kind-bootstrap.kubeconfig get cluster,metalstackcluster,machine,metalstackmachine,kubeadmcontrolplanes,kubeadmconfigs
 kubectl --kubeconfig -n $NAMESPACE capms-cluster.kubeconfig get cluster,metalstackcluster,machine,metalstackmachine,kubeadmcontrolplanes,kubeadmconfigs

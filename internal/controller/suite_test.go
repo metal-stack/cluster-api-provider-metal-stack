@@ -34,6 +34,8 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
+	fcmv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
+
 	clusterv1beta1 "sigs.k8s.io/cluster-api/api/v1beta1"
 
 	infrastructurev1alpha1 "github.com/metal-stack/cluster-api-provider-metal-stack/api/v1alpha1"
@@ -54,6 +56,7 @@ var (
 
 func init() {
 	utilruntime.Must(clusterv1beta1.AddToScheme(scheme.Scheme))
+	utilruntime.Must(fcmv2.AddToScheme(scheme.Scheme))
 	utilruntime.Must(infrastructurev1alpha1.AddToScheme(scheme.Scheme))
 }
 
@@ -75,6 +78,7 @@ var _ = BeforeSuite(func() {
 		CRDDirectoryPaths: []string{
 			filepath.Join("..", "..", "config", "crd", "bases"),
 			filepath.Join("..", "..", "test", "external-crds", "cluster-api"),
+			filepath.Join("..", "..", "test", "external-crds", "firewall-controller-manager"),
 		},
 		ErrorIfCRDPathMissing: true,
 
