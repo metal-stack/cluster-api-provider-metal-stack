@@ -28,7 +28,7 @@ spec:
   projectID: ${METAL_PROJECT_ID}
   partition: ${METAL_PARTITION}
   nodeNetworkID: ${METAL_NODE_NETWORK_ID}
-  controlPlaneIP: ${CONTROL_PLANE_IP:=203.0.113.130}
+  controlPlaneIP: ${CONTROL_PLANE_IP}
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
 kind: MetalStackMachineTemplate
@@ -81,7 +81,10 @@ spec:
         kubeletExtraArgs:
           cloud-provider: external
     joinConfiguration:
-      controlPlane: {}
+      controlPlane:
+        localAPIEndpoint:
+          advertiseAddress: 127.0.0.1
+          bindPort: 443
       nodeRegistration:
         kubeletExtraArgs:
           cloud-provider: external
@@ -104,10 +107,6 @@ spec:
                 value: "false"
               - name: port
                 value: "443"
-              - name: vip_nodename
-                valueFrom:
-                  fieldRef:
-                    fieldPath: spec.nodeName
               - name: vip_interface
                 value: lo
               - name: cp_enable
@@ -119,14 +118,14 @@ spec:
               - name: bgp_routerid
                 value: 127.0.0.1
               - name: bgp_as
-                value: METAL_MACHINE_ASN
+                value: "METAL_MACHINE_ASN"
               - name: bgp_peeraddress
                 value: 127.0.0.1
               - name: bgp_peerpass
               - name: bgp_peeras
-                value: METAL_MACHINE_ASN
+                value: "METAL_MACHINE_ASN"
               - name: address
-                value: ${CONTROL_PLANE_IP:=203.0.113.130}
+                value: ${CONTROL_PLANE_IP}
               image: ghcr.io/kube-vip/kube-vip:v0.8.10
               imagePullPolicy: IfNotPresent
               name: kube-vip
