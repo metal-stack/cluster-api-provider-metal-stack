@@ -46,7 +46,6 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/metal-stack/cluster-api-provider-metal-stack/api/v1alpha1"
 	metalgo "github.com/metal-stack/metal-go"
-	ipmodels "github.com/metal-stack/metal-go/api/client/ip"
 	metalmachine "github.com/metal-stack/metal-go/api/client/machine"
 	"github.com/metal-stack/metal-go/api/models"
 	"github.com/metal-stack/metal-lib/pkg/pointer"
@@ -440,19 +439,19 @@ func (r *machineReconciler) create() (*models.V1MachineResponse, error) {
 		}
 	)
 
-	if util.IsControlPlaneMachine(r.clusterMachine) {
-		ips = append(ips, r.infraCluster.Spec.ControlPlaneEndpoint.Host)
+	// if util.IsControlPlaneMachine(r.clusterMachine) {
+	// 	ips = append(ips, r.infraCluster.Spec.ControlPlaneEndpoint.Host)
 
-		resp, err := r.metalClient.IP().FindIP(ipmodels.NewFindIPParams().WithID(r.infraCluster.Spec.ControlPlaneEndpoint.Host).WithContext(r.ctx), nil)
-		if err != nil {
-			return nil, fmt.Errorf("unable to lookup control plane ip: %w", err)
-		}
+	// 	resp, err := r.metalClient.IP().FindIP(ipmodels.NewFindIPParams().WithID(r.infraCluster.Spec.ControlPlaneEndpoint.Host).WithContext(r.ctx), nil)
+	// 	if err != nil {
+	// 		return nil, fmt.Errorf("unable to lookup control plane ip: %w", err)
+	// 	}
 
-		nws = append(nws, &models.V1MachineAllocationNetwork{
-			Autoacquire: ptr.To(false),
-			Networkid:   resp.Payload.Networkid,
-		})
-	}
+	// 	nws = append(nws, &models.V1MachineAllocationNetwork{
+	// 		Autoacquire: ptr.To(false),
+	// 		Networkid:   resp.Payload.Networkid,
+	// 	})
+	// }
 
 	resp, err := r.metalClient.Machine().AllocateMachine(metalmachine.NewAllocateMachineParamsWithContext(r.ctx).WithBody(&models.V1MachineAllocateRequest{
 		Partitionid:   &r.infraCluster.Spec.Partition,

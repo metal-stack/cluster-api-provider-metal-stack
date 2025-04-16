@@ -28,6 +28,7 @@ spec:
   projectID: ${METAL_PROJECT_ID}
   partition: ${METAL_PARTITION}
   nodeNetworkID: ${METAL_NODE_NETWORK_ID}
+  controlPlaneIP: ${CONTROL_PLANE_IP:=203.0.113.130}
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
 kind: MetalStackMachineTemplate
@@ -84,6 +85,72 @@ spec:
       nodeRegistration:
         kubeletExtraArgs:
           cloud-provider: external
+    files:
+      - path: /etc/kubernetes/manifests/kubevip.yaml
+        owner: root:root
+        permissions: "0644"
+        content: |
+          apiVersion: v1
+          kind: Pod
+          metadata:
+            name: kube-vip
+            namespace: kube-system
+          spec:
+            containers:
+            - args:
+              - manager
+              env:
+              - name: vip_arp
+                value: "false"
+              - name: port
+                value: "443"
+              - name: vip_nodename
+                valueFrom:
+                  fieldRef:
+                    fieldPath: spec.nodeName
+              - name: vip_interface
+                value: lo
+              - name: cp_enable
+                value: "true"
+              - name: cp_namespace
+                value: kube-system
+              - name: bgp_enable
+                value: "true"
+              - name: bgp_routerid
+                value: 127.0.0.1
+              - name: bgp_as
+                value: METAL_MACHINE_ASN
+              - name: bgp_peeraddress
+                value: 127.0.0.1
+              - name: bgp_peerpass
+              - name: bgp_peeras
+                value: METAL_MACHINE_ASN
+              - name: address
+                value: ${CONTROL_PLANE_IP:=203.0.113.130}
+              image: ghcr.io/kube-vip/kube-vip:v0.8.10
+              imagePullPolicy: IfNotPresent
+              name: kube-vip
+              resources: {}
+              securityContext:
+                capabilities:
+                  add:
+                  - NET_ADMIN
+                  - NET_RAW
+                  drop:
+                  - ALL
+              volumeMounts:
+              - mountPath: /etc/kubernetes/admin.conf
+                name: kubeconfig
+            hostAliases:
+            - hostnames:
+              - kubernetes
+              ip: 127.0.0.1
+            hostNetwork: true
+            volumes:
+            - hostPath:
+                path: /etc/kubernetes/admin.conf
+              name: kubeconfig
+
 ---
 apiVersion: cluster.x-k8s.io/v1beta1
 kind: MachineDeployment
