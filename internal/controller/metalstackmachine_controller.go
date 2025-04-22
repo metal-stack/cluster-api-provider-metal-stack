@@ -46,7 +46,6 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/metal-stack/cluster-api-provider-metal-stack/api/v1alpha1"
 	metalgo "github.com/metal-stack/metal-go"
-	ipmodels "github.com/metal-stack/metal-go/api/client/ip"
 	metalmachine "github.com/metal-stack/metal-go/api/client/machine"
 	"github.com/metal-stack/metal-go/api/models"
 	"github.com/metal-stack/metal-lib/pkg/pointer"
@@ -79,15 +78,8 @@ type machineReconciler struct {
 // +kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=metalstackmachines/finalizers,verbs=update
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
 
-// Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the MetalStackMachine object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
-//
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.19.0/pkg/reconcile
+// Reconile reconciles a MetalStackMachine object.
+// Creates, updates and deletes the actual metalstack infra machine entities.
 func (r *MetalStackMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	var (
 		log          = ctrllog.FromContext(ctx)
@@ -439,20 +431,6 @@ func (r *machineReconciler) create() (*models.V1MachineResponse, error) {
 			},
 		}
 	)
-
-	if util.IsControlPlaneMachine(r.clusterMachine) {
-		ips = append(ips, r.infraCluster.Spec.ControlPlaneEndpoint.Host)
-
-		resp, err := r.metalClient.IP().FindIP(ipmodels.NewFindIPParams().WithID(r.infraCluster.Spec.ControlPlaneEndpoint.Host).WithContext(r.ctx), nil)
-		if err != nil {
-			return nil, fmt.Errorf("unable to lookup control plane ip: %w", err)
-		}
-
-		nws = append(nws, &models.V1MachineAllocationNetwork{
-			Autoacquire: ptr.To(false),
-			Networkid:   resp.Payload.Networkid,
-		})
-	}
 
 	resp, err := r.metalClient.Machine().AllocateMachine(metalmachine.NewAllocateMachineParamsWithContext(r.ctx).WithBody(&models.V1MachineAllocateRequest{
 		Partitionid:   &r.infraCluster.Spec.Partition,

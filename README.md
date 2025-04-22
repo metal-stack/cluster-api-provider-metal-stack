@@ -54,12 +54,19 @@ clusterctl init --infrastructure metal-stack
 
 A node network needs to be created.
 ```bash
+export CLUSTER_NAME=<cluster-name>
 export METAL_PARTITION=<partition>
 export METAL_PROJECT_ID=<project-id>
-metalctl network allocate --description "<description>" --name <name> --project $METAL_PROJECT_ID --partition $METAL_PARTITION
+metalctl network allocate --description "Node network for $CLUSTER_NAME" --name $CLUSTER_NAME --project $METAL_PROJECT_ID --partition $METAL_PARTITION
 
 # export environment variable for use in the next steps
-export METAL_NODE_NETWORK_ID=$(metalctl network list --name <name> -o template --template '{{ .id }}')
+export METAL_NODE_NETWORK_ID=$(metalctl network list --name $CLUSTER_NAME -o template --template '{{ .id }}')
+```
+
+Allocate a VIP for the control plane.
+
+```bash
+export CONTROL_PLANE_IP=$(metalctl network ip create --network internet --project $METAL_PROJECT_ID --name "$CLUSTER_NAME-vip" --type static -o template --template "{{ .ipaddress }}")
 ```
 
 A firewall needs to be created with appropriate firewall rules. An example can be found at [firewall-rules.yaml](config/target-cluster/firewall-rules.yaml).
@@ -68,14 +75,14 @@ A firewall needs to be created with appropriate firewall rules. An example can b
 export FIREWALL_MACHINE_IMAGE=<firewall-image>
 export FIREWALL_MACHINE_SIZE=<machine-size>
 
-metalctl firewall create --description <description> --name <name> --hostname <hostname> --project $METAL_PROJECT_ID --partition $METAL_PARTITION --image $FIREWALL_MACHINE_IMAGE  --size $FIREWALL_MACHINE_SIZE --firewall-rules-file=<rules.yaml> --networks internet,$METAL_NODE_NETWORK_ID
+metalctl firewall create --description "Firewall for $CLUSTER_NAME" --name "$CLUSTER_NAME-fw" --hostname "$CLUSTER_NAME-fw" --project $METAL_PROJECT_ID --partition $METAL_PARTITION --image $FIREWALL_MACHINE_IMAGE  --size $FIREWALL_MACHINE_SIZE --firewall-rules-file=<rules.yaml> --networks internet,$METAL_NODE_NETWORK_ID
 ```
 
 For your first cluster, it is advised to start with our generated template. Ensure that the namespaced cluster name is unique within the metal stack project.
 
 ```bash
 # display required environment variables
-clusterctl generate cluster <cluster-name> --infrastructure metal-stack --list-variables
+clusterctl generate cluster $CLUSTER_NAME --infrastructure metal-stack --list-variables
 
 # set additional environment variables
 export CONTROL_PLANE_MACHINE_IMAGE=<machine-image>
@@ -84,7 +91,7 @@ export WORKER_MACHINE_IMAGE=<machine-image>
 export WORKER_MACHINE_SIZE=<machine-size>
 
 # generate manifest
-clusterctl generate cluster <cluster-name> --kubernetes-version v1.30.6 --infrastructure metal-stack
+clusterctl generate cluster $CLUSTER_NAME --kubernetes-version v1.30.6 --infrastructure metal-stack
 ```
 
 Apply the generated manifest from the `clusterctl` output.
@@ -179,10 +186,10 @@ EOF
 
 ### I need to know the Control Plane IP address in advance. Can I provide a static IP address in advance?
 
-Yes, simply create a static IP address and set it to `metalstackcluster/<name>.spec.controlPlaneIP`.
+Yes, simply create a static IP address and set it to `metalstackcluster/$CLUSTER_NAME.spec.controlPlaneIP`.
 
 ```bash
-metalctl network ip create --name <name> --project $METAL_PROJECT_ID --type static
+metalctl network ip create --name $CLUSTER_NAME-vip --project $METAL_PROJECT_ID --type static
 ```
 
 ### I'd like to have a specific Pod CIDR. How can I achieve this?

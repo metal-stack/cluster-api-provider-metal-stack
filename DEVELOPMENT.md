@@ -21,7 +21,7 @@ make push-to-capi-lab
 Before creating a cluster some manual steps are required beforehand: you need to allocate a node network and a firewall.
 
 ```bash
-make -C capi-lab node-network firewall
+make -C capi-lab node-network firewall control-plane-ip
 ```
 
 A basic cluster configuration that relies on `config/clusterctl-templates/cluster-template.yaml` and uses the aforementioned node network can be generated and applied to the management cluster using a make target.
@@ -218,6 +218,7 @@ export METAL_API_URL=
 export METAL_PARTITION=
 export METAL_PROJECT_ID=
 export METAL_NODE_NETWORK_ID=
+export CONTROL_PLANE_IP=
 
 export FIREWALL_MACHINE_IMAGE=
 export FIREWALL_MACHINE_SIZE=
@@ -246,6 +247,7 @@ Create firewall if needed:
 ```bash
 metalctl project create --name $project_name --tenant $tenant_name --description "Cluster API test project"
 metalctl network allocate --description "Node network for $CLUSTER_NAME" --name $CLUSTER_NAME --project $METAL_PROJECT_ID --partition $METAL_PARTITION
+metalctl network ip create --network internet --project $METAL_PROJECT_ID --name "$CLUSTER_NAME-vip" --type static -o template --template "{{ .ipaddress }}"
 metalctl firewall create --description "Firewall for $CLUSTER_NAME cluster" --name firewall-$CLUSTER_NAME --hostname firewall-$CLUSTER_NAME --project $METAL_PROJECT_ID --partition $METAL_PARTITION --image $FIREWALL_MACHINE_IMAGE  --size $FIREWALL_MACHINE_SIZE --firewall-rules-file $repo_path/config/target-cluster/firewall-rules.yaml --networks internet,$METAL_NODE_NETWORK_ID
 ```
 
