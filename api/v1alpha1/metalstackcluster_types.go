@@ -142,5 +142,5 @@ func (c *MetalStackCluster) SetConditions(conditions clusterv1.Conditions) {
 }
 
 func (c *MetalStackCluster) GetClusterID() string {
-	return fmt.Sprintf("%s/%s", c.GetNamespace(), c.GetName())
+	return fmt.Sprintf("%s--%s", c.GetNamespace(), c.GetName())
 }
