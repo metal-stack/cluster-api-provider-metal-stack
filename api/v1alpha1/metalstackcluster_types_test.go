@@ -17,6 +17,7 @@ var _ = Describe("MetalStackCluster", func() {
 		}
 
 		clusterID := cluster.GetClusterID()
+		// We extracted this regexp from an error message when trying to set a wrong label
 		Expect(clusterID).To(MatchRegexp("^(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?$"))
 	})
 
