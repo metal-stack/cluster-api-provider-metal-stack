@@ -57,9 +57,8 @@ release-manifests: generate-sbom $(KUSTOMIZE) build-installer ## Builds the mani
 	cp sbom.json $(RELEASE_DIR)/sbom.json
 
 .PHONY: generate-sbom
-generate-sbom:
-	go install github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@latest
-	cyclonedx-gomod mod -licenses -test -type library -json -output sbom.json .
+generate-sbom: cyclonedx
+	$(CYCLONE_DX) mod -licenses -test -type library -json -output sbom.json .
 
 ##@ Development
 
@@ -201,6 +200,7 @@ $(LOCALBIN):
 	mkdir -p $(LOCALBIN)
 
 ## Tool Binaries
+CYCLONE_DX ?= $(LOCALBIN)/cyclonedx-gomod
 KUBECTL ?= kubectl
 KUSTOMIZE ?= $(LOCALBIN)/kustomize
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
@@ -208,10 +208,16 @@ ENVTEST ?= $(LOCALBIN)/setup-envtest
 GOLANGCI_LINT = $(LOCALBIN)/golangci-lint
 
 ## Tool Versions
+CYCLONE_DX_VERSION ?= v1.9.0
 KUSTOMIZE_VERSION ?= v5.4.3
 CONTROLLER_TOOLS_VERSION ?= v0.16.4
 ENVTEST_VERSION ?= release-0.19
 GOLANGCI_LINT_VERSION ?= v1.61.0
+
+.PHONY: cyclonedx
+cyclonedx: $(CYCLONE_DX) ## Download cyclonedx-gomod locally if necessary.
+$(CYCLONE_DX): $(LOCALBIN)
+	$(call go-install-tool,$(CYCLONE_DX),github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod,$(CYCLONE_DX_VERSION))
 
 .PHONY: kustomize
 kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.
