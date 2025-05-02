@@ -47,13 +47,19 @@ help: ## Display this help.
 ##@ Releases
 
 .PHONY: release-manifests
-release-manifests: $(KUSTOMIZE) build-installer ## Builds the manifests to publish with a release
+release-manifests: generate-sbom $(KUSTOMIZE) build-installer ## Builds the manifests to publish with a release
 	mkdir -p $(RELEASE_DIR)
 	$(KUSTOMIZE) build config/default > $(RELEASE_DIR)/infrastructure-components.yaml
 	sed -i 's!image: $(IMG_NAME):latest!image: $(IMG_NAME):$(IMG_TAG)!' $(RELEASE_DIR)/infrastructure-components.yaml
 	cp metadata.yaml $(RELEASE_DIR)/metadata.yaml
 	cp config/clusterctl-templates/cluster-template.yaml $(RELEASE_DIR)/cluster-template.yaml
 	cp config/clusterctl-templates/example_variables.rc $(RELEASE_DIR)/example_variables.rc
+	cp sbom.json $(RELEASE_DIR)/sbom.json
+
+.PHONY: generate-sbom
+generate-sbom:
+	go install github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@latest
+	cyclonedx-gomod mod -licenses -test -type library -json -output sbom.json .
 
 ##@ Development
 
