@@ -85,32 +85,6 @@ If you want to provide service's of type load balancer through MetalLB by the me
 kubectl --kubeconfig capi-lab/.capms-cluster-kubeconfig.yaml apply --kustomize capi-lab/metallb
 ```
 
-For each node in your Kubernetes cluster, you need to create a BGP peer configuration. Replace the placeholders ({{
-NODE_ASN }}, {{ NODE_HOSTNAME }}, and {{ NODE_ROUTER_ID }}) with the appropriate values for each node.
-
-```bash
-cat <<EOF | kubectl --kubeconfig=capi-lab/.capms-cluster-kubeconfig.yaml create -f -
-apiVersion: metallb.io/v1beta2
-kind: BGPPeer
-metadata:
-  name: ${NODE_HOSTNAME}
-  namespace: metallb-system
-spec:
-  holdTime: 1m30s
-  keepaliveTime: 0s
-  myASN: ${NODE_ASN}
-  nodeSelectors:
-  - matchExpressions:
-    - key: kubernetes.io/hostname
-      operator: In
-      values:
-      - ${NODE_HOSTNAME}
-  passwordSecret: {}
-  peerASN: ${NODE_ASN}
-  peerAddress: ${NODE_ROUTER_ID}
-EOF
-```
-
 That's it!
 
 ### To Deploy on the cluster
@@ -230,7 +204,7 @@ export WORKER_MACHINE_SIZE=
 
 export CLUSTER_NAME=
 export NAMESPACE=default
-export KUBERNETES_VERSION=v1.30.6
+export KUBERNETES_VERSION=v1.32.3
 
 export CONTROL_PLANE_MACHINE_COUNT=1
 export WORKER_MACHINE_COUNT=1
