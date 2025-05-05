@@ -191,7 +191,7 @@ spec:
           value: internet-mini-lab,${METAL_NODE_NETWORK_ID}
         - name: METAL_SSH_PUBLICKEY
           value: ""
-        image: ghcr.io/metal-stack/metal-ccm:v0.9.4
+        image: ghcr.io/metal-stack/metal-ccm:v0.9.7
         imagePullPolicy: IfNotPresent
         livenessProbe:
           failureThreshold: 2
