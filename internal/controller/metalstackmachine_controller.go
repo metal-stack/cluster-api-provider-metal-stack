@@ -560,8 +560,8 @@ func (r *machineReconciler) patchMachineLabels(m *models.V1MachineResponse) {
 func (r *machineReconciler) machineTags() []string {
 	tags := []string{
 		tag.New(tag.ClusterID, r.infraCluster.Spec.NodeNetworkID),
-		tag.New(v1alpha1.TagInfraClusterResource, fmt.Sprintf("%s/%s", r.infraCluster.Namespace, r.infraCluster.Name)),
-		tag.New(v1alpha1.TagInfraMachineResource, fmt.Sprintf("%s/%s", r.infraMachine.Namespace, r.infraMachine.Name)),
+		tag.New(v1alpha1.TagInfraClusterResource, fmt.Sprintf("%s.%s", r.infraCluster.Namespace, r.infraCluster.Name)),
+		tag.New(v1alpha1.TagInfraMachineResource, fmt.Sprintf("%s.%s", r.infraMachine.Namespace, r.infraMachine.Name)),
 	}
 
 	if util.IsControlPlaneMachine(r.clusterMachine) {

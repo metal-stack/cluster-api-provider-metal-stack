@@ -337,7 +337,7 @@ func (r *clusterReconciler) ensureControlPlaneIP() (string, error) {
 
 	defaultNetwork := nwResp.Payload[0]
 	resp, err := r.metalClient.IP().AllocateIP(ipmodels.NewAllocateIPParams().WithBody(&models.V1IPAllocateRequest{
-		Description: fmt.Sprintf("%s/%s control plane ip", r.infraCluster.GetNamespace(), r.infraCluster.GetName()),
+		Description: fmt.Sprintf("%s control plane ip", r.infraCluster.GetClusterID()),
 		Name:        r.infraCluster.GetName() + "-control-plane",
 		Networkid:   defaultNetwork.ID,
 		Projectid:   &r.infraCluster.Spec.ProjectID,
