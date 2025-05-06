@@ -99,7 +99,7 @@ mtu-fix:
 
 .PHONY: deploy-metal-ccm
 deploy-metal-ccm:
-	$(eval METAL_CLUSTER_ID = $(shell kubectl get metalstackclusters.infrastructure.cluster.x-k8s.io $(CLUSTER_NAME) -ojsonpath='{.metadata.uid}'))
+	$(eval NAMESPACE = $(shell kubectl get metalstackclusters.infrastructure.cluster.x-k8s.io $(CLUSTER_NAME) -ojsonpath='{.metadata.namespace}'))
 	$(eval METAL_NODE_NETWORK_ID = $(shell metalctl network list --name $(CLUSTER_NAME) -o template --template '{{ .id }}'))
 	$(eval CONTROL_PLANE_IP = $(shell metalctl network ip list --name "$(CLUSTER_NAME)-vip" -o template --template '{{ .id }}'))
 	cat metal-ccm.yaml | envsubst | kubectl --kubeconfig=.capms-cluster-kubeconfig.yaml apply -f -

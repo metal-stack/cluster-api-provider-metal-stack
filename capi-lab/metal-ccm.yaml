@@ -184,7 +184,7 @@ spec:
           value: mini-lab
         # associates service type load balancer ips with this cluster:
         - name: METAL_CLUSTER_ID
-          value: ${METAL_CLUSTER_ID}
+          value: ${NAMESPACE}.${CLUSTER_NAME}
         - name: METAL_DEFAULT_EXTERNAL_NETWORK_ID
           value: internet-mini-lab
         - name: METAL_ADDITIONAL_NETWORKS
