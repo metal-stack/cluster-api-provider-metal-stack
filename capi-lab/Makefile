@@ -7,6 +7,7 @@ KUBECONFIG := $(shell pwd)/mini-lab/.kubeconfig
 MINI_LAB_FLAVOR=capms
 
 CLUSTER_NAME ?= metal-test
+KUBERNETES_VERSION ?= 1.31.6
 
 METAL_API_URL=http://metal.203.0.113.1.nip.io:8080
 METAL_API_HMAC=metal-edit
@@ -18,9 +19,9 @@ METALCTL_HMAC_AUTH_TYPE=Metal-Edit
 METAL_PARTITION ?= mini-lab
 METAL_PROJECT_ID ?= 00000000-0000-0000-0000-000000000001
 
-CONTROL_PLANE_MACHINE_IMAGE ?= ubuntu-24.0-k8s-1.31.6
+CONTROL_PLANE_MACHINE_IMAGE ?= ubuntu-24.0-k8s-$(KUBERNETES_VERSION)
 CONTROL_PLANE_MACHINE_SIZE ?= v1-small-x86
-WORKER_MACHINE_IMAGE ?= ubuntu-24.0-k8s-1.31.6
+WORKER_MACHINE_IMAGE ?= ubuntu-24.0-k8s-$(KUBERNETES_VERSION)
 WORKER_MACHINE_SIZE ?= v1-small-x86
 
 IMG ?= ghcr.io/metal-stack/cluster-api-metal-stack-controller:latest
