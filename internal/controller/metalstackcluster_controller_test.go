@@ -275,7 +275,7 @@ var _ = Describe("MetalStackCluster Controller", func() {
 							"metal-stack.infrastructure.cluster.x-k8s.io/purpose=control-plane",
 						},
 						Name:        resource.Name + "-control-plane",
-						Description: resource.Namespace + "/" + resource.Name + " control plane ip",
+						Description: resource.GetClusterID() + " control plane ip",
 						Networkid:   ptr.To("internet"),
 						Projectid:   ptr.To("test-project"),
 						Type:        ptr.To("ephemeral"),

@@ -146,42 +146,6 @@ If you want to provide service's of type `LoadBalancer` through MetalLB by the `
 kubectl --kubeconfig capms-cluster.kubeconfig apply --kustomize capi-lab/metallb
 ```
 
-For each worker node in your Kubernetes cluster, you need to create a BGP peer configuration. Replace the placeholders (`{{
-NODE_ASN }}`, `{{ NODE_HOSTNAME }}`, and `{{ NODE_ROUTER_ID }}`) with the appropriate values for each node.
-
-```bash
-# in metal-stack, list all machines of your cluster
-metalctl machine ls --project $METAL_PROJECT_ID
-
-# for each worker machine collect the information as follows
-export NODE_ID=<worker-machine-id>
-export NODE_HOSTNAME=$(metalctl machine describe $NODE_ID -o template --template '{{ .allocation.hostname }}')
-export NODE_ASN=$(metalctl machine describe $NODE_ID -o template --template '{{ printf "%.0f" (index .allocation.networks 0).asn }}')
-export NODE_ROUTER_ID=$(metalctl machine describe $NODE_ID -o template --template '{{ (index (index .allocation.networks 0).ips 0) }}')
-
-# for each worker machine generate and apply the BGPPeer resource
-cat <<EOF | kubectl --kubeconfig=capms-cluster.kubeconfig create -f -
-apiVersion: metallb.io/v1beta2
-kind: BGPPeer
-metadata:
-  name: ${NODE_HOSTNAME}
-  namespace: metallb-system
-spec:
-  holdTime: 1m30s
-  keepaliveTime: 0s
-  myASN: ${NODE_ASN}
-  nodeSelectors:
-  - matchExpressions:
-    - key: kubernetes.io/hostname
-      operator: In
-      values:
-      - ${NODE_HOSTNAME}
-  passwordSecret: {}
-  peerASN: ${NODE_ASN}
-  peerAddress: ${NODE_ROUTER_ID}
-EOF
-```
-
 ## Frequently Asked Questions
 
 ### I need to know the Control Plane IP address in advance. Can I provide a static IP address in advance?

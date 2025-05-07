@@ -6,6 +6,9 @@ KIND_EXPERIMENTAL_DOCKER_NETWORK=mini_lab_ext
 KUBECONFIG := $(shell pwd)/mini-lab/.kubeconfig
 MINI_LAB_FLAVOR=capms
 
+CLUSTER_NAME ?= metal-test
+KUBERNETES_VERSION ?= 1.31.6
+
 METAL_API_URL=http://metal.203.0.113.1.nip.io:8080
 METAL_API_HMAC=metal-edit
 METAL_API_HMAC_AUTH_TYPE=Metal-Edit
@@ -16,9 +19,9 @@ METALCTL_HMAC_AUTH_TYPE=Metal-Edit
 METAL_PARTITION ?= mini-lab
 METAL_PROJECT_ID ?= 00000000-0000-0000-0000-000000000001
 
-CONTROL_PLANE_MACHINE_IMAGE ?= ubuntu-24.0-k8s-1.31.6
+CONTROL_PLANE_MACHINE_IMAGE ?= ubuntu-24.0-k8s-$(KUBERNETES_VERSION)
 CONTROL_PLANE_MACHINE_SIZE ?= v1-small-x86
-WORKER_MACHINE_IMAGE ?= ubuntu-24.0-k8s-1.31.6
+WORKER_MACHINE_IMAGE ?= ubuntu-24.0-k8s-$(KUBERNETES_VERSION)
 WORKER_MACHINE_SIZE ?= v1-small-x86
 
 IMG ?= ghcr.io/metal-stack/cluster-api-metal-stack-controller:latest
@@ -54,11 +57,11 @@ controller:
 
 .PHONY: firewall
 firewall:
-	metalctl firewall create --description fw --name fw --hostname fw --project 00000000-0000-0000-0000-000000000001 --partition mini-lab --image firewall-ubuntu-3.0 --size v1-small-x86 --firewall-rules-file=firewall-rules.yaml --networks internet-mini-lab,$(shell metalctl network list --name metal-test -o template --template '{{ .id }}')
+	metalctl firewall create --description fw --name fw --hostname fw --project 00000000-0000-0000-0000-000000000001 --partition mini-lab --image firewall-ubuntu-3.0 --size v1-small-x86 --firewall-rules-file=firewall-rules.yaml --networks internet-mini-lab,$(shell metalctl network list --name $(CLUSTER_NAME) -o template --template '{{ .id }}')
 
 .PHONY: node-network
 node-network:
-	metalctl network allocate --description "node network for metal-test cluster" --name metal-test --project 00000000-0000-0000-0000-000000000001 --partition mini-lab
+	metalctl network allocate --description "node network for $(CLUSTER_NAME) cluster" --name $(CLUSTER_NAME) --project 00000000-0000-0000-0000-000000000001 --partition mini-lab
 
 .PHONY: control-plane-ip
 control-plane-ip:
@@ -66,25 +69,26 @@ control-plane-ip:
 
 .PHONY: apply-sample-cluster
 apply-sample-cluster:
-	$(eval METAL_NODE_NETWORK_ID = $(shell metalctl network list --name metal-test -o template --template '{{ .id }}'))
-	$(eval CONTROL_PLANE_IP = $(shell metalctl network ip list --name "$(CLUSTER_NAME)-vip" -o template --template '{{ .id }}'))
-	clusterctl generate cluster metal-test \
+	$(eval METAL_NODE_NETWORK_ID = $(shell metalctl network list --name $(CLUSTER_NAME) -o template --template '{{ .id }}'))
+	$(eval CONTROL_PLANE_IP = $(shell metalctl network ip list --name "$(CLUSTER_NAME)-vip" -o template --template '{{ .ipaddress }}'))
+	echo  $(CLUSTER_NAME)
+	clusterctl generate cluster $(CLUSTER_NAME) \
 		--kubeconfig=$(KUBECONFIG) \
 		--worker-machine-count 1 \
 		--control-plane-machine-count 1 \
-		--kubernetes-version 1.30.6 \
+		--kubernetes-version $(KUBERNETES_VERSION) \
 		--from ../config/clusterctl-templates/cluster-template.yaml \
 		| kubectl --kubeconfig=$(KUBECONFIG) apply -f -
 
 .PHONY: delete-sample-cluster
 delete-sample-cluster:
-	$(eval METAL_NODE_NETWORK_ID = $(shell metalctl network list --name metal-test -o template --template '{{ .id }}'))
-	$(eval CONTROL_PLANE_IP = $(shell metalctl network ip list --name "$(CLUSTER_NAME)-vip" -o template --template '{{ .id }}'))
-	clusterctl generate cluster metal-test \
+	$(eval METAL_NODE_NETWORK_ID = $(shell metalctl network list --name $(CLUSTER_NAME) -o template --template '{{ .id }}'))
+	$(eval CONTROL_PLANE_IP = $(shell metalctl network ip list --name "$(CLUSTER_NAME)-vip" -o template --template '{{ .ipaddress }}'))
+	clusterctl generate cluster $(CLUSTER_NAME) \
 		--kubeconfig=$(KUBECONFIG) \
 		--worker-machine-count 1 \
 		--control-plane-machine-count 1 \
-		--kubernetes-version 1.30.6 \
+		--kubernetes-version $(KUBERNETES_VERSION) \
 		--from ../config/clusterctl-templates/cluster-template.yaml \
 		| kubectl --kubeconfig=$(KUBECONFIG) delete -f -
 
@@ -95,7 +99,7 @@ mtu-fix:
 
 .PHONY: deploy-metal-ccm
 deploy-metal-ccm:
-	$(eval METAL_CLUSTER_ID = $(shell kubectl get metalstackclusters.infrastructure.cluster.x-k8s.io metal-test -ojsonpath='{.metadata.uid}'))
-	$(eval METAL_NODE_NETWORK_ID = $(shell metalctl network list --name metal-test -o template --template '{{ .id }}'))
+	$(eval NAMESPACE = $(shell kubectl get metalstackclusters.infrastructure.cluster.x-k8s.io $(CLUSTER_NAME) -ojsonpath='{.metadata.namespace}'))
+	$(eval METAL_NODE_NETWORK_ID = $(shell metalctl network list --name $(CLUSTER_NAME) -o template --template '{{ .id }}'))
 	$(eval CONTROL_PLANE_IP = $(shell metalctl network ip list --name "$(CLUSTER_NAME)-vip" -o template --template '{{ .id }}'))
 	cat metal-ccm.yaml | envsubst | kubectl --kubeconfig=.capms-cluster-kubeconfig.yaml apply -f -
