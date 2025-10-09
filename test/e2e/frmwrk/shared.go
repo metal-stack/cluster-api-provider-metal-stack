@@ -95,10 +95,6 @@ func withDefaultEnvironment() Option {
 		Expect(err).ToNot(HaveOccurred(), "failed to create metal client")
 		e2e.Environment.Metal = mclient
 
-		fmt.Println("METAL_API_URL", e2e.envOrVar("METAL_API_URL"))
-		fmt.Println("METAL_API_HMAC", e2e.envOrVar("METAL_API_HMAC"))
-		fmt.Println("METAL_API_HMAC_AUTH_TYPE", e2e.envOrVar("METAL_API_HMAC_AUTH_TYPE"))
-
 		e2e.Environment.project = e2e.envOrVar("METAL_PROJECT_ID")
 		e2e.Environment.partition = e2e.envOrVar("METAL_PARTITION")
 		e2e.Environment.publicNetwork = e2e.envOrVar("METAL_PUBLIC_NETWORK")
@@ -409,6 +405,7 @@ func (e2e *E2ECluster) setupFirewall(ctx context.Context) {
 					Protocol: "TCP",
 					From:     []string{"0.0.0.0/0"},
 					To:       []string{"0.0.0.0/0"},
+					Ports:    []int32{80, 443},
 				},
 			},
 		},

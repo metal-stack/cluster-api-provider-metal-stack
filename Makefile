@@ -138,7 +138,7 @@ test-e2e: manifests generate fmt vet
 	FIREWALL_IMAGE=$(E2E_FIREWALL_IMAGE) \
 	FIREWALL_SIZE=$(E2E_FIREWALL_SIZE) \
 	FIREWALL_NETWORKS=$(E2E_FIREWALL_NETWORKS) \
-	go test ./test/e2e/frmwrk
+	go test ./test/e2e/frmwrk -v ginkgo -vv 
 
 .PHONY: lint
 lint: golangci-lint ## Run golangci-lint linter
