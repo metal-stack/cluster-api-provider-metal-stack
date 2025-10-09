@@ -6,6 +6,7 @@
 *.dylib
 bin/*
 test/external-crds
+test/e2e/frmwrk/artifacts
 Dockerfile.cross
 .release
 

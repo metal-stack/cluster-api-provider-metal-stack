@@ -95,8 +95,8 @@ test: manifests generate update-test-crds fmt vet envtest ## Run tests.
 # Prometheus and CertManager are installed by default; skip with:
 # - PROMETHEUS_INSTALL_SKIP=true
 # - CERT_MANAGER_INSTALL_SKIP=true
-.PHONY: test-e2e
-test-e2e: manifests generate update-test-crds fmt vet ## Run the e2e tests. Expected an isolated environment using Kind.
+.PHONY: test-e2e-controller
+test-e2e-controller: manifests generate update-test-crds fmt vet ## Run the e2e tests. Expected an isolated environment using Kind.
 	@command -v kind >/dev/null 2>&1 || { \
 		echo "Kind is not installed. Please install Kind manually."; \
 		exit 1; \
@@ -106,6 +106,39 @@ test-e2e: manifests generate update-test-crds fmt vet ## Run the e2e tests. Expe
 		exit 1; \
 	}
 	go test ./test/e2e/ -v -ginkgo.v
+
+E2E_METAL_API_URL := "$(METALCTL_API_URL)"
+E2E_METAL_API_HMAC := "$(METALCTL_HMAC)"
+E2E_METAL_API_HMAC_AUTH_TYPE := "$(or $(METALCTL_HMAC_AUTH_TYPE),Metal-Admin)"
+E2E_METAL_PROJECT_ID := "00000000-0000-0000-0000-000000000001"
+E2E_METAL_PARTITION := "mini-lab"
+E2E_METAL_PUBLIC_NETWORK := "internet-mini-lab"
+E2E_CONTROL_PLANE_MACHINE_IMAGE := "capms-ubuntu-1.33.5"
+E2E_CONTROL_PLANE_MACHINE_SIZE := "v1-small-x86"
+E2E_WORKER_MACHINE_IMAGE := "capms-ubuntu-1.33.5"
+E2E_WORKER_MACHINE_SIZE := "v1-small-x86"
+E2E_FIREWALL_IMAGE := "firewall-ubuntu-3.0"
+E2E_FIREWALL_SIZE := "v1-small-x86"
+E2E_FIREWALL_NETWORKS := "internet-mini-lab"
+
+.PHONY: test-e2e
+test-e2e: manifests generate fmt vet
+	rm -rf test/e2e/frmwrk/artifacts
+
+	METAL_API_URL=$(E2E_METAL_API_URL) \
+	METAL_API_HMAC=$(E2E_METAL_API_HMAC) \
+	METAL_API_HMAC_AUTH_TYPE=$(E2E_METAL_API_HMAC_AUTH_TYPE) \
+	METAL_PROJECT_ID=$(E2E_METAL_PROJECT_ID) \
+	METAL_PARTITION=$(E2E_METAL_PARTITION) \
+	METAL_PUBLIC_NETWORK=$(E2E_METAL_PUBLIC_NETWORK) \
+	CONTROL_PLANE_MACHINE_IMAGE=$(E2E_CONTROL_PLANE_MACHINE_IMAGE) \
+	CONTROL_PLANE_MACHINE_SIZE=$(E2E_CONTROL_PLANE_MACHINE_SIZE) \
+	WORKER_MACHINE_IMAGE=$(E2E_WORKER_MACHINE_IMAGE) \
+	WORKER_MACHINE_SIZE=$(E2E_WORKER_MACHINE_SIZE) \
+	FIREWALL_IMAGE=$(E2E_FIREWALL_IMAGE) \
+	FIREWALL_SIZE=$(E2E_FIREWALL_SIZE) \
+	FIREWALL_NETWORKS=$(E2E_FIREWALL_NETWORKS) \
+	go test ./test/e2e/frmwrk
 
 .PHONY: lint
 lint: golangci-lint ## Run golangci-lint linter
