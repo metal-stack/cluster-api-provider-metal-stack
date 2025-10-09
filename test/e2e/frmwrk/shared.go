@@ -341,7 +341,7 @@ func (e2e *E2ECluster) teardownNodeNetwork(ctx context.Context) {
 		return
 	}
 
-	_, err := e2e.E2EContext.Environment.Metal.Network().DeleteNetwork(metalnetwork.NewDeleteNetworkParamsWithContext(ctx).WithID(*e2e.Refs.NodeNetwork.ID), nil)
+	_, err := e2e.E2EContext.Environment.Metal.Network().FreeNetwork(metalnetwork.NewFreeNetworkParamsWithContext(ctx).WithID(*e2e.Refs.NodeNetwork.ID), nil)
 	Expect(err).ToNot(HaveOccurred(), "failed to delete node network")
 
 	e2e.Refs.NodeNetwork = nil
