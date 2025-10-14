@@ -388,7 +388,7 @@ func (r *machineReconciler) reconcile() (ctrl.Result, error) {
 			Status:  metav1.ConditionFalse,
 			Type:    v1alpha1.ProviderMachineHealthy,
 			Reason:  "NotHealthy",
-			Message: fmt.Sprintf("%s", err.Error()),
+			Message: err.Error(),
 		})
 		result.RequeueAfter = defaultProviderMachineRequeueTime
 	} else {
@@ -579,7 +579,7 @@ func (r *machineReconciler) findProviderMachine() (*models.V1MachineResponse, er
 			Status:  metav1.ConditionFalse,
 			Type:    v1alpha1.ProviderMachineCreated,
 			Reason:  "InternalError",
-			Message: fmt.Sprintf("%s", err.Error()),
+			Message: err.Error(),
 		})
 		return nil, err
 	}
