@@ -277,7 +277,7 @@ func (r *clusterReconciler) reconcile() error {
 				Status:  metav1.ConditionFalse,
 				Type:    v1alpha1.ClusterControlPlaneIPEnsured,
 				Reason:  "InternalError",
-				Message: fmt.Sprintf("%s", err.Error()),
+				Message: err.Error(),
 			})
 			return fmt.Errorf("unable to ensure control plane ip: %w", err)
 		}

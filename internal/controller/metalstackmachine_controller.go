@@ -347,7 +347,7 @@ func (r *machineReconciler) reconcile() (ctrl.Result, error) {
 				Status:  metav1.ConditionFalse,
 				Type:    v1alpha1.ProviderMachineCreated,
 				Reason:  "InternalError",
-				Message: fmt.Sprintf("%s", err.Error()),
+				Message: err.Error(),
 			})
 			return ctrl.Result{}, err
 		}
@@ -358,7 +358,7 @@ func (r *machineReconciler) reconcile() (ctrl.Result, error) {
 				Status:  metav1.ConditionFalse,
 				Type:    v1alpha1.ProviderMachineCreated,
 				Reason:  "InternalError",
-				Message: fmt.Sprintf("%s", err.Error()),
+				Message: err.Error(),
 			})
 			return ctrl.Result{}, fmt.Errorf("unable to create machine at provider: %w", err)
 		}
