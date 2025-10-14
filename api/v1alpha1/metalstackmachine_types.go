@@ -18,7 +18,7 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	capierrors "sigs.k8s.io/cluster-api/errors" //nolint:staticcheck
 )
 
@@ -28,10 +28,9 @@ const (
 
 	TagInfraMachineResource = "metal-stack.infrastructure.cluster.x-k8s.io/machine-resource"
 
-	ProviderMachineCreated clusterv1.ConditionType = "MachineCreated"
-	ProviderMachineReady   clusterv1.ConditionType = "MachineReady"
-	ProviderMachineHealthy clusterv1.ConditionType = "MachineHealthy"
-	ProviderMachinePaused  clusterv1.ConditionType = clusterv1.PausedV1Beta2Condition
+	ProviderMachineCreated = "MachineCreated"
+	ProviderMachineReady   = "MachineReady"
+	ProviderMachineHealthy = "MachineHealthy"
 )
 
 // MetalStackMachineSpec defines the desired state of MetalStackMachine.
@@ -66,7 +65,7 @@ type MetalStackMachineStatus struct {
 
 	// Conditions defines current service state of the MetalStackMachine.
 	// +optional
-	Conditions clusterv1.Conditions `json:"conditions,omitempty"`
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
 
 	// MachineAddresses contains all host names, external or internal IP addresses and external or internal DNS names.
 	Addresses clusterv1.MachineAddresses `json:"addresses,omitempty"`
@@ -105,11 +104,11 @@ func init() {
 }
 
 // GetConditions returns the list of conditions.
-func (c *MetalStackMachine) GetConditions() clusterv1.Conditions {
+func (c *MetalStackMachine) GetConditions() []metav1.Condition {
 	return c.Status.Conditions
 }
 
 // SetConditions will set the given conditions.
-func (c *MetalStackMachine) SetConditions(conditions clusterv1.Conditions) {
+func (c *MetalStackMachine) SetConditions(conditions []metav1.Condition) {
 	c.Status.Conditions = conditions
 }
