@@ -21,7 +21,6 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	capierrors "sigs.k8s.io/cluster-api/errors" //nolint:staticcheck
 
 	"github.com/metal-stack/metal-lib/pkg/tag"
@@ -35,8 +34,7 @@ const (
 
 	ClusterControlPlaneEndpointDefaultPort = 443
 
-	ClusterControlPlaneIPEnsured clusterv1.ConditionType = "ClusterControlPlaneIPEnsured"
-	ClusterPaused                clusterv1.ConditionType = clusterv1.PausedV1Beta2Condition
+	ClusterControlPlaneIPEnsured = "ClusterControlPlaneIPEnsured"
 )
 
 var (
@@ -96,7 +94,7 @@ type MetalStackClusterStatus struct {
 
 	// Conditions defines current service state of the MetalStackCluster.
 	// +optional
-	Conditions clusterv1.Conditions `json:"conditions,omitempty"`
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -132,12 +130,12 @@ func init() {
 }
 
 // GetConditions returns the list of conditions.
-func (c *MetalStackCluster) GetConditions() clusterv1.Conditions {
+func (c *MetalStackCluster) GetConditions() []metav1.Condition {
 	return c.Status.Conditions
 }
 
 // SetConditions will set the given conditions.
-func (c *MetalStackCluster) SetConditions(conditions clusterv1.Conditions) {
+func (c *MetalStackCluster) SetConditions(conditions []metav1.Condition) {
 	c.Status.Conditions = conditions
 }
 
