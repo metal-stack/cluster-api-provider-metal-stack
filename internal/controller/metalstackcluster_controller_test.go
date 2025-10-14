@@ -173,7 +173,7 @@ var _ = Describe("MetalStackCluster Controller", func() {
 			Expect(k8sClient.Create(ctx, resource)).To(Succeed())
 
 			By("creating the cluster resource and setting the owner reference")
-			owner := newCluster("test-cluster")
+			owner := newCluster()
 			Expect(k8sClient.Create(ctx, owner)).To(Succeed())
 
 			resource.OwnerReferences = []metav1.OwnerReference{
@@ -240,7 +240,7 @@ var _ = Describe("MetalStackCluster Controller", func() {
 			Expect(k8sClient.Create(ctx, resource)).To(Succeed())
 
 			By("creating the cluster resource and setting the owner reference")
-			owner := newCluster("test-cluster")
+			owner := newCluster()
 			Expect(k8sClient.Create(ctx, owner)).To(Succeed())
 
 			resource.OwnerReferences = []metav1.OwnerReference{
@@ -358,7 +358,7 @@ var _ = Describe("MetalStackCluster Controller", func() {
 				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
 
 				By("creating the cluster resource and setting the owner reference")
-				owner := newCluster("test-cluster")
+				owner := newCluster()
 
 				Expect(k8sClient.Create(ctx, owner)).To(Succeed())
 
@@ -401,7 +401,7 @@ var _ = Describe("MetalStackCluster Controller", func() {
 				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
 
 				By("creating the cluster resource and setting the owner reference")
-				owner := newCluster("test-cluster")
+				owner := newCluster()
 
 				Expect(k8sClient.Create(ctx, owner)).To(Succeed())
 
@@ -439,16 +439,16 @@ var _ = Describe("MetalStackCluster Controller", func() {
 	})
 })
 
-func newCluster(name string) *clusterv1beta2.Cluster {
+func newCluster() *clusterv1beta2.Cluster {
 	return &clusterv1beta2.Cluster{
 		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: name,
+			GenerateName: "test-cluster",
 			Namespace:    "default",
 		},
 		Spec: clusterv1beta2.ClusterSpec{
 			InfrastructureRef: clusterv1beta2.ContractVersionedObjectReference{
 				Kind:     "MetalStackCluster",
-				Name:     name,
+				Name:     "test-cluster",
 				APIGroup: v1alpha1.GroupVersion.Group,
 			},
 		},
