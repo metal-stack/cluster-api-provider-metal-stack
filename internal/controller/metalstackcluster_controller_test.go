@@ -233,7 +233,7 @@ var _ = Describe("MetalStackCluster Controller", func() {
 			Expect(resource.Status.Conditions).To(ContainElement(MatchFields(IgnoreExtras, Fields{
 				"Type":   Equal(clusterv1beta2.PausedCondition),
 				"Status": Equal(metav1.ConditionFalse),
-				"Reason": Equal(clusterv1beta2.PausedReason),
+				"Reason": Equal(clusterv1beta2.NotPausedReason),
 			})))
 		})
 
@@ -350,7 +350,7 @@ var _ = Describe("MetalStackCluster Controller", func() {
 			Expect(resource.Status.Conditions).To(ContainElement(MatchFields(IgnoreExtras, Fields{
 				"Type":   Equal(clusterv1beta2.PausedCondition),
 				"Status": Equal(metav1.ConditionFalse),
-				"Reason": Equal(clusterv1beta2.PausedReason),
+				"Reason": Equal(clusterv1beta2.NotPausedReason),
 			})))
 		})
 

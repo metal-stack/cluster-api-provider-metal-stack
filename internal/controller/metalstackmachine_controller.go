@@ -150,12 +150,13 @@ func (r *MetalStackMachineReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		conditions.Set(infraMachine, metav1.Condition{
 			Status: metav1.ConditionTrue,
 			Type:   clusterv1.PausedCondition,
+			Reason: clusterv1.PausedReason,
 		})
 	} else {
 		conditions.Set(infraMachine, metav1.Condition{
 			Status: metav1.ConditionFalse,
 			Type:   clusterv1.PausedCondition,
-			Reason: clusterv1.PausedReason,
+			Reason: clusterv1.NotPausedReason,
 		})
 	}
 
