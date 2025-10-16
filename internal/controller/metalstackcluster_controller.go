@@ -123,7 +123,7 @@ func (r *MetalStackClusterReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		conditions.Set(infraCluster, metav1.Condition{
 			Status: metav1.ConditionFalse,
 			Type:   clusterv1.PausedCondition,
-			Reason: clusterv1.PausedReason,
+			Reason: clusterv1.NotPausedReason,
 		})
 	}
 
