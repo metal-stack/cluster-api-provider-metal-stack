@@ -77,7 +77,7 @@ update-test-crds:
 	go mod tidy
 	rm -rf test/external-crds
 	mkdir -p test/external-crds/cluster-api
-	cp -f $(shell go list -mod=mod -m -f '{{.Dir}}' all | grep sigs.k8s.io/cluster-api)/config/crd/bases/* test/external-crds/cluster-api
+	cp -f $(shell go list -mod=mod -m -f '{{.Dir}}' all | grep sigs.k8s.io/cluster-api@)/config/crd/bases/* test/external-crds/cluster-api
 
 .PHONY: fmt
 fmt: ## Run go fmt against code.
