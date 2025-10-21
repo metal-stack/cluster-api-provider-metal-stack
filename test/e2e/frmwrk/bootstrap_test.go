@@ -2,89 +2,114 @@ package frmwrk
 
 import (
 	"context"
+	"fmt"
+	"os"
+	"path"
+	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	// v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	// controlplanev1 "sigs.k8s.io/cluster-api/controlplane/kubeadm/api/v1beta1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	controlplanev1 "sigs.k8s.io/cluster-api/controlplane/kubeadm/api/v1beta1"
 	"sigs.k8s.io/cluster-api/test/framework"
 )
 
 var _ = Describe("Basic Cluster Creation", Ordered, func() {
+	var (
+		ec *E2ECluster
+	)
+
 	BeforeAll(func() {
 		e2eCtx = NewE2EContext()
 		e2eCtx.ProvideBootstrapCluster()
 		e2eCtx.CreateClusterctlConfig(context.TODO())
 		e2eCtx.InitManagementCluster(context.TODO())
+
+		DeferCleanup(e2eCtx.Teardown, context.TODO())
 	})
 
-	It("create", func() {
-		// TODO:
-		// - access kind cluster
-		// - install capms
-		// - create a namespace
-		// - create node network
-		// - create firewall
-		// - create control plane IP
-		// - create cluster
+	BeforeEach(func() {
+		ec = nil
+	})
 
-		ctx := context.Background()
+	kubernetesVersions := strings.Split(os.Getenv("E2E_KUBERNETES_VERSIONS"), ",")
+	Expect(kubernetesVersions).ToNot(BeEmpty(), "E2E_KUBERNETES_VERSIONS must be set")
 
-		ec := e2eCtx.NewE2ECluster(ClusterConfig{
-			SpecName:                 "basic-cluster-creation",
-			NamespaceName:            "simple",
-			ClusterName:              "simple",
-			KubernetesVersion:        "v1.34.1",
-			ControlPlaneIP:           "203.0.113.130",
-			ControlPlaneMachineCount: 1,
-			WorkerMachineCount:       1,
+	for _, v := range kubernetesVersions {
+		It(fmt.Sprintf("create new cluster with kubernetes %s", v), func() {
+			ctx := context.Background()
+
+			ec = createE2ECluster(ctx, e2eCtx, ClusterConfig{
+				SpecName:                 "basic-cluster-creation-" + v,
+				NamespaceName:            "simple-" + v,
+				ClusterName:              "simple",
+				KubernetesVersion:        v,
+				ControlPlaneMachineImage: os.Getenv("E2E_CONTROL_PLANE_MACHINE_IMAGE_PREFIX") + strings.TrimPrefix(v, "v"),
+				ControlPlaneMachineCount: 1,
+				WorkerMachineImage:       os.Getenv("E2E_WORKER_MACHINE_IMAGE_PREFIX") + strings.TrimPrefix(v, "v"),
+				WorkerMachineCount:       1,
+			})
+			Expect(ec).ToNot(BeNil())
 		})
-		defer ec.Teardown(ctx)
-
-		ec.SetupMetalStackPreconditions(ctx)
-		ec.SetupNamespace(ctx)
-		ec.GenerateAndApplyClusterTemplate(ctx)
-
-		By("Wait for cluster")
-		cluster := framework.DiscoveryAndWaitForCluster(ctx, framework.DiscoveryAndWaitForClusterInput{
-			Namespace: ec.NamespaceName,
-			Name:      ec.ClusterName,
-			Getter:    e2eCtx.Environment.Bootstrap.GetClient(),
-		}, e2eCtx.E2EConfig.GetIntervals("default", "wait-cluster")...)
-
-		controlPlane := framework.GetKubeadmControlPlaneByCluster(ctx, framework.GetKubeadmControlPlaneByClusterInput{
-			Lister:      e2eCtx.Environment.Bootstrap.GetClient(),
-			ClusterName: cluster.Name,
-			Namespace:   cluster.Namespace,
-		})
-
-		Expect(controlPlane).To(Not(BeNil()))
-
-		// framework.WaitForKubeadmControlPlaneMachinesToExist(ctx, framework.WaitForKubeadmControlPlaneMachinesToExistInput{
-		// 	Lister:       e2eCtx.Environment.Bootstrap.GetClient(),
-		// 	Cluster:      cluster,
-		// 	ControlPlane: controlPlane,
-		// }, e2eCtx.E2EConfig.GetIntervals("default", "wait-control-plane")...)
-		// framework.DiscoveryAndWaitForControlPlaneInitialized(ctx, framework.DiscoveryAndWaitForControlPlaneInitializedInput{
-		// 	Lister:  e2eCtx.Environment.Bootstrap.GetClient(),
-		// 	Cluster: cluster,
-		// }, e2eCtx.E2EConfig.GetIntervals("default", "wait-control-plane")...)
-
-		// By("Wait for control plane")
-		// framework.WaitForControlPlaneToBeReady(ctx, framework.WaitForControlPlaneToBeReadyInput{
-		// 	Getter: e2eCtx.Environment.Bootstrap.GetClient(),
-		// 	ControlPlane: &controlplanev1.KubeadmControlPlane{
-		// 		ObjectMeta: v1.ObjectMeta{
-		// 			Name:      ec.ClusterName,
-		// 			Namespace: ec.NamespaceName,
-		// 		},
-		// 	},
-		// }, e2eCtx.E2EConfig.GetIntervals("default", "wait-control-plane")...)
-
-	})
-
-	AfterAll(func() {
-		e2eCtx.Teardown(context.TODO())
-	})
+	}
 })
+
+func createE2ECluster(ctx context.Context, e2eCtx *E2EContext, cfg ClusterConfig) *E2ECluster {
+	ec := e2eCtx.NewE2ECluster(cfg)
+	DeferCleanup(ec.Teardown, ctx)
+
+	ec.SetupMetalStackPreconditions(ctx)
+	ec.SetupNamespace(ctx)
+	ec.GenerateAndApplyClusterTemplate(ctx)
+
+	By("Wait for cluster")
+	cluster := framework.DiscoveryAndWaitForCluster(ctx, framework.DiscoveryAndWaitForClusterInput{
+		Namespace: ec.NamespaceName,
+		Name:      ec.ClusterName,
+		Getter:    e2eCtx.Environment.Bootstrap.GetClient(),
+	}, e2eCtx.E2EConfig.GetIntervals("default", "wait-cluster")...)
+
+	controlPlane := framework.GetKubeadmControlPlaneByCluster(ctx, framework.GetKubeadmControlPlaneByClusterInput{
+		Lister:      e2eCtx.Environment.Bootstrap.GetClient(),
+		ClusterName: cluster.Name,
+		Namespace:   cluster.Namespace,
+	})
+
+	Expect(controlPlane).To(Not(BeNil()))
+
+	targetResources, err := os.ReadFile(path.Join(e2eCtx.Environment.artifactsPath, "config", "target", "base.yaml"))
+	Expect(err).ToNot(HaveOccurred())
+
+	err = ec.Refs.Workload.CreateOrUpdate(ctx, targetResources)
+	Expect(err).ToNot(HaveOccurred())
+
+	framework.WaitForKubeadmControlPlaneMachinesToExist(ctx, framework.WaitForKubeadmControlPlaneMachinesToExistInput{
+		Lister:       e2eCtx.Environment.Bootstrap.GetClient(),
+		Cluster:      cluster,
+		ControlPlane: controlPlane,
+	}, e2eCtx.E2EConfig.GetIntervals("default", "wait-control-plane")...)
+	framework.DiscoveryAndWaitForControlPlaneInitialized(ctx, framework.DiscoveryAndWaitForControlPlaneInitializedInput{
+		Lister:  e2eCtx.Environment.Bootstrap.GetClient(),
+		Cluster: cluster,
+	}, e2eCtx.E2EConfig.GetIntervals("default", "wait-control-plane")...)
+
+	By("Wait for control plane")
+	framework.WaitForControlPlaneToBeReady(ctx, framework.WaitForControlPlaneToBeReadyInput{
+		Getter: e2eCtx.Environment.Bootstrap.GetClient(),
+		ControlPlane: &controlplanev1.KubeadmControlPlane{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      ec.ClusterName,
+				Namespace: ec.NamespaceName,
+			},
+		},
+	}, e2eCtx.E2EConfig.GetIntervals("default", "wait-control-plane")...)
+
+	framework.WaitForClusterMachinesReady(ctx, framework.WaitForClusterMachinesReadyInput{
+		Cluster:    cluster,
+		GetLister:  e2eCtx.Environment.Bootstrap.GetClient(),
+		NodeGetter: e2eCtx.Environment.Bootstrap.GetClient(),
+	}, e2eCtx.E2EConfig.GetIntervals("default", "wait-workers")...)
+
+	return ec
+}

@@ -7,6 +7,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -19,7 +20,8 @@ import (
 	metalmodels "github.com/metal-stack/metal-go/api/models"
 
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/ptr"
 
@@ -98,10 +100,11 @@ func withDefaultEnvironment() Option {
 		e2e.Environment.project = e2e.envOrVar("METAL_PROJECT_ID")
 		e2e.Environment.partition = e2e.envOrVar("METAL_PARTITION")
 		e2e.Environment.publicNetwork = e2e.envOrVar("METAL_PUBLIC_NETWORK")
+		e2e.Environment.kubernetesVersions = strings.Split(e2e.envOrVar("E2E_KUBERNETES_VERSIONS"), ",")
+		e2e.Environment.controlPlaneMachineImagePrefix = e2e.envOrVar("E2E_CONTROL_PLANE_MACHINE_IMAGE_PREFIX")
+		e2e.Environment.workerMachineImagePrefix = e2e.envOrVar("E2E_WORKER_MACHINE_IMAGE_PREFIX")
 
-		_ = e2e.envOrVar("CONTROL_PLANE_MACHINE_IMAGE")
 		_ = e2e.envOrVar("CONTROL_PLANE_MACHINE_SIZE")
-		_ = e2e.envOrVar("WORKER_MACHINE_IMAGE")
 		_ = e2e.envOrVar("WORKER_MACHINE_SIZE")
 		_ = e2e.envOrVar("FIREWALL_IMAGE")
 		_ = e2e.envOrVar("FIREWALL_SIZE")
@@ -122,11 +125,14 @@ type Environment struct {
 	Metal                metal.Client
 	ClusterctlConfigPath string
 
-	partition      string
-	project        string
-	publicNetwork  string
-	kubeconfigPath string
-	artifactsPath  string
+	kubernetesVersions             []string
+	controlPlaneMachineImagePrefix string
+	workerMachineImagePrefix       string
+	partition                      string
+	project                        string
+	publicNetwork                  string
+	kubeconfigPath                 string
+	artifactsPath                  string
 }
 
 func (ee *E2EContext) ProvideBootstrapCluster() {
@@ -176,10 +182,12 @@ func (ee *E2EContext) CreateClusterctlConfig(ctx context.Context) {
 	By("Create clusterctl repository config")
 	Expect(ee.Environment.Bootstrap).NotTo(BeNil(), "bootstrap cluster must be provided first")
 
-	ee.Environment.ClusterctlConfigPath = clusterctl.CreateRepository(ctx, clusterctl.CreateRepositoryInput{
+	createRepoInput := clusterctl.CreateRepositoryInput{
 		RepositoryFolder: path.Join(ee.Environment.artifactsPath, "repository"),
 		E2EConfig:        ee.E2EConfig,
-	})
+	}
+
+	ee.Environment.ClusterctlConfigPath = clusterctl.CreateRepository(ctx, createRepoInput)
 	Expect(ee.Environment.ClusterctlConfigPath).To(BeAnExistingFile(), "clusterctl config file doesn't exist")
 }
 
@@ -237,6 +245,7 @@ type E2EClusterRefs struct {
 	ControlPlaneIP *metalmodels.V1IPResponse
 
 	Workload framework.ClusterProxy
+	Cluster  *clusterv1.Cluster
 }
 
 func (e2e *E2EContext) NewE2ECluster(cfg ClusterConfig) *E2ECluster {
@@ -312,6 +321,8 @@ func (e2e *E2ECluster) SetupMetalStackPreconditions(ctx context.Context) {
 }
 
 func (e2e *E2ECluster) Teardown(ctx context.Context) {
+	e2e.teardownCluster(ctx)
+	e2e.teardownClusterResourceSets(ctx)
 	e2e.teardownControlPlaneIP(ctx)
 	e2e.teardownFirewall(ctx)
 	e2e.teardownNodeNetwork(ctx)
@@ -394,7 +405,7 @@ func (e2e *E2ECluster) setupFirewall(ctx context.Context) {
 				},
 				{
 					Comment:  "allow outgoing DNS and NTP traffic via UDP",
-					Protocol: "TCP",
+					Protocol: "UDP",
 					Ports:    []int32{53, 123},
 					To:       []string{"0.0.0.0/0"},
 				},
@@ -500,19 +511,75 @@ func (e2e *E2ECluster) GenerateAndApplyClusterTemplate(ctx context.Context) {
 	Expect(err).NotTo(HaveOccurred(), "failed to apply cluster template")
 
 	e2e.Refs.Workload = e2e.E2EContext.Environment.Bootstrap.GetWorkloadCluster(ctx, e2e.NamespaceName, e2e.ClusterName)
+
+	e2e.Refs.Cluster = framework.DiscoveryAndWaitForCluster(ctx, framework.DiscoveryAndWaitForClusterInput{
+		Namespace: e2e.NamespaceName,
+		Name:      e2e.ClusterName,
+		Getter:    e2e.E2EContext.Environment.Bootstrap.GetClient(),
+	}, e2e.E2EContext.E2EConfig.GetIntervals("default", "wait-cluster")...)
+
+	Expect(e2e.Refs.Cluster).NotTo(BeNil(), "failed to get cluster")
 }
 
-func (e2e *E2ECluster) teardownCluster(ctx context.Context) error {
-	framework.DeleteClusterAndWait(ctx, framework.DeleteClusterAndWaitInput{
+func (e2e *E2ECluster) teardownCluster(ctx context.Context) {
+	if e2e.Refs.Cluster == nil {
+		return
+	}
+	Expect(e2e.Refs.Cluster).NotTo(BeNil(), "cluster not created yet")
+
+	deleteClusterAndWait(ctx, framework.DeleteClusterAndWaitInput{
 		ClusterProxy:         e2e.E2EContext.Environment.Bootstrap,
-		ClusterctlConfigPath: "",
-		Cluster: &clusterv1.Cluster{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      e2e.ClusterName,
-				Namespace: e2e.NamespaceName,
-			},
-		},
-		ArtifactFolder: "",
+		ClusterctlConfigPath: e2e.E2EContext.Environment.ClusterctlConfigPath,
+		ArtifactFolder:       e2e.E2EContext.Environment.artifactsPath,
+		Cluster:              e2e.Refs.Cluster,
+	}, e2e.E2EContext.E2EConfig.GetIntervals("default", "wait-delete-cluster")...)
+}
+
+func (e2e *E2ECluster) teardownClusterResourceSets(ctx context.Context) {
+	sets := framework.GetClusterResourceSets(ctx, framework.GetClusterResourceSetsInput{
+		Lister:    e2e.E2EContext.Environment.Bootstrap.GetClient(),
+		Namespace: e2e.NamespaceName,
 	})
-	return nil
+
+	for _, s := range sets {
+		err := e2e.E2EContext.Environment.Bootstrap.GetClient().Delete(ctx, s)
+		if err != nil && !apierrors.IsNotFound(err) {
+			Expect(err).NotTo(HaveOccurred(), "failed to delete cluster resourceset")
+		}
+	}
+}
+
+// deleteClusterAndWait deletes a cluster object and waits for it to be gone.
+// TODO: remove once cluster expectation has been fixed in framework
+func deleteClusterAndWait(ctx context.Context, input framework.DeleteClusterAndWaitInput, intervals ...any) {
+	var (
+		retryableOperationInterval = 3 * time.Second
+		// retryableOperationTimeout requires a higher value especially for self-hosted upgrades.
+		// Short unavailability of the Kube APIServer due to joining etcd members paired with unreachable conversion webhooks due to
+		// failed leader election and thus controller restarts lead to longer taking retries.
+		// The timeout occurs when listing machines in `GetControlPlaneMachinesByCluster`.
+		retryableOperationTimeout = 3 * time.Minute
+	)
+
+	Expect(ctx).NotTo(BeNil(), "ctx is required for DeleteClusterAndWait")
+	Expect(input.ClusterProxy).ToNot(BeNil(), "Invalid argument. input.ClusterProxy can't be nil when calling DeleteClusterAndWait")
+	Expect(input.ClusterctlConfigPath).ToNot(BeNil(), "Invalid argument. input.ClusterctlConfigPath can't be nil when calling DeleteClusterAndWait")
+	Expect(input.Cluster).ToNot(BeNil(), "Invalid argument. input.Cluster can't be empty when calling DeleteClusterAndWait")
+
+	framework.DeleteCluster(ctx, framework.DeleteClusterInput{
+		Deleter: input.ClusterProxy.GetClient(),
+		Cluster: input.Cluster,
+	})
+
+	// log.Logf("Waiting for the Cluster object to be deleted")
+	framework.WaitForClusterDeleted(ctx, framework.WaitForClusterDeletedInput(input), intervals...)
+
+	// TODO: consider if to move in another func (what if there are more than one cluster?)
+	// log.Logf("Check for all the Cluster API resources being deleted")
+	Eventually(func() []*unstructured.Unstructured {
+		return framework.GetCAPIResources(ctx, framework.GetCAPIResourcesInput{
+			Lister:    input.ClusterProxy.GetClient(),
+			Namespace: input.Cluster.Namespace,
+		})
+	}, retryableOperationTimeout, retryableOperationInterval).Should(BeEmpty(), "There are still Cluster API resources in the %q namespace", input.Cluster.Namespace)
 }
