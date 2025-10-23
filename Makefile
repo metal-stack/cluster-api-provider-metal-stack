@@ -121,7 +121,7 @@ E2E_WORKER_MACHINE_SIZE ?= "v1-small-x86"
 E2E_FIREWALL_IMAGE ?= "firewall-ubuntu-3.0"
 E2E_FIREWALL_SIZE ?= "v1-small-x86"
 E2E_FIREWALL_NETWORKS ?= "internet-mini-lab"
-ARTIFACTS ?= "_artifacts"
+ARTIFACTS ?= "$(PWD)/_artifacts"
 
 .PHONY: test-e2e
 test-e2e: manifests generate fmt vet

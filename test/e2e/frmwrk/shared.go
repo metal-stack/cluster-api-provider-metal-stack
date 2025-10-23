@@ -78,7 +78,9 @@ func withDefaultEnvironment() Option {
 		cwd, err := os.Getwd()
 		Expect(err).NotTo(HaveOccurred(), "cannot get current working directory")
 
-		e2e.Environment.artifactsPath = path.Join(cwd, e2e.Environment.artifactsPath)
+		if !path.IsAbs(e2e.Environment.artifactsPath) {
+			e2e.Environment.artifactsPath = path.Join(cwd, e2e.Environment.artifactsPath)
+		}
 		Expect(os.MkdirAll(e2e.Environment.artifactsPath, 0755)).To(Succeed(), "failed to create artifact folder")
 
 		clustersFolder := path.Join(e2e.Environment.artifactsPath, "clusters")
