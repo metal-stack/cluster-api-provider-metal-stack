@@ -121,13 +121,14 @@ E2E_WORKER_MACHINE_SIZE ?= "v1-small-x86"
 E2E_FIREWALL_IMAGE ?= "firewall-ubuntu-3.0"
 E2E_FIREWALL_SIZE ?= "v1-small-x86"
 E2E_FIREWALL_NETWORKS ?= "internet-mini-lab"
+ARTIFACTS ?= "_artifacts"
 
 .PHONY: test-e2e
 test-e2e: manifests generate fmt vet
 	rm -rf test/e2e/frmwrk/artifacts
 
-	mkdir -p test/e2e/frmwrk/artifacts/config/target
-	kubectl kustomize test/e2e/frmwrk/config/target/base -o test/e2e/frmwrk/artifacts/config/target/base.yaml
+	mkdir -p $(ARTIFACTS)/config/target
+	kubectl kustomize test/e2e/frmwrk/config/target/base -o $(ARTIFACTS)/config/target/base.yaml
 
 	@METAL_API_URL=$(E2E_METAL_API_URL) \
 	METAL_API_HMAC=$(E2E_METAL_API_HMAC) \
@@ -143,6 +144,7 @@ test-e2e: manifests generate fmt vet
 	FIREWALL_IMAGE=$(E2E_FIREWALL_IMAGE) \
 	FIREWALL_SIZE=$(E2E_FIREWALL_SIZE) \
 	FIREWALL_NETWORKS=$(E2E_FIREWALL_NETWORKS) \
+	ARTIFACTS=$(ARTIFACTS) \
 	go test -v ./test/e2e/frmwrk -timeout 60m -v ginkgo -vv --output-dir="$(ARTIFACTS)" --junit-report="junit.e2e_suite.xml"
 
 .PHONY: lint

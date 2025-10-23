@@ -7,6 +7,7 @@
 bin/*
 test/external-crds
 test/e2e/frmwrk/artifacts
+_artifacts
 Dockerfile.cross
 .release
 
