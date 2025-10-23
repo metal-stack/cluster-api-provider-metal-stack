@@ -19,6 +19,7 @@ infrastructure-components.yaml
 
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
+junit.e2e_suite.xml
 
 # Go workspace file
 go.work
