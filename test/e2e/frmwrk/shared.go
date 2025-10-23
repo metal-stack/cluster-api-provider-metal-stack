@@ -334,7 +334,8 @@ func (e2e *E2ECluster) teardownNamespace(ctx context.Context) {
 	}
 
 	framework.DeleteNamespace(ctx, framework.DeleteNamespaceInput{
-		Name: e2e.Refs.Namespace.Name,
+		Name:    e2e.Refs.Namespace.Name,
+		Deleter: e2e.E2EContext.Environment.Bootstrap.GetClient(),
 	})
 	e2e.Refs.Namespace = nil
 }
