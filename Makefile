@@ -145,7 +145,7 @@ test-e2e: manifests generate fmt vet ginkgo
 	FIREWALL_SIZE=$(E2E_FIREWALL_SIZE) \
 	FIREWALL_NETWORKS=$(E2E_FIREWALL_NETWORKS) \
 	ARTIFACTS=$(ARTIFACTS) \
-	$(GINKGO) -vv -r --junit-report="junit.e2e_suite.xml" --cover -- ./test/e2e/frmwrk -timeout 60m
+	$(GINKGO) -vv -r --junit-report="junit.e2e_suite.xml" --output-dir="$(ARTIFACTS)" -timeout 60m ./test/e2e/frmwrk 
 
 .PHONY: lint
 lint: golangci-lint ## Run golangci-lint linter
