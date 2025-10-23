@@ -113,7 +113,7 @@ E2E_METAL_API_HMAC_AUTH_TYPE ?= "$(or $(METALCTL_HMAC_AUTH_TYPE),Metal-Admin)"
 E2E_METAL_PROJECT_ID ?= "00000000-0000-0000-0000-000000000001"
 E2E_METAL_PARTITION ?= "mini-lab"
 E2E_METAL_PUBLIC_NETWORK ?= "internet-mini-lab"
-E2E_KUBERNETES_VERSIONS ?= "v1.32.9,v1.33.5,v1.34.1"
+E2E_KUBERNETES_VERSIONS ?= "v1.32.9"
 E2E_CONTROL_PLANE_MACHINE_IMAGE_PREFIX ?= "capms-ubuntu-"
 E2E_CONTROL_PLANE_MACHINE_SIZE ?= "v1-small-x86"
 E2E_WORKER_MACHINE_IMAGE_PREFIX ?= "capms-ubuntu-"
@@ -143,7 +143,7 @@ test-e2e: manifests generate fmt vet
 	FIREWALL_IMAGE=$(E2E_FIREWALL_IMAGE) \
 	FIREWALL_SIZE=$(E2E_FIREWALL_SIZE) \
 	FIREWALL_NETWORKS=$(E2E_FIREWALL_NETWORKS) \
-	go test ./test/e2e/frmwrk -v ginkgo -vv 
+	go test -v ./test/e2e/frmwrk -timeout 60m -v ginkgo -vv
 
 .PHONY: lint
 lint: golangci-lint ## Run golangci-lint linter

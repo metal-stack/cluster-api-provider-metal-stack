@@ -109,9 +109,6 @@ providers:
     files:
       - sourcePath: "../../../../metadata.yaml"
       - sourcePath: "../../../../config/clusterctl-templates/cluster-template.yaml"
-      - sourcePath: "../../../../config/cluster-resource-sets/calico-resource-set.yaml"
-      - sourcePath: "../../../../config/cluster-resource-sets/metal-ccm-resource-set.yaml"
-      - sourcePath: "../../../../config/cluster-resource-sets/metallb-resource-set.yaml"
     replacements:
       - old: --metrics-addr=127.0.0.1:8080
         new: --metrics-addr=:8080
@@ -137,6 +134,7 @@ variables:
 intervals:
   default/wait-controllers: ["4m", "10s"]
   default/wait-cluster: ["5m", "10s"]
+  metal-stack/wait-firewall-allocate: ["5m", "10s"]
   default/wait-control-plane: ["10m", "10s"]
   default/wait-worker-nodes: ["5m", "10s"]
   default/wait-machine-pool-nodes: ["5m", "10s"]

@@ -20,7 +20,6 @@ import (
 	metalmodels "github.com/metal-stack/metal-go/api/models"
 
 	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/ptr"
@@ -285,6 +284,33 @@ func (e2e *E2EContext) NewE2ECluster(cfg ClusterConfig) *E2ECluster {
 	}
 }
 
+func (e2e *E2ECluster) Variables() map[string]string {
+	vars := make(map[string]string)
+
+	for k := range e2e.E2EContext.E2EConfig.Variables {
+		vars[k] = e2e.E2EContext.envOrVar(k)
+	}
+
+	vars["METAL_API_URL"] = e2e.E2EContext.envOrVar("METAL_API_URL")
+	vars["METAL_API_HMAC"] = e2e.E2EContext.envOrVar("METAL_API_HMAC")
+	vars["METAL_API_HMAC_AUTH_TYPE"] = e2e.E2EContext.envOrVar("METAL_API_HMAC_AUTH_TYPE")
+
+	vars["NAMESPACE"] = e2e.NamespaceName
+	vars["METAL_PROJECT_ID"] = e2e.E2EContext.Environment.project
+	vars["METAL_PARTITION"] = e2e.E2EContext.Environment.partition
+	vars["METAL_NODE_NETWORK_ID"] = *e2e.Refs.NodeNetwork.ID
+	vars["FIREWALL_MACHINE_SIZE"] = e2e.FirewallSize
+	vars["FIREWALL_MACHINE_IMAGE"] = e2e.FirewallImage
+	vars["FIREWALL_MACHINE_NETWORKS"] = "[" + strings.Join(e2e.FirewallNetworks, ",") + "]"
+	vars["CONTROL_PLANE_IP"] = e2e.ControlPlaneIP
+	vars["CONTROL_PLANE_MACHINE_SIZE"] = e2e.ControlPlaneMachineSize
+	vars["CONTROL_PLANE_MACHINE_IMAGE"] = e2e.ControlPlaneMachineImage
+	vars["WORKER_MACHINE_SIZE"] = e2e.WorkerMachineSize
+	vars["WORKER_MACHINE_IMAGE"] = e2e.WorkerMachineImage
+
+	return vars
+}
+
 // common
 
 func (e2e *E2ECluster) SetupNamespace(ctx context.Context) *corev1.Namespace {
@@ -322,7 +348,6 @@ func (e2e *E2ECluster) SetupMetalStackPreconditions(ctx context.Context) {
 
 func (e2e *E2ECluster) Teardown(ctx context.Context) {
 	e2e.teardownCluster(ctx)
-	e2e.teardownClusterResourceSets(ctx)
 	e2e.teardownControlPlaneIP(ctx)
 	e2e.teardownFirewall(ctx)
 	e2e.teardownNodeNetwork(ctx)
@@ -422,10 +447,15 @@ func (e2e *E2ECluster) setupFirewall(ctx context.Context) {
 		},
 	}
 
-	fw, err := e2e.E2EContext.Environment.Metal.Firewall().AllocateFirewall(metalfw.NewAllocateFirewallParamsWithContext(ctx).WithBody(fcr), nil)
-	Expect(err).ToNot(HaveOccurred(), "failed to allocate firewall")
+	Eventually(func() error {
+		fw, err := e2e.E2EContext.Environment.Metal.Firewall().AllocateFirewall(metalfw.NewAllocateFirewallParamsWithContext(ctx).WithBody(fcr), nil)
+		if err != nil {
+			return err
+		}
 
-	e2e.Refs.Firewall = fw.Payload
+		e2e.Refs.Firewall = fw.Payload
+		return nil
+	}, e2e.E2EContext.E2EConfig.GetIntervals("metal-stack", "wait-firewall-allocate")...).ShouldNot(HaveOccurred(), "firewall not available")
 }
 
 func (e2e *E2ECluster) teardownFirewall(ctx context.Context) {
@@ -440,6 +470,10 @@ func (e2e *E2ECluster) teardownFirewall(ctx context.Context) {
 }
 
 func (e2e *E2ECluster) setupControlPlaneIP(ctx context.Context) {
+	if e2e.ControlPlaneIP != "" {
+		return
+	}
+
 	By("Setup Control Plane IP")
 
 	ipr := &metalmodels.V1IPAllocateRequest{
@@ -451,12 +485,15 @@ func (e2e *E2ECluster) setupControlPlaneIP(ctx context.Context) {
 			fmt.Sprintf("%s=%s", "e2e-test", e2e.SpecName),
 		},
 		Networkid: ptr.To(e2e.E2EContext.Environment.publicNetwork),
+		Type:      ptr.To(metalmodels.V1IPAllocateRequestTypeStatic),
 	}
 
 	ip, err := e2e.E2EContext.Environment.Metal.IP().AllocateIP(metalip.NewAllocateIPParamsWithContext(ctx).WithBody(ipr), nil)
 	Expect(err).ToNot(HaveOccurred(), "failed to allocate control plane IP")
+	Expect(ip.Payload.Ipaddress).NotTo(BeNil(), "allocated control plane IP has no IP address")
 
 	e2e.Refs.ControlPlaneIP = ip.Payload
+	e2e.ControlPlaneIP = *e2e.Refs.ControlPlaneIP.Ipaddress
 }
 
 func (e2e *E2ECluster) teardownControlPlaneIP(ctx context.Context) {
@@ -488,22 +525,7 @@ func (e2e *E2ECluster) GenerateAndApplyClusterTemplate(ctx context.Context) {
 		InfrastructureProvider: "capms:v0.6.1",
 		LogFolder:              path.Join(e2e.E2EContext.Environment.artifactsPath, "clusters", e2e.ClusterName),
 		// KubeconfigPath:         "",
-		ClusterctlVariables: map[string]string{
-			// "METAL_API_URL":               "",
-			// "METAL_API_HMAC":              "",
-			"METAL_PROJECT_ID": e2e.E2EContext.Environment.project,
-			// "POD_CIDR":                    "",
-			"METAL_PARTITION":             e2e.E2EContext.Environment.partition,
-			"METAL_NODE_NETWORK_ID":       *e2e.Refs.NodeNetwork.ID,
-			"FIREWALL_MACHINE_SIZE":       e2e.FirewallSize,
-			"FIREWALL_MACHINE_IMAGE":      e2e.FirewallImage,
-			"FIREWALL_MACHINE_NETWORKS":   "[" + strings.Join(e2e.FirewallNetworks, ",") + "]",
-			"CONTROL_PLANE_IP":            e2e.ControlPlaneIP,
-			"CONTROL_PLANE_MACHINE_SIZE":  e2e.ControlPlaneMachineSize,
-			"CONTROL_PLANE_MACHINE_IMAGE": e2e.ControlPlaneMachineImage,
-			"WORKER_MACHINE_SIZE":         e2e.WorkerMachineSize,
-			"WORKER_MACHINE_IMAGE":        e2e.WorkerMachineImage,
-		},
+		ClusterctlVariables: e2e.Variables(),
 	})
 
 	By("Apply cluster template")
@@ -533,20 +555,6 @@ func (e2e *E2ECluster) teardownCluster(ctx context.Context) {
 		ArtifactFolder:       e2e.E2EContext.Environment.artifactsPath,
 		Cluster:              e2e.Refs.Cluster,
 	}, e2e.E2EContext.E2EConfig.GetIntervals("default", "wait-delete-cluster")...)
-}
-
-func (e2e *E2ECluster) teardownClusterResourceSets(ctx context.Context) {
-	sets := framework.GetClusterResourceSets(ctx, framework.GetClusterResourceSetsInput{
-		Lister:    e2e.E2EContext.Environment.Bootstrap.GetClient(),
-		Namespace: e2e.NamespaceName,
-	})
-
-	for _, s := range sets {
-		err := e2e.E2EContext.Environment.Bootstrap.GetClient().Delete(ctx, s)
-		if err != nil && !apierrors.IsNotFound(err) {
-			Expect(err).NotTo(HaveOccurred(), "failed to delete cluster resourceset")
-		}
-	}
 }
 
 // deleteClusterAndWait deletes a cluster object and waits for it to be gone.
