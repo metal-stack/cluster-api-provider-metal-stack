@@ -69,6 +69,12 @@ func createE2ECluster(ctx context.Context, e2eCtx *E2EContext, cfg ClusterConfig
 		Namespace:   ec.Refs.Cluster.Namespace,
 	})
 
+	framework.DiscoveryAndWaitForCluster(ctx, framework.DiscoveryAndWaitForClusterInput{
+		Getter:    e2eCtx.Environment.Bootstrap.GetClient(),
+		Namespace: ec.Refs.Cluster.Namespace,
+		Name:      ec.Refs.Cluster.Name,
+	}, e2eCtx.E2EConfig.GetIntervals("default", "wait-cluster")...)
+
 	Expect(controlPlane).To(Not(BeNil()))
 
 	By("Wait for CNI and CCM")
