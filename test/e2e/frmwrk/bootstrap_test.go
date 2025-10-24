@@ -42,7 +42,7 @@ var _ = Describe("Basic Cluster Creation", Ordered, func() {
 			ec = createE2ECluster(ctx, e2eCtx, ClusterConfig{
 				SpecName:                 "basic-cluster-creation-" + v,
 				NamespaceName:            fmt.Sprintf("e2e-basic-cluster-creation-%d", i),
-				ClusterName:              "simple",
+				ClusterName:              fmt.Sprintf("simple-%d", i),
 				KubernetesVersion:        v,
 				ControlPlaneMachineImage: os.Getenv("E2E_CONTROL_PLANE_MACHINE_IMAGE_PREFIX") + strings.TrimPrefix(v, "v"),
 				ControlPlaneMachineCount: 1,
