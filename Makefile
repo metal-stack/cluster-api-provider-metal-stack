@@ -89,7 +89,7 @@ vet: ## Run go vet against code.
 
 .PHONY: test
 test: manifests generate update-test-crds fmt vet envtest ginkgo ## Run tests.
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" $(GINKGO) -r --junit-report="junit.e2e_suite.xml" --cover -- $$(go list ./... | grep -v /e2e) -coverprofile cover.out
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" $(GINKGO) -r --junit-report="junit.e2e_suite.xml" --cover -coverprofile cover.out $$(go list ./... | grep -v /e2e | sed "s|github.com/metal-stack/cluster-api-provider-metal-stack|.|")
 
 # The default setup assumes Kind is pre-installed and builds/loads the Manager Docker image locally.
 # Prometheus and CertManager are installed by default; skip with:
@@ -145,7 +145,7 @@ test-e2e: manifests generate fmt vet ginkgo
 	FIREWALL_SIZE=$(E2E_FIREWALL_SIZE) \
 	FIREWALL_NETWORKS=$(E2E_FIREWALL_NETWORKS) \
 	ARTIFACTS=$(ARTIFACTS) \
-	$(GINKGO) --tags=integration -vv -r --junit-report="junit.e2e_suite.xml" --output-dir="$(ARTIFACTS)" -timeout 60m ./test/e2e/frmwrk 
+	$(GINKGO) -vv -r --junit-report="junit.e2e_suite.xml" --output-dir="$(ARTIFACTS)" -timeout 60m ./test/e2e/frmwrk 
 
 .PHONY: lint
 lint: golangci-lint ## Run golangci-lint linter

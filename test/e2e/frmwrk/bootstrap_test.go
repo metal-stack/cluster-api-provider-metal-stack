@@ -1,6 +1,3 @@
-//go:build integration
-// +build integration
-
 package frmwrk
 
 import (
@@ -66,16 +63,10 @@ func createE2ECluster(ctx context.Context, e2eCtx *E2EContext, cfg ClusterConfig
 	ec.GenerateAndApplyClusterTemplate(ctx)
 
 	By("Wait for cluster")
-	cluster := framework.DiscoveryAndWaitForCluster(ctx, framework.DiscoveryAndWaitForClusterInput{
-		Namespace: ec.NamespaceName,
-		Name:      ec.ClusterName,
-		Getter:    e2eCtx.Environment.Bootstrap.GetClient(),
-	}, e2eCtx.E2EConfig.GetIntervals("default", "wait-cluster")...)
-
 	controlPlane := framework.GetKubeadmControlPlaneByCluster(ctx, framework.GetKubeadmControlPlaneByClusterInput{
 		Lister:      e2eCtx.Environment.Bootstrap.GetClient(),
-		ClusterName: cluster.Name,
-		Namespace:   cluster.Namespace,
+		ClusterName: ec.Refs.Cluster.Name,
+		Namespace:   ec.Refs.Cluster.Namespace,
 	})
 
 	Expect(controlPlane).To(Not(BeNil()))
@@ -97,11 +88,11 @@ func createE2ECluster(ctx context.Context, e2eCtx *E2EContext, cfg ClusterConfig
 	By("Wait for kubeadm control plane")
 	framework.DiscoveryAndWaitForControlPlaneInitialized(ctx, framework.DiscoveryAndWaitForControlPlaneInitializedInput{
 		Lister:  e2eCtx.Environment.Bootstrap.GetClient(),
-		Cluster: cluster,
+		Cluster: ec.Refs.Cluster,
 	}, e2eCtx.E2EConfig.GetIntervals("default", "wait-control-plane")...)
 
 	framework.WaitForClusterToProvision(ctx, framework.WaitForClusterToProvisionInput{
-		Cluster: cluster,
+		Cluster: ec.Refs.Cluster,
 		Getter:  e2eCtx.Environment.Bootstrap.GetClient(),
 	}, e2eCtx.E2EConfig.GetIntervals("default", "wait-cluster-provisioned")...)
 	return ec
