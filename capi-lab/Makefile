@@ -46,6 +46,7 @@ cleanup:
 dev-env:
 	@echo "export METALCTL_API_URL=${METALCTL_API_URL}"
 	@echo "export METALCTL_HMAC=${METALCTL_HMAC}"
+	@echo "export METALCTL_HMAC_AUTH_TYPE=${METALCTL_HMAC_AUTH_TYPE}"
 	@echo "export KUBECONFIG=${KUBECONFIG}"
 
 .PHONY: controller
