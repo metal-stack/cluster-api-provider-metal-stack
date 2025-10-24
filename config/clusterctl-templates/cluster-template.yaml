@@ -69,17 +69,14 @@ spec:
     clusterConfiguration:
       apiServer:
         extraArgs:
-          cloud-provider: external
       controllerManager:
         extraArgs:
-          cloud-provider: external
     initConfiguration:
       localAPIEndpoint:
         advertiseAddress: 127.0.0.1
         bindPort: 443
       nodeRegistration:
         kubeletExtraArgs:
-          cloud-provider: external
     joinConfiguration:
       controlPlane:
         localAPIEndpoint:
@@ -87,7 +84,6 @@ spec:
           bindPort: 443
       nodeRegistration:
         kubeletExtraArgs:
-          cloud-provider: external
     files:
       - path: /etc/kubernetes/manifests/kubevip.yaml
         owner: root:root
@@ -195,6 +191,7 @@ spec:
       clusterConfiguration:
         apiServer:
           extraArgs:
+            cloud-provider: external
         controllerManager:
           extraArgs:
             cloud-provider: external
