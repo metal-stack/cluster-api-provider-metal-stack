@@ -88,15 +88,15 @@ vet: ## Run go vet against code.
 	go vet ./...
 
 .PHONY: test
-test: manifests generate update-test-crds fmt vet envtest ## Run tests.
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $$(go list ./... | grep -v /e2e) -coverprofile cover.out
+test: manifests generate update-test-crds fmt vet envtest ginkgo ## Run tests.
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" $(GINKGO) -r --junit-report="junit.e2e_suite.xml" --cover -coverprofile cover.out $$(go list ./... | grep -v /e2e | sed "s|github.com/metal-stack/cluster-api-provider-metal-stack|.|")
 
 # The default setup assumes Kind is pre-installed and builds/loads the Manager Docker image locally.
 # Prometheus and CertManager are installed by default; skip with:
 # - PROMETHEUS_INSTALL_SKIP=true
 # - CERT_MANAGER_INSTALL_SKIP=true
-.PHONY: test-e2e
-test-e2e: manifests generate update-test-crds fmt vet ## Run the e2e tests. Expected an isolated environment using Kind.
+.PHONY: test-e2e-controller
+test-e2e-controller: manifests generate update-test-crds fmt vet ## Run the e2e tests. Expected an isolated environment using Kind.
 	@command -v kind >/dev/null 2>&1 || { \
 		echo "Kind is not installed. Please install Kind manually."; \
 		exit 1; \
@@ -106,6 +106,46 @@ test-e2e: manifests generate update-test-crds fmt vet ## Run the e2e tests. Expe
 		exit 1; \
 	}
 	go test ./test/e2e/ -v -ginkgo.v
+
+E2E_METAL_API_URL ?= "$(METALCTL_API_URL)"
+E2E_METAL_API_HMAC ?= "$(METALCTL_HMAC)"
+E2E_METAL_API_HMAC_AUTH_TYPE ?= "$(or $(METALCTL_HMAC_AUTH_TYPE),Metal-Admin)"
+E2E_METAL_PROJECT_ID ?= "00000000-0000-0000-0000-000000000001"
+E2E_METAL_PARTITION ?= "mini-lab"
+E2E_METAL_PUBLIC_NETWORK ?= "internet-mini-lab"
+E2E_KUBERNETES_VERSIONS ?= "v1.32.9"
+E2E_CONTROL_PLANE_MACHINE_IMAGE_PREFIX ?= "capms-ubuntu-"
+E2E_CONTROL_PLANE_MACHINE_SIZE ?= "v1-small-x86"
+E2E_WORKER_MACHINE_IMAGE_PREFIX ?= "capms-ubuntu-"
+E2E_WORKER_MACHINE_SIZE ?= "v1-small-x86"
+E2E_FIREWALL_IMAGE ?= "firewall-ubuntu-3.0"
+E2E_FIREWALL_SIZE ?= "v1-small-x86"
+E2E_FIREWALL_NETWORKS ?= "internet-mini-lab"
+ARTIFACTS ?= "$(PWD)/_artifacts"
+
+.PHONY: test-e2e
+test-e2e: manifests generate fmt vet ginkgo
+	rm -rf test/e2e/frmwrk/artifacts
+
+	mkdir -p $(ARTIFACTS)/config/target
+	kubectl kustomize test/e2e/frmwrk/config/target/base -o $(ARTIFACTS)/config/target/base.yaml
+
+	@METAL_API_URL=$(E2E_METAL_API_URL) \
+	METAL_API_HMAC=$(E2E_METAL_API_HMAC) \
+	METAL_API_HMAC_AUTH_TYPE=$(E2E_METAL_API_HMAC_AUTH_TYPE) \
+	METAL_PROJECT_ID=$(E2E_METAL_PROJECT_ID) \
+	METAL_PARTITION=$(E2E_METAL_PARTITION) \
+	METAL_PUBLIC_NETWORK=$(E2E_METAL_PUBLIC_NETWORK) \
+	E2E_KUBERNETES_VERSIONS=$(E2E_KUBERNETES_VERSIONS) \
+	E2E_CONTROL_PLANE_MACHINE_IMAGE_PREFIX=$(E2E_CONTROL_PLANE_MACHINE_IMAGE_PREFIX) \
+	CONTROL_PLANE_MACHINE_SIZE=$(E2E_CONTROL_PLANE_MACHINE_SIZE) \
+	E2E_WORKER_MACHINE_IMAGE_PREFIX=$(E2E_WORKER_MACHINE_IMAGE_PREFIX) \
+	WORKER_MACHINE_SIZE=$(E2E_WORKER_MACHINE_SIZE) \
+	FIREWALL_IMAGE=$(E2E_FIREWALL_IMAGE) \
+	FIREWALL_SIZE=$(E2E_FIREWALL_SIZE) \
+	FIREWALL_NETWORKS=$(E2E_FIREWALL_NETWORKS) \
+	ARTIFACTS=$(ARTIFACTS) \
+	$(GINKGO) -vv -r --junit-report="junit.e2e_suite.xml" --output-dir="$(ARTIFACTS)" -timeout 60m ./test/e2e/frmwrk 
 
 .PHONY: lint
 lint: golangci-lint ## Run golangci-lint linter
@@ -199,6 +239,7 @@ KUBECTL ?= kubectl
 KUSTOMIZE ?= $(LOCALBIN)/kustomize
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 ENVTEST ?= $(LOCALBIN)/setup-envtest
+GINKGO ?= $(LOCALBIN)/ginkgo
 GOLANGCI_LINT = $(LOCALBIN)/golangci-lint
 
 ## Tool Versions
@@ -206,6 +247,7 @@ KUSTOMIZE_VERSION ?= v5.4.3
 CONTROLLER_TOOLS_VERSION ?= v0.16.4
 ENVTEST_VERSION ?= release-0.19
 GOLANGCI_LINT_VERSION ?= v1.61.0
+GINKGO_VERSION ?= v2.23.3
 
 .PHONY: kustomize
 kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.
@@ -226,6 +268,11 @@ $(ENVTEST): $(LOCALBIN)
 golangci-lint: $(GOLANGCI_LINT) ## Download golangci-lint locally if necessary.
 $(GOLANGCI_LINT): $(LOCALBIN)
 	$(call go-install-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/cmd/golangci-lint,$(GOLANGCI_LINT_VERSION))
+
+.PHONY: ginkgo
+ginkgo: $(GINKGO) ## Download setup-envtest locally if necessary.
+$(GINKGO): $(LOCALBIN)
+	$(call go-install-tool,$(GINKGO),github.com/onsi/ginkgo/v2/ginkgo,$(GINKGO_VERSION))
 
 # go-install-tool will 'go install' any package with custom target and name of binary, if it doesn't exist
 # $1 - target path with name of binary

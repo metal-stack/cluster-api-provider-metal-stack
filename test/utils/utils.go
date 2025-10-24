@@ -24,7 +24,7 @@ import (
 	"os/exec"
 	"strings"
 
-	. "github.com/onsi/ginkgo/v2" //nolint:golint,staticcheck
+	. "github.com/onsi/ginkgo/v2" //nolint:staticcheck
 )
 
 const (

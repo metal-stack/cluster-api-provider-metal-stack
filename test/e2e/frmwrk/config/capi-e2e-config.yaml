@@ -1,0 +1,148 @@
+---
+images:
+  # TODO
+
+providers:
+- name: cluster-api
+  type: CoreProvider
+  versions:
+  - name: "{go://sigs.k8s.io/cluster-api@v1.9}"
+    value: "https://github.com/kubernetes-sigs/cluster-api/releases/download/{go://sigs.k8s.io/cluster-api@v1.9}/core-components.yaml"
+    type: "url"
+    contract: v1beta1
+    files:
+      - sourcePath: "../data/cluster-api/metadata.yaml"
+    replacements:
+      - old: --metrics-addr=127.0.0.1:8080
+        new: --metrics-addr=:8080
+        
+  - name: "{go://sigs.k8s.io/cluster-api@v1.10}"
+    value: "https://github.com/kubernetes-sigs/cluster-api/releases/download/{go://sigs.k8s.io/cluster-api@v1.10}/core-components.yaml"
+    type: "url"
+    contract: v1beta1
+    files:
+      - sourcePath: "../data/cluster-api/metadata.yaml"
+    replacements:
+      - old: --metrics-addr=127.0.0.1:8080
+        new: --metrics-addr=:8080
+        
+  # TODO: once upgraded dependencies
+  # - name: "{go://sigs.k8s.io/cluster-api@v1.11}"
+  #   value: "https://github.com/kubernetes-sigs/cluster-api/releases/download/{go://sigs.k8s.io/cluster-api@v1.11}/core-components.yaml"
+  #   type: "url"
+  #   contract: v1beta2
+  #   files:
+  #     - sourcePath: "./v1beta1/metadata.yaml"
+  #   replacements:
+  #     - old: --metrics-addr=127.0.0.1:8080
+  #       new: --metrics-addr=:8080
+
+- name: kubeadm
+  type: BootstrapProvider
+  versions:
+  - name: "{go://sigs.k8s.io/cluster-api@v1.9}"
+    value: "https://github.com/kubernetes-sigs/cluster-api/releases/download/{go://sigs.k8s.io/cluster-api@v1.9}/bootstrap-components.yaml"
+    type: "url"
+    contract: v1beta1
+    files:
+      - sourcePath: "../data/cluster-api/metadata.yaml"
+    replacements:
+      - old: --metrics-addr=127.0.0.1:8080
+        new: --metrics-addr=:8080
+
+  - name: "{go://sigs.k8s.io/cluster-api@v1.10}"
+    value: "https://github.com/kubernetes-sigs/cluster-api/releases/download/{go://sigs.k8s.io/cluster-api@v1.10}/bootstrap-components.yaml"
+    type: "url"
+    contract: v1beta1
+    files:
+      - sourcePath: "../data/cluster-api/metadata.yaml"
+    replacements:
+      - old: --metrics-addr=127.0.0.1:8080
+        new: --metrics-addr=:8080
+        
+  # - name: "{go://sigs.k8s.io/cluster-api@v1.11}"
+  #   value: "https://github.com/kubernetes-sigs/cluster-api/releases/download/{go://sigs.k8s.io/cluster-api@v1.11}/bootstrap-components.yaml"
+  #   type: "url"
+  #   contract: v1beta1
+  #   replacements:
+  #     - old: --metrics-addr=127.0.0.1:8080
+  #       new: --metrics-addr=:8080
+
+- name: kubeadm
+  type: ControlPlaneProvider
+  versions:
+  - name: "{go://sigs.k8s.io/cluster-api@v1.9}"
+    value: "https://github.com/kubernetes-sigs/cluster-api/releases/download/{go://sigs.k8s.io/cluster-api@v1.9}/control-plane-components.yaml"
+    type: "url"
+    contract: v1beta1
+    files:
+      - sourcePath: "../data/cluster-api/metadata.yaml"
+    replacements:
+      - old: --metrics-addr=127.0.0.1:8080
+        new: --metrics-addr=:8080
+        
+  - name: "{go://sigs.k8s.io/cluster-api@v1.10}"
+    value: "https://github.com/kubernetes-sigs/cluster-api/releases/download/{go://sigs.k8s.io/cluster-api@v1.10}/control-plane-components.yaml"
+    type: "url"
+    contract: v1beta1
+    files:
+      - sourcePath: "../data/cluster-api/metadata.yaml"
+    replacements:
+      - old: --metrics-addr=127.0.0.1:8080
+        new: --metrics-addr=:8080
+
+  # - name: "{go://sigs.k8s.io/cluster-api@v1.11}"
+  #   value: "https://github.com/kubernetes-sigs/cluster-api/releases/download/{go://sigs.k8s.io/cluster-api@v1.11}/control-plane-components.yaml"
+  #   type: "url"
+  #   contract: v1beta1
+  #   replacements:
+  #     - old: --metrics-addr=127.0.0.1:8080
+  #       new: --metrics-addr=:8080
+
+- name: capms
+  type: InfrastructureProvider
+  versions:
+  - name: "{go://github.com/metal-stack/cluster-api-provider-metal-stack@v0.6}"
+    value: "https://github.com/metal-stack/cluster-api-provider-metal-stack/releases/download/{go://github.com/metal-stack/cluster-api-provider-metal-stack@v0.6}/infrastructure-components.yaml"
+    type: "url"
+    contract: v1beta1
+    files:
+      - sourcePath: "../../../../metadata.yaml"
+      - sourcePath: "../../../../config/clusterctl-templates/cluster-template.yaml"
+    replacements:
+      - old: --metrics-addr=127.0.0.1:8080
+        new: --metrics-addr=:8080
+
+variables:
+  # CLUSTER_NAME:
+  # NAMESPACE:
+  KUBERNETES_VERSION: "v1.34.1"
+  EXP_KUBEADM_BOOTSTRAP_FORMAT_IGNITION: "true"
+  # METAL_PARTITION: 
+  # METAL_PROJECT_ID:
+  # METAL_NODE_NETWORK_ID:
+  # CONTROL_PLANE_IP:
+  FIREWALL_MACHINE_IMAGE: "firewall-ubuntu-3.0"
+  FIREWALL_MACHINE_SIZE: "c1-medium-x86"
+  CONTROL_PLANE_MACHINE_IMAGE: "capms:1.34.1-ubuntu-24.4"
+  CONTROL_PLANE_MACHINE_SIZE: "c1-medium-x86"
+  WORKER_MACHINE_IMAGE: "capms:1.34.1-ubuntu-24.4"
+  WORKER_MACHINE_SIZE: "c1-medium-x86"
+  CONTROL_PLANE_MACHINE_COUNT: "1"
+  WORKER_MACHINE_COUNT: "1"
+
+intervals:
+  default/wait-controllers: ["4m", "10s"]
+  default/wait-cluster: ["5m", "10s"]
+  metal-stack/wait-firewall-allocate: ["5m", "10s"]
+  default/wait-control-plane: ["10m", "10s"]
+  default/wait-worker-nodes: ["5m", "10s"]
+  default/wait-machine-pool-nodes: ["5m", "10s"]
+  default/wait-delete-cluster: ["3m", "10s"]
+  default/wait-machine-upgrade: ["20m", "10s"]
+  default/wait-control-plane-upgrade: ["15m", "10s"]
+  default/wait-machine-deployment-upgrade: ["10m", "10s"]
+  default/wait-machine-pool-upgrade: ["5m", "10s"]
+  default/wait-nodes-ready: ["10m", "10s"]
+  default/wait-machine-remediation: ["5m", "10s"]
+  default/wait-autoscaler: ["5m", "10s"]
