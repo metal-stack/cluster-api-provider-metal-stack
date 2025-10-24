@@ -25,7 +25,7 @@ var _ = Describe("Basic Cluster Creation", Ordered, func() {
 		e2eCtx.CreateClusterctlConfig(context.TODO())
 		e2eCtx.InitManagementCluster(context.TODO())
 
-		// DeferCleanup(e2eCtx.Teardown, context.TODO())
+		DeferCleanup(e2eCtx.Teardown, context.TODO())
 	})
 
 	BeforeEach(func() {
@@ -56,7 +56,7 @@ var _ = Describe("Basic Cluster Creation", Ordered, func() {
 
 func createE2ECluster(ctx context.Context, e2eCtx *E2EContext, cfg ClusterConfig) *E2ECluster {
 	ec := e2eCtx.NewE2ECluster(cfg)
-	// DeferCleanup(ec.Teardown, ctx)
+	DeferCleanup(ec.Teardown, ctx)
 
 	ec.SetupMetalStackPreconditions(ctx)
 	ec.SetupNamespace(ctx)
