@@ -125,7 +125,7 @@ ARTIFACTS ?= "$(PWD)/_artifacts"
 
 .PHONY: test-e2e
 test-e2e: manifests generate fmt vet ginkgo
-	rm -rf test/e2e/frmwrk/artifacts
+	rm -rf $(ARTIFACTS)/config/target
 
 	mkdir -p $(ARTIFACTS)/config/target
 	kubectl kustomize test/e2e/frmwrk/config/target/base -o $(ARTIFACTS)/config/target/base.yaml
