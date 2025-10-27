@@ -6,6 +6,8 @@
 *.dylib
 bin/*
 test/external-crds
+test/e2e/frmwrk/artifacts
+_artifacts
 Dockerfile.cross
 .release
 
@@ -17,6 +19,7 @@ infrastructure-components.yaml
 
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
+junit.e2e_suite.xml
 
 # Go workspace file
 go.work

@@ -17,10 +17,22 @@ metal_api_images:
     url: https://images.metal-stack.io/metal-os/stable/firewall/3.0-ubuntu/img.tar.lz4
     features:
       - firewall
-  - id: ubuntu-24.4
-    name: Ubuntu 24.04 with Kubernetes 1.30.6
-    description: Ubuntu 24.04 with Kubernetes 1.30.6
-    url: https://images.metal-stack.io/metal-os/pull_requests/273-cluster-api-k8s-v1.30.6/cluster-api/cluster-api-k8s-1.30.6/img.tar.lz4
+  - id: capms-ubuntu-1.34.1
+    name: Ubuntu 24.04 with Kubernetes 1.34.1
+    description: Ubuntu 24.04 with Kubernetes 1.34.1
+    url: https://images.metal-stack.io/metal-os/pull_requests/352-capi-images/capms-ubuntu/1.34.1/img.tar.lz4
+    features:
+      - machine
+  - id: capms-ubuntu-1.33.5
+    name: Ubuntu 24.04 with Kubernetes 1.33.5
+    description: Ubuntu 24.04 with Kubernetes 1.33.5
+    url: https://images.metal-stack.io/metal-os/pull_requests/352-capi-images/capms-ubuntu/1.33.5/img.tar.lz4
+    features:
+      - machine
+  - id: capms-ubuntu-1.32.9
+    name: Ubuntu 24.04 with Kubernetes 1.32.9
+    description: Ubuntu 24.04 with Kubernetes 1.32.9
+    url: https://images.metal-stack.io/metal-os/pull_requests/352-capi-images/capms-ubuntu/1.32.9/img.tar.lz4
     features:
       - machine
 

@@ -10,7 +10,7 @@ on:
       - main
 
 jobs:
-  test-e2e:
+  test-e2e-controller:
     name: E2E Tests
     runs-on: ubuntu-latest
     steps:
@@ -34,7 +34,7 @@ jobs:
       - name: Create kind cluster
         run: kind create cluster
 
-      - name: Running Test e2e
+      - name: Running Test e2e-controller
         run: |
           go mod tidy
-          make test-e2e
+          make test-e2e-controller
