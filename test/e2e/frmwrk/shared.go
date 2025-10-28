@@ -527,8 +527,7 @@ func (e2e *E2ECluster) GenerateAndApplyClusterTemplate(ctx context.Context) {
 		// TODO: why does this not work with clusterctl.DefaultInfrastructureProvider?
 		InfrastructureProvider: "capms:v0.6.2",
 		LogFolder:              path.Join(e2e.E2EContext.Environment.artifactsPath, "clusters", e2e.ClusterName),
-		// KubeconfigPath:         "",
-		ClusterctlVariables: e2e.Variables(),
+		ClusterctlVariables:    e2e.Variables(),
 	})
 
 	By("Apply cluster template")
@@ -536,6 +535,12 @@ func (e2e *E2ECluster) GenerateAndApplyClusterTemplate(ctx context.Context) {
 	Expect(err).NotTo(HaveOccurred(), "failed to apply cluster template")
 
 	e2e.Refs.Workload = e2e.E2EContext.Environment.Bootstrap.GetWorkloadCluster(ctx, e2e.NamespaceName, e2e.ClusterName)
+
+	err = copyFile(
+		e2e.Refs.Workload.GetKubeconfigPath(),
+		path.Join(e2e.E2EContext.Environment.artifactsPath, "clusters", e2e.ClusterName, "kubeconfig"),
+	)
+	Expect(err).NotTo(HaveOccurred(), "cannot copy workload kubeconfig file")
 
 	e2e.Refs.Cluster = framework.DiscoveryAndWaitForCluster(ctx, framework.DiscoveryAndWaitForClusterInput{
 		Namespace: e2e.NamespaceName,
@@ -593,4 +598,25 @@ func deleteClusterAndWait(ctx context.Context, input framework.DeleteClusterAndW
 			Namespace: input.Cluster.Namespace,
 		})
 	}, retryableOperationTimeout, retryableOperationInterval).Should(BeEmpty(), "There are still Cluster API resources in the %q namespace", input.Cluster.Namespace)
+}
+
+func copyFile(src, dst string) error {
+	sourceFile, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer sourceFile.Close()
+
+	destinationFile, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer destinationFile.Close()
+
+	_, err = io.Copy(destinationFile, sourceFile)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

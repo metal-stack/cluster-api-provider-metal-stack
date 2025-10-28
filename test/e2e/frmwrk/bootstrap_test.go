@@ -19,15 +19,13 @@ import (
 	"sigs.k8s.io/cluster-api/test/framework/clusterctl"
 )
 
-var _ = Describe("Basic Cluster Creation", Ordered, func() {
+var _ = Describe("Basic Cluster", Ordered, func() {
 
 	BeforeAll(func() {
 		e2eCtx = NewE2EContext()
 		e2eCtx.ProvideBootstrapCluster()
 		e2eCtx.CreateClusterctlConfig(context.TODO())
 		e2eCtx.InitManagementCluster(context.TODO())
-
-		DeferCleanup(e2eCtx.Teardown, context.TODO())
 	})
 
 	kubernetesVersions := strings.Split(os.Getenv("E2E_KUBERNETES_VERSIONS"), ",")
@@ -71,7 +69,7 @@ var _ = Describe("Basic Cluster Creation", Ordered, func() {
 				clusterctl.Move(ctx, clusterctl.MoveInput{
 					LogFolder:            path.Join(ec.E2EContext.Environment.artifactsPath, "clusters", ec.ClusterName, "move-to"),
 					ClusterctlConfigPath: ec.E2EContext.Environment.ClusterctlConfigPath,
-					FromKubeconfigPath:   ec.E2EContext.Environment.kubeconfigPath,
+					FromKubeconfigPath:   ec.E2EContext.Environment.Bootstrap.GetKubeconfigPath(),
 					ToKubeconfigPath:     ec.Refs.Workload.GetKubeconfigPath(),
 					Namespace:            ec.NamespaceName,
 				})
@@ -98,7 +96,7 @@ var _ = Describe("Basic Cluster Creation", Ordered, func() {
 					LogFolder:            path.Join(ec.E2EContext.Environment.artifactsPath, "clusters", ec.ClusterName, "move-back"),
 					ClusterctlConfigPath: ec.E2EContext.Environment.ClusterctlConfigPath,
 					FromKubeconfigPath:   ec.Refs.Workload.GetKubeconfigPath(),
-					ToKubeconfigPath:     ec.E2EContext.Environment.kubeconfigPath,
+					ToKubeconfigPath:     ec.E2EContext.Environment.Bootstrap.GetKubeconfigPath(),
 					Namespace:            ec.NamespaceName,
 				})
 
@@ -124,6 +122,9 @@ var _ = Describe("Basic Cluster Creation", Ordered, func() {
 		})
 	}
 
+	It("teardown management cluster", func() {
+		e2eCtx.Teardown(context.Background())
+	})
 })
 
 func createE2ECluster(ctx context.Context, e2eCtx *E2EContext, cfg ClusterConfig) *E2ECluster {
