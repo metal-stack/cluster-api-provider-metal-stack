@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"strings"
 
 	"github.com/drone/envsubst/v2"
@@ -15,6 +14,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/test/framework"
 	"sigs.k8s.io/cluster-api/test/framework/clusterctl"
 )
