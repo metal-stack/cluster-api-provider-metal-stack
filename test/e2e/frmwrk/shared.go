@@ -605,13 +605,17 @@ func copyFile(src, dst string) error {
 	if err != nil {
 		return err
 	}
-	defer sourceFile.Close()
+	defer func() {
+		Expect(sourceFile.Close()).ToNot(HaveOccurred(), "cannot close source file")
+	}()
 
 	destinationFile, err := os.Create(dst)
 	if err != nil {
 		return err
 	}
-	defer destinationFile.Close()
+	defer func() {
+		Expect(destinationFile.Close()).ToNot(HaveOccurred(), "cannot close destination file")
+	}()
 
 	_, err = io.Copy(destinationFile, sourceFile)
 	if err != nil {
