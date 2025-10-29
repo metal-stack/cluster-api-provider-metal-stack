@@ -10,14 +10,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("High Availability Cluster", Ordered, func() {
-
-	BeforeAll(func() {
-		e2eCtx = NewE2EContext()
-		e2eCtx.ProvideBootstrapCluster()
-		e2eCtx.CreateClusterctlConfig(context.TODO())
-		e2eCtx.InitManagementCluster(context.TODO())
-	})
+var _ = Describe("High Availability Cluster", Ordered, Label("ha"), func() {
 
 	kubernetesVersions := strings.Split(os.Getenv("E2E_KUBERNETES_VERSIONS"), ",")
 	Expect(kubernetesVersions).ToNot(BeEmpty(), "E2E_KUBERNETES_VERSIONS must be set")
@@ -33,7 +26,7 @@ var _ = Describe("High Availability Cluster", Ordered, func() {
 				ctx = context.Background()
 			})
 
-			It("create new cluster", func() {
+			It("create new cluster", Label("create"), func() {
 				ec = createE2ECluster(ctx, e2eCtx, ClusterConfig{
 					SpecName:                 "ha-cluster-creation-" + v,
 					NamespaceName:            fmt.Sprintf("e2e-ha-cluster-creation-%d", i),
@@ -47,13 +40,9 @@ var _ = Describe("High Availability Cluster", Ordered, func() {
 				Expect(ec).ToNot(BeNil())
 			})
 
-			It("delete cluster", func() {
+			It("delete cluster", Label("delete"), func() {
 				ec.Teardown(ctx)
 			})
 		})
 	}
-
-	It("teardown management cluster", func() {
-		e2eCtx.Teardown(context.Background())
-	})
 })

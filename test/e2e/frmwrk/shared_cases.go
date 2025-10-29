@@ -46,7 +46,7 @@ func createE2ECluster(ctx context.Context, e2eCtx *E2EContext, cfg ClusterConfig
 
 	Eventually(func() error {
 		return ec.Refs.Workload.CreateOrUpdate(ctx, []byte(targetResources))
-	}, "5m", "15s").Should(Succeed())
+	}, "10m", "15s").Should(Succeed()) // currently this long delay is required as machines might not be ready yet
 
 	By("Wait for kubeadm control plane")
 	framework.DiscoveryAndWaitForControlPlaneInitialized(ctx, framework.DiscoveryAndWaitForControlPlaneInitializedInput{

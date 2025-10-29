@@ -1,6 +1,7 @@
 package frmwrk
 
 import (
+	"context"
 	"testing"
 
 	"github.com/onsi/ginkgo/v2"
@@ -20,3 +21,20 @@ func TestE2E(t *testing.T) {
 	ctrl.SetLogger(klog.Background())
 	ginkgo.RunSpecs(t, "capms-e2e")
 }
+
+var _ = ginkgo.BeforeSuite(func() {
+	e2eCtx = NewE2EContext()
+	e2eCtx.ProvideBootstrapCluster()
+	e2eCtx.CreateClusterctlConfig(context.TODO())
+	e2eCtx.InitManagementCluster(context.TODO())
+})
+
+var _ = ginkgo.AfterSuite(func() {
+	if ginkgo.CurrentSpecReport().Failed() {
+		// on failure, we skip cleanup to investigate
+		return
+	}
+	if e2eCtx != nil {
+		e2eCtx.Teardown(context.TODO())
+	}
+})

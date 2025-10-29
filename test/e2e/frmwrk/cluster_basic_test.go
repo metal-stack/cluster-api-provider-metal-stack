@@ -17,15 +17,7 @@ import (
 	"sigs.k8s.io/cluster-api/test/framework/clusterctl"
 )
 
-var _ = Describe("Basic Cluster", Ordered, func() {
-
-	BeforeAll(func() {
-		e2eCtx = NewE2EContext()
-		e2eCtx.ProvideBootstrapCluster()
-		e2eCtx.CreateClusterctlConfig(context.TODO())
-		e2eCtx.InitManagementCluster(context.TODO())
-	})
-
+var _ = Describe("Basic Cluster", Ordered, Label("basic"), func() {
 	kubernetesVersions := strings.Split(os.Getenv("E2E_KUBERNETES_VERSIONS"), ",")
 	Expect(kubernetesVersions).ToNot(BeEmpty(), "E2E_KUBERNETES_VERSIONS must be set")
 
@@ -40,11 +32,11 @@ var _ = Describe("Basic Cluster", Ordered, func() {
 				ctx = context.Background()
 			})
 
-			It("create new cluster", func() {
+			It("create new cluster", Label("create"), func() {
 				ec = createE2ECluster(ctx, e2eCtx, ClusterConfig{
 					SpecName:                 "basic-cluster-creation-" + v,
 					NamespaceName:            fmt.Sprintf("e2e-basic-cluster-creation-%d", i),
-					ClusterName:              fmt.Sprintf("simple-%d", i),
+					ClusterName:              fmt.Sprintf("basic-%d", i),
 					KubernetesVersion:        v,
 					ControlPlaneMachineImage: os.Getenv("E2E_CONTROL_PLANE_MACHINE_IMAGE_PREFIX") + strings.TrimPrefix(v, "v"),
 					ControlPlaneMachineCount: 1,
@@ -54,7 +46,7 @@ var _ = Describe("Basic Cluster", Ordered, func() {
 				Expect(ec).ToNot(BeNil())
 			})
 
-			It("move from bootstrap to workload cluster", func() {
+			It("move from bootstrap to workload cluster", Label("move"), func() {
 				Expect(ec).NotTo(BeNil(), "e2e cluster required")
 
 				clusterctl.InitManagementClusterAndWatchControllerLogs(ctx, clusterctl.InitManagementClusterAndWatchControllerLogsInput{
@@ -87,7 +79,7 @@ var _ = Describe("Basic Cluster", Ordered, func() {
 				Expect(err).ToNot(HaveOccurred(), "cluster should be present")
 			})
 
-			It("move from workload to bootstrap cluster", func() {
+			It("move from workload to bootstrap cluster", Label("move"), func() {
 				Expect(ec).NotTo(BeNil(), "e2e cluster required")
 
 				clusterctl.Move(ctx, clusterctl.MoveInput{
@@ -113,13 +105,9 @@ var _ = Describe("Basic Cluster", Ordered, func() {
 				Expect(err).ToNot(HaveOccurred(), "cluster should be present")
 			})
 
-			It("delete cluster", func() {
+			It("delete cluster", Label("delete"), func() {
 				ec.Teardown(ctx)
 			})
 		})
 	}
-
-	It("teardown management cluster", func() {
-		e2eCtx.Teardown(context.Background())
-	})
 })
