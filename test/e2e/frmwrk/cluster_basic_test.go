@@ -7,7 +7,6 @@ import (
 	"path"
 	"strings"
 
-	"github.com/drone/envsubst/v2"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
@@ -15,19 +14,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
-	"sigs.k8s.io/cluster-api/test/framework"
 	"sigs.k8s.io/cluster-api/test/framework/clusterctl"
 )
 
-var _ = Describe("Basic Cluster", Ordered, func() {
-
-	BeforeAll(func() {
-		e2eCtx = NewE2EContext()
-		e2eCtx.ProvideBootstrapCluster()
-		e2eCtx.CreateClusterctlConfig(context.TODO())
-		e2eCtx.InitManagementCluster(context.TODO())
-	})
-
+var _ = Describe("Basic Cluster", Ordered, Label("basic"), func() {
 	kubernetesVersions := strings.Split(os.Getenv("E2E_KUBERNETES_VERSIONS"), ",")
 	Expect(kubernetesVersions).ToNot(BeEmpty(), "E2E_KUBERNETES_VERSIONS must be set")
 
@@ -42,11 +32,11 @@ var _ = Describe("Basic Cluster", Ordered, func() {
 				ctx = context.Background()
 			})
 
-			It("create new cluster", func() {
+			It("create new cluster", Label("create"), func() {
 				ec = createE2ECluster(ctx, e2eCtx, ClusterConfig{
 					SpecName:                 "basic-cluster-creation-" + v,
 					NamespaceName:            fmt.Sprintf("e2e-basic-cluster-creation-%d", i),
-					ClusterName:              fmt.Sprintf("simple-%d", i),
+					ClusterName:              fmt.Sprintf("basic-%d", i),
 					KubernetesVersion:        v,
 					ControlPlaneMachineImage: os.Getenv("E2E_CONTROL_PLANE_MACHINE_IMAGE_PREFIX") + strings.TrimPrefix(v, "v"),
 					ControlPlaneMachineCount: 1,
@@ -56,7 +46,7 @@ var _ = Describe("Basic Cluster", Ordered, func() {
 				Expect(ec).ToNot(BeNil())
 			})
 
-			It("move from bootstrap to workload cluster", func() {
+			It("move from bootstrap to workload cluster", Label("move"), func() {
 				Expect(ec).NotTo(BeNil(), "e2e cluster required")
 
 				clusterctl.InitManagementClusterAndWatchControllerLogs(ctx, clusterctl.InitManagementClusterAndWatchControllerLogsInput{
@@ -89,7 +79,7 @@ var _ = Describe("Basic Cluster", Ordered, func() {
 				Expect(err).ToNot(HaveOccurred(), "cluster should be present")
 			})
 
-			It("move from workload to bootstrap cluster", func() {
+			It("move from workload to bootstrap cluster", Label("move"), func() {
 				Expect(ec).NotTo(BeNil(), "e2e cluster required")
 
 				clusterctl.Move(ctx, clusterctl.MoveInput{
@@ -115,63 +105,9 @@ var _ = Describe("Basic Cluster", Ordered, func() {
 				Expect(err).ToNot(HaveOccurred(), "cluster should be present")
 			})
 
-			It("delete cluster", func() {
+			It("delete cluster", Label("delete"), func() {
 				ec.Teardown(ctx)
-				// TODO: expect resources to be gone
 			})
 		})
 	}
-
-	It("teardown management cluster", func() {
-		e2eCtx.Teardown(context.Background())
-	})
 })
-
-func createE2ECluster(ctx context.Context, e2eCtx *E2EContext, cfg ClusterConfig) *E2ECluster {
-	ec := e2eCtx.NewE2ECluster(cfg)
-
-	ec.SetupMetalStackPreconditions(ctx)
-	ec.SetupNamespace(ctx)
-	ec.GenerateAndApplyClusterTemplate(ctx)
-
-	By("Wait for cluster")
-	controlPlane := framework.GetKubeadmControlPlaneByCluster(ctx, framework.GetKubeadmControlPlaneByClusterInput{
-		Lister:      e2eCtx.Environment.Bootstrap.GetClient(),
-		ClusterName: ec.Refs.Cluster.Name,
-		Namespace:   ec.Refs.Cluster.Namespace,
-	})
-
-	framework.DiscoveryAndWaitForCluster(ctx, framework.DiscoveryAndWaitForClusterInput{
-		Getter:    e2eCtx.Environment.Bootstrap.GetClient(),
-		Namespace: ec.Refs.Cluster.Namespace,
-		Name:      ec.Refs.Cluster.Name,
-	}, e2eCtx.E2EConfig.GetIntervals("default", "wait-cluster")...)
-
-	Expect(controlPlane).To(Not(BeNil()))
-
-	By("Wait for CNI and CCM")
-	targetTemplate, err := os.ReadFile(path.Join(e2eCtx.Environment.artifactsPath, "config", "target", "base.yaml"))
-	Expect(err).ToNot(HaveOccurred())
-
-	vars := ec.Variables()
-	targetResources, err := envsubst.Eval(string(targetTemplate), func(varName string) string {
-		return vars[varName]
-	})
-	Expect(err).ToNot(HaveOccurred())
-
-	Eventually(func() error {
-		return ec.Refs.Workload.CreateOrUpdate(ctx, []byte(targetResources))
-	}, "5m", "15s").Should(Succeed())
-
-	By("Wait for kubeadm control plane")
-	framework.DiscoveryAndWaitForControlPlaneInitialized(ctx, framework.DiscoveryAndWaitForControlPlaneInitializedInput{
-		Lister:  e2eCtx.Environment.Bootstrap.GetClient(),
-		Cluster: ec.Refs.Cluster,
-	}, e2eCtx.E2EConfig.GetIntervals("default", "wait-control-plane")...)
-
-	framework.WaitForClusterToProvision(ctx, framework.WaitForClusterToProvisionInput{
-		Cluster: ec.Refs.Cluster,
-		Getter:  e2eCtx.Environment.Bootstrap.GetClient(),
-	}, e2eCtx.E2EConfig.GetIntervals("default", "wait-cluster-provisioned")...)
-	return ec
-}
