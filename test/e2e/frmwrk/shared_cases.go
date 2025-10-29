@@ -58,5 +58,7 @@ func createE2ECluster(ctx context.Context, e2eCtx *E2EContext, cfg ClusterConfig
 		Cluster: ec.Refs.Cluster,
 		Getter:  e2eCtx.Environment.Bootstrap.GetClient(),
 	}, e2eCtx.E2EConfig.GetIntervals("default", "wait-cluster-provisioned")...)
+
+	ec.Dump(ctx)
 	return ec
 }

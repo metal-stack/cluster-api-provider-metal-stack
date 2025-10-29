@@ -8,17 +8,27 @@ import (
 	"path"
 	"strings"
 
+	"github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/ginkgo/v2" //nolint:staticcheck
-	. "github.com/onsi/gomega"    //nolint:staticcheck
+	"github.com/onsi/ginkgo/v2/types"
+	. "github.com/onsi/gomega" //nolint:staticcheck
 
 	metal "github.com/metal-stack/metal-go"
+	"github.com/metal-stack/metal-go/api/client/ip"
+	"github.com/metal-stack/metal-go/api/client/machine"
+	"github.com/metal-stack/metal-go/api/client/network"
+	"github.com/metal-stack/metal-go/api/models"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/cluster-api/test/framework"
 	"sigs.k8s.io/cluster-api/test/framework/bootstrap"
 	"sigs.k8s.io/cluster-api/test/framework/clusterctl"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	capmsv1alpha1 "github.com/metal-stack/cluster-api-provider-metal-stack/api/v1alpha1"
 )
+
+const e2eMetalStackProjectIDLabel = "e2e-metal-stack-project-id"
 
 type Option func(*E2EContext)
 
@@ -86,7 +96,8 @@ func withDefaultEnvironment() Option {
 		Expect(err).ToNot(HaveOccurred(), "failed to create metal client")
 		e2e.Environment.Metal = mclient
 
-		e2e.Environment.project = e2e.envOrVar("METAL_PROJECT_ID")
+		e2e.Environment.projectID = e2e.envOrVar("METAL_PROJECT_ID")
+		e2e.Environment.projectName = e2e.envOrVar("E2E_METAL_PROJECT_NAME")
 		e2e.Environment.partition = e2e.envOrVar("METAL_PARTITION")
 		e2e.Environment.publicNetwork = e2e.envOrVar("METAL_PUBLIC_NETWORK")
 		e2e.Environment.kubernetesVersions = strings.Split(e2e.envOrVar("E2E_KUBERNETES_VERSIONS"), ",")
@@ -118,7 +129,8 @@ type Environment struct {
 	controlPlaneMachineImagePrefix string
 	workerMachineImagePrefix       string
 	partition                      string
-	project                        string
+	projectID                      string
+	projectName                    string
 	publicNetwork                  string
 	kubeconfigPath                 string
 	artifactsPath                  string
@@ -167,6 +179,10 @@ func (ee *E2EContext) provideKindBootstrapClusterKubeconfig() string {
 	return bootstrapPro.GetKubeconfigPath()
 }
 
+func (ee *E2EContext) projectNamespacePrefix() string {
+	return fmt.Sprintf("e2e-%s-", ee.Environment.projectName)
+}
+
 func (ee *E2EContext) CreateClusterctlConfig(ctx context.Context) {
 	By("Create clusterctl repository config")
 	Expect(ee.Environment.Bootstrap).NotTo(BeNil(), "bootstrap cluster must be provided first")
@@ -200,11 +216,101 @@ func (ee *E2EContext) Teardown(ctx context.Context) {
 	}
 }
 
+func (ee *E2EContext) TeardownMetalStackProject(ctx context.Context) {
+	filter, err := types.ParseLabelFilter(ginkgo.GinkgoLabelFilter())
+	Expect(err).ToNot(HaveOccurred(), "failed to parse ginkgo label filter")
+
+	if !filter([]string{"teardown"}) {
+		return
+	}
+
+	allMachinesInUse, err := ee.Environment.Metal.Machine().FindMachines(machine.NewFindMachinesParamsWithContext(ctx).WithBody(&models.V1MachineFindRequest{
+		PartitionID:       ee.Environment.partition,
+		AllocationProject: ee.Environment.projectID,
+	}), nil)
+	Expect(err).ToNot(HaveOccurred(), "failed to list metal machines for project")
+
+	if ee.Environment.Bootstrap != nil {
+		By("Cleanup all remaining clusters")
+
+		var namespaces corev1.NamespaceList
+		err := ee.Environment.Bootstrap.GetClient().List(ctx, &namespaces, client.MatchingLabels{
+			e2eMetalStackProjectIDLabel: ee.Environment.projectID,
+		})
+		Expect(err).ToNot(HaveOccurred(), "failed to list namespaces in bootstrap cluster")
+
+		for _, ns := range namespaces.Items {
+			By(fmt.Sprintf("Deleting all clusters in namespace %s", ns.Name))
+			framework.DeleteAllClustersAndWait(ctx, framework.DeleteAllClustersAndWaitInput{
+				ClusterProxy:         nil,
+				ClusterctlConfigPath: ee.Environment.ClusterctlConfigPath,
+				Namespace:            ns.Name,
+				ArtifactFolder:       path.Join(ee.Environment.artifactsPath, "clusters", "bootstrap"),
+			})
+
+			framework.DeleteNamespace(ctx, framework.DeleteNamespaceInput{
+				Deleter: ee.Environment.Bootstrap.GetClient(),
+				Name:    ns.Name,
+			})
+		}
+	}
+
+	By("Cleanup all remaining machines")
+	ms, err := ee.Environment.Metal.Machine().FindMachines(machine.NewFindMachinesParamsWithContext(ctx).WithBody(&models.V1MachineFindRequest{
+		PartitionID:       ee.Environment.partition,
+		AllocationProject: ee.Environment.projectID,
+	}), nil)
+	Expect(err).ToNot(HaveOccurred(), "failed to list metal machines for project")
+
+	for _, m := range ms.Payload {
+		By(fmt.Sprintf("Freeing machine %s", *m.ID))
+		_, err := ee.Environment.Metal.Machine().FreeMachine(machine.NewFreeMachineParamsWithContext(ctx).WithID(*m.ID), nil)
+		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to free metal machine %s", *m.ID))
+	}
+
+	By("Cleanup all remaining IPs")
+	ips, err := ee.Environment.Metal.IP().FindIPs(ip.NewFindIPsParamsWithContext(ctx).WithBody(&models.V1IPFindRequest{
+		Projectid: ee.Environment.projectID,
+	}), nil)
+	Expect(err).ToNot(HaveOccurred(), "failed to list metal IPs for project")
+
+	for _, addr := range ips.Payload {
+		_, err := ee.Environment.Metal.IP().FreeIP(ip.NewFreeIPParamsWithContext(ctx).WithID(*addr.Ipaddress), nil)
+		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to free metal IP %s", *addr.Ipaddress))
+	}
+
+	By("Cleanup all remaining networks")
+	nets, err := ee.Environment.Metal.Network().FindNetworks(network.NewFindNetworksParamsWithContext(ctx).WithBody(&models.V1NetworkFindRequest{
+		Projectid: ee.Environment.projectID,
+	}), nil)
+	Expect(err).ToNot(HaveOccurred(), "failed to list metal networks for project")
+
+	for _, net := range nets.Payload {
+		_, err := ee.Environment.Metal.Network().FreeNetwork(network.NewFreeNetworkParamsWithContext(ctx).WithID(*net.ID), nil)
+		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to free metal network %s", *net.ID))
+	}
+
+	By("Wait for all machines to be waiting")
+	for _, m := range allMachinesInUse.Payload {
+		By(fmt.Sprintf("Waiting for machine %s", *m.ID))
+		Eventually(ctx, func(g Gomega) {
+			mr, err := ee.Environment.Metal.Machine().FindMachine(machine.NewFindMachineParamsWithContext(ctx).WithID(*m.ID), nil)
+			g.Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to get metal machine %s", *m.ID))
+
+			event := mr.Payload.Events.Log[0]
+			g.Expect(event.Event).ToNot(BeNil(), "machine event is nil")
+			g.Expect(event.Event).To(HaveValue(Equal("Waiting")), "machine is not in waiting state")
+		}, "10m", "10s").WithContext(ctx).Should(Succeed(), "timed out waiting for machine %s to be in waiting state", *m.ID)
+	}
+}
+
 func (e2e *E2EContext) NewE2ECluster(cfg ClusterConfig) *E2ECluster {
 	Expect(cfg.ClusterName).ToNot(BeEmpty(), "ClusterName must be set")
 	Expect(cfg.NamespaceName).ToNot(BeEmpty(), "NamespaceName must be set")
 	Expect(cfg.SpecName).ToNot(BeEmpty(), "SpecName must be set")
 	Expect(cfg.KubernetesVersion).ToNot(BeEmpty(), "KubernetesVersion must be set")
+
+	cfg.NamespaceName = e2e.projectNamespacePrefix() + cfg.NamespaceName
 
 	if cfg.FirewallImage == "" {
 		cfg.FirewallImage = e2e.envOrVar("FIREWALL_IMAGE")

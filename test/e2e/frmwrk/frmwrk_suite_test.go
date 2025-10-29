@@ -24,6 +24,7 @@ func TestE2E(t *testing.T) {
 
 var _ = ginkgo.BeforeSuite(func() {
 	e2eCtx = NewE2EContext()
+	e2eCtx.TeardownMetalStackProject(context.TODO())
 	e2eCtx.ProvideBootstrapCluster()
 	e2eCtx.CreateClusterctlConfig(context.TODO())
 	e2eCtx.InitManagementCluster(context.TODO())

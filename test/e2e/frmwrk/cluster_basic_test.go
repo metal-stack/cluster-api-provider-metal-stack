@@ -24,19 +24,24 @@ var _ = Describe("Basic Cluster", Ordered, Label("basic"), func() {
 	for i, v := range kubernetesVersions {
 		Context(fmt.Sprintf("with kubernetes %s", v), Ordered, func() {
 			var (
-				ec  *E2ECluster
-				ctx context.Context
+				ec   *E2ECluster
+				ctx  context.Context
+				done func()
 			)
 
 			BeforeEach(func() {
-				ctx = context.Background()
+				ctx, done = context.WithCancel(context.Background())
+			})
+
+			AfterEach(func() {
+				done()
 			})
 
 			It("create new cluster", Label("create"), func() {
 				ec = createE2ECluster(ctx, e2eCtx, ClusterConfig{
 					SpecName:                 "basic-cluster-creation-" + v,
-					NamespaceName:            fmt.Sprintf("e2e-basic-cluster-creation-%d", i),
-					ClusterName:              fmt.Sprintf("basic-%d", i),
+					NamespaceName:            fmt.Sprintf("basic-%d", i),
+					ClusterName:              "basic-cluster",
 					KubernetesVersion:        v,
 					ControlPlaneMachineImage: os.Getenv("E2E_CONTROL_PLANE_MACHINE_IMAGE_PREFIX") + strings.TrimPrefix(v, "v"),
 					ControlPlaneMachineCount: 1,
@@ -105,7 +110,7 @@ var _ = Describe("Basic Cluster", Ordered, Label("basic"), func() {
 				Expect(err).ToNot(HaveOccurred(), "cluster should be present")
 			})
 
-			It("delete cluster", Label("delete"), func() {
+			It("delete cluster", Label("teardown"), func() {
 				ec.Teardown(ctx)
 			})
 		})
