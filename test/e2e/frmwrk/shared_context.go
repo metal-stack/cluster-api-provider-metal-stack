@@ -8,9 +8,8 @@ import (
 	"path"
 	"strings"
 
-	"github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/ginkgo/v2" //nolint:staticcheck
-	"github.com/onsi/ginkgo/v2/types"
+	ginkgotypes "github.com/onsi/ginkgo/v2/types"
 	. "github.com/onsi/gomega" //nolint:staticcheck
 
 	metal "github.com/metal-stack/metal-go"
@@ -217,7 +216,7 @@ func (ee *E2EContext) Teardown(ctx context.Context) {
 }
 
 func (ee *E2EContext) TeardownMetalStackProject(ctx context.Context) {
-	filter, err := types.ParseLabelFilter(ginkgo.GinkgoLabelFilter())
+	filter, err := ginkgotypes.ParseLabelFilter(GinkgoLabelFilter())
 	Expect(err).ToNot(HaveOccurred(), "failed to parse ginkgo label filter")
 
 	if !filter([]string{"teardown"}) {
