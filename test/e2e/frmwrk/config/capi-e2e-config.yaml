@@ -145,6 +145,9 @@ variables:
   WORKER_MACHINE_SIZE: "c1-medium-x86"
   CONTROL_PLANE_MACHINE_COUNT: "1"
   WORKER_MACHINE_COUNT: "1"
+  # K8s Upgrade variables
+  KUBERNETES_VERSION_UPGRADE_FROM: "v1.31.13"
+  KUBERNETES_VERSION_UPGRADE_TO: "v1.32.9"
 
 intervals:
   default/wait-controllers: ["4m", "10s"]
