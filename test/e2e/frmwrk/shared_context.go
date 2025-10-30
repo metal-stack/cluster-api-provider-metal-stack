@@ -206,6 +206,7 @@ func (ee *E2EContext) InitManagementCluster(ctx context.Context) {
 		ClusterctlConfigPath:    ee.Environment.ClusterctlConfigPath,
 		InfrastructureProviders: ee.E2EConfig.InfrastructureProviders(),
 		LogFolder:               path.Join(ee.Environment.artifactsPath, "clusters", "bootstrap"),
+		AddonProviders:          ee.E2EConfig.AddonProviders(),
 	})
 }
 
