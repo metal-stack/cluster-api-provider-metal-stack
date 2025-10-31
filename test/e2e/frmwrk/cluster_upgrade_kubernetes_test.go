@@ -3,9 +3,11 @@ package frmwrk
 import (
 	"context"
 	"fmt"
-	. "github.com/onsi/ginkgo/v2" //nolint:staticcheck
-	"k8s.io/utils/ptr"
 	"os"
+
+	"k8s.io/utils/ptr"
+
+	. "github.com/onsi/ginkgo/v2" //nolint:staticcheck
 
 	capi_e2e "sigs.k8s.io/cluster-api/test/e2e"
 )
@@ -19,7 +21,7 @@ var _ = Describe("Upgrade Kubernetes Cluster Version", Label("upgrade"), func() 
 		SpecName:                 "cluster-upgrade",
 		NamespaceName:            "cluster-upgrade",
 		ClusterName:              "cluster-upgrade",
-		KubernetesVersion:        fromKubernetesVersion, //TBD
+		KubernetesVersion:        fromKubernetesVersion,
 		ControlPlaneMachineImage: os.Getenv("E2E_CONTROL_PLANE_MACHINE_IMAGE_PREFIX") + fromKubernetesVersion,
 		ControlPlaneMachineCount: 1,
 		WorkerMachineImage:       os.Getenv("E2E_WORKER_MACHINE_IMAGE_PREFIX") + fromKubernetesVersion,
