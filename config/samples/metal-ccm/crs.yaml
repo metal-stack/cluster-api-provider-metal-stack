@@ -1,3 +1,12 @@
+# Requires the following variables to be replaced (with envsubst)
+# - NAMESPACE
+# - CLUSTER_NAME
+# - METAL_API_URL
+# - METAL_API_HMAC
+# - METAL_API_HMAC_AUTH_TYPE
+# - METAL_PROJECT_ID
+# - METAL_PARTITION
+# - METAL_NODE_NETWORK_ID
 ---
 apiVersion: addons.cluster.x-k8s.io/v1beta1
 kind: ClusterResourceSet
@@ -8,6 +17,7 @@ spec:
   clusterSelector:
     matchLabels:
       cluster.metal-stack.io/infrastructure-provider: metal-stack
+      cluster.x-k8s.io/cluster-name: ${CLUSTER_NAME}
   resources:
     - name: crs-cloud-controller-manager
       kind: ConfigMap
