@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path"
+	"slices"
 	"strings"
 
 	. "github.com/onsi/ginkgo/v2" //nolint:staticcheck
@@ -254,6 +255,10 @@ func (ee *E2EContext) TeardownMetalStackProject(ctx context.Context) {
 		}
 	}
 
+	isE2ETestTag := func(tag string) bool {
+		return strings.HasPrefix(tag, capmsv1alpha1.TagInfraClusterResource+"="+ee.projectNamespacePrefix())
+	}
+
 	By("Cleanup all remaining machines")
 	ms, err := ee.Environment.Metal.Machine().FindMachines(machine.NewFindMachinesParamsWithContext(ctx).WithBody(&models.V1MachineFindRequest{
 		PartitionID:       ee.Environment.partition,
@@ -262,6 +267,9 @@ func (ee *E2EContext) TeardownMetalStackProject(ctx context.Context) {
 	Expect(err).ToNot(HaveOccurred(), "failed to list metal machines for project")
 
 	for _, m := range ms.Payload {
+		if !slices.ContainsFunc(m.Tags, isE2ETestTag) {
+			continue
+		}
 		By(fmt.Sprintf("Freeing machine %s", *m.ID))
 		_, err := ee.Environment.Metal.Machine().FreeMachine(machine.NewFreeMachineParamsWithContext(ctx).WithID(*m.ID), nil)
 		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to free metal machine %s", *m.ID))
@@ -274,6 +282,9 @@ func (ee *E2EContext) TeardownMetalStackProject(ctx context.Context) {
 	Expect(err).ToNot(HaveOccurred(), "failed to list metal IPs for project")
 
 	for _, addr := range ips.Payload {
+		if !slices.ContainsFunc(addr.Tags, isE2ETestTag) {
+			continue
+		}
 		_, err := ee.Environment.Metal.IP().FreeIP(ip.NewFreeIPParamsWithContext(ctx).WithID(*addr.Ipaddress), nil)
 		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to free metal IP %s", *addr.Ipaddress))
 	}
@@ -285,12 +296,18 @@ func (ee *E2EContext) TeardownMetalStackProject(ctx context.Context) {
 	Expect(err).ToNot(HaveOccurred(), "failed to list metal networks for project")
 
 	for _, net := range nets.Payload {
+		if label, ok := net.Labels[capmsv1alpha1.TagInfraClusterResource]; !ok || !strings.HasPrefix(label, ee.projectNamespacePrefix()) {
+			continue
+		}
 		_, err := ee.Environment.Metal.Network().FreeNetwork(network.NewFreeNetworkParamsWithContext(ctx).WithID(*net.ID), nil)
 		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to free metal network %s", *net.ID))
 	}
 
 	By("Wait for all machines to be waiting")
 	for _, m := range allMachinesInUse.Payload {
+		if !slices.ContainsFunc(m.Tags, isE2ETestTag) {
+			continue
+		}
 		By(fmt.Sprintf("Waiting for machine %s", *m.ID))
 		Eventually(ctx, func(g Gomega) {
 			mr, err := ee.Environment.Metal.Machine().FindMachine(machine.NewFindMachineParamsWithContext(ctx).WithID(*m.ID), nil)

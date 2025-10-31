@@ -148,7 +148,8 @@ func (e2e *E2ECluster) setupNodeNetwork(ctx context.Context) {
 		Name:        e2e.ClusterName + "-node",
 		Description: fmt.Sprintf("Node network for %s", e2e.ClusterName),
 		Labels: map[string]string{
-			"e2e-test": e2e.SpecName,
+			"e2e-test":                            e2e.SpecName,
+			capmsv1alpha1.TagInfraClusterResource: e2e.NamespaceName + "." + e2e.ClusterName,
 		},
 	}
 	net, err := e2e.E2EContext.Environment.Metal.Network().AllocateNetwork(metalnetwork.NewAllocateNetworkParamsWithContext(ctx).WithBody(nar), nil)
@@ -180,7 +181,7 @@ func (e2e *E2ECluster) setupFirewall(ctx context.Context) {
 		Sizeid:      &e2e.FirewallSize,
 		Imageid:     &e2e.FirewallImage,
 		Tags: []string{
-			fmt.Sprintf("%s=%s", capmsv1alpha1.TagInfraClusterResource, e2e.ClusterName),
+			fmt.Sprintf("%s=%s.%s", capmsv1alpha1.TagInfraClusterResource, e2e.NamespaceName, e2e.ClusterName),
 			fmt.Sprintf("%s=%s", "e2e-test", e2e.SpecName),
 		},
 		Networks: []*metalmodels.V1MachineAllocationNetwork{
@@ -268,7 +269,7 @@ func (e2e *E2ECluster) setupControlPlaneIP(ctx context.Context) {
 		Name:        e2e.ClusterName + "-cp-ip",
 		Description: "Control plane IP for " + e2e.ClusterName,
 		Tags: []string{
-			fmt.Sprintf("%s=%s", capmsv1alpha1.TagInfraClusterResource, e2e.ClusterName),
+			fmt.Sprintf("%s=%s.%s", capmsv1alpha1.TagInfraClusterResource, e2e.NamespaceName, e2e.ClusterName),
 			fmt.Sprintf("%s=%s", "e2e-test", e2e.SpecName),
 		},
 		Networkid: ptr.To(e2e.E2EContext.Environment.publicNetwork),
