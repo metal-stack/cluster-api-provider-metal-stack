@@ -46,6 +46,8 @@ help: ## Display this help.
 
 ##@ Releases
 
+LATEST_RELEASE_TAG := $(shell git describe --tags `git rev-list --tags --max-count=1`)
+
 .PHONY: release-manifests
 release-manifests: $(KUSTOMIZE) build-installer ## Builds the manifests to publish with a release
 	mkdir -p $(RELEASE_DIR)
@@ -57,7 +59,7 @@ release-manifests: $(KUSTOMIZE) build-installer ## Builds the manifests to publi
 
 ifneq ($(CI),true)
 	# for devel purposes with local overwrite in clusterctl.yaml
-	mkdir -p infrastructure-metal-stack && cd infrastructure-metal-stack && [ ! -L "$(shell git describe --tags `git rev-list --tags --max-count=1`)" ] && ln -s ../.release $(shell git describe --tags `git rev-list --tags --max-count=1`) || echo "devel symlink already exists"
+	mkdir -p infrastructure-metal-stack && cd infrastructure-metal-stack && [ ! -L "$(LATEST_RELEASE_TAG)" ] && ln -s ../.release $(LATEST_RELEASE_TAG) || echo "devel symlink already exists"
 endif
 
 ##@ Development
