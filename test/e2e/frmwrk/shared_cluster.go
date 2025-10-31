@@ -309,6 +309,7 @@ func (e2e *E2ECluster) GenerateAndApplyClusterTemplate(ctx context.Context) {
 		ControlPlaneMachineCount: &e2e.ControlPlaneMachineCount,
 		WorkerMachineCount:       &e2e.WorkerMachineCount,
 		ClusterctlConfigPath:     e2e.E2EContext.Environment.ClusterctlConfigPath,
+		Flavor:                   e2e.E2EContext.Environment.Flavor,
 		// TODO: why does this not work with clusterctl.DefaultInfrastructureProvider?
 		InfrastructureProvider: "capms:v0.6.2",
 		LogFolder:              path.Join(e2e.E2EContext.Environment.artifactsPath, "clusters", e2e.ClusterName),

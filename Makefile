@@ -137,6 +137,7 @@ E2E_FIREWALL_IMAGE ?= "firewall-ubuntu-3.0"
 E2E_FIREWALL_SIZE ?= "v1-small-x86"
 E2E_FIREWALL_NETWORKS ?= "internet-mini-lab"
 ARTIFACTS ?= "$(PWD)/_artifacts"
+E2E_FLAVOR ?= "calico"
 # Can be something like: basic && !move
 E2E_LABEL_FILTER ?= ""
 
@@ -160,6 +161,7 @@ test-e2e: manifests generate fmt vet ginkgo
 	FIREWALL_SIZE=$(E2E_FIREWALL_SIZE) \
 	FIREWALL_NETWORKS=$(E2E_FIREWALL_NETWORKS) \
 	ARTIFACTS=$(ARTIFACTS) \
+	E2E_FLAVOR=$(E2E_FLAVOR) \
 	$(GINKGO) -vv -r --junit-report="junit.e2e_suite.xml" --output-dir="$(ARTIFACTS)" --label-filter="$(E2E_LABEL_FILTER)" -timeout 60m ./test/e2e/frmwrk
 
 .PHONY: lint
