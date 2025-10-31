@@ -103,6 +103,7 @@ func withDefaultEnvironment() Option {
 		e2e.Environment.kubernetesVersions = strings.Split(e2e.envOrVar("E2E_KUBERNETES_VERSIONS"), ",")
 		e2e.Environment.controlPlaneMachineImagePrefix = e2e.envOrVar("E2E_CONTROL_PLANE_MACHINE_IMAGE_PREFIX")
 		e2e.Environment.workerMachineImagePrefix = e2e.envOrVar("E2E_WORKER_MACHINE_IMAGE_PREFIX")
+		e2e.Environment.Flavor = e2e.envOrVar("E2E_DEFAULT_FLAVOR")
 
 		_ = e2e.envOrVar("CONTROL_PLANE_MACHINE_SIZE")
 		_ = e2e.envOrVar("WORKER_MACHINE_SIZE")
@@ -124,6 +125,7 @@ type Environment struct {
 	Bootstrap            framework.ClusterProxy
 	Metal                metal.Client
 	ClusterctlConfigPath string
+	Flavor               string
 
 	kubernetesVersions             []string
 	controlPlaneMachineImagePrefix string
@@ -206,6 +208,7 @@ func (ee *E2EContext) InitManagementCluster(ctx context.Context) {
 		ClusterctlConfigPath:    ee.Environment.ClusterctlConfigPath,
 		InfrastructureProviders: ee.E2EConfig.InfrastructureProviders(),
 		LogFolder:               path.Join(ee.Environment.artifactsPath, "clusters", "bootstrap"),
+		AddonProviders:          ee.E2EConfig.AddonProviders(),
 	})
 }
 
