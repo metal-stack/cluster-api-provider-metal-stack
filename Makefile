@@ -52,8 +52,13 @@ release-manifests: $(KUSTOMIZE) build-installer ## Builds the manifests to publi
 	$(KUSTOMIZE) build config/default > $(RELEASE_DIR)/infrastructure-components.yaml
 	sed -i 's!image: $(IMG_NAME):latest!image: $(IMG_NAME):$(IMG_TAG)!' $(RELEASE_DIR)/infrastructure-components.yaml
 	cp metadata.yaml $(RELEASE_DIR)/metadata.yaml
-	cp config/clusterctl-templates/cluster-template.yaml $(RELEASE_DIR)/cluster-template.yaml
+	cp config/clusterctl-templates/cluster-template*.yaml $(RELEASE_DIR)/
 	cp config/clusterctl-templates/example_variables.rc $(RELEASE_DIR)/example_variables.rc
+
+ifneq ($(CI),true)
+	# for devel purposes with local overwrite in clusterctl.yaml
+	mkdir -p infrastructure-metal-stack && cd infrastructure-metal-stack && [ ! -L "$(shell git describe --tags `git rev-list --tags --max-count=1`)" ] && ln -s ../.release $(shell git describe --tags `git rev-list --tags --max-count=1`) || echo "devel symlink already exists"
+endif
 
 ##@ Development
 
@@ -147,7 +152,7 @@ test-e2e: manifests generate fmt vet ginkgo
 	FIREWALL_SIZE=$(E2E_FIREWALL_SIZE) \
 	FIREWALL_NETWORKS=$(E2E_FIREWALL_NETWORKS) \
 	ARTIFACTS=$(ARTIFACTS) \
-	$(GINKGO) -vv -r --junit-report="junit.e2e_suite.xml" --output-dir="$(ARTIFACTS)" --label-filter="$(E2E_LABEL_FILTER)" -timeout 60m ./test/e2e/frmwrk 
+	$(GINKGO) -vv -r --junit-report="junit.e2e_suite.xml" --output-dir="$(ARTIFACTS)" --label-filter="$(E2E_LABEL_FILTER)" -timeout 60m ./test/e2e/frmwrk
 
 .PHONY: lint
 lint: golangci-lint ## Run golangci-lint linter
