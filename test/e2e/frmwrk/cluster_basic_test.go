@@ -24,19 +24,24 @@ var _ = Describe("Basic Cluster", Ordered, Label("basic"), func() {
 	for i, v := range kubernetesVersions {
 		Context(fmt.Sprintf("with kubernetes %s", v), Ordered, func() {
 			var (
-				ec  *E2ECluster
-				ctx context.Context
+				ec   *E2ECluster
+				ctx  context.Context
+				done func()
 			)
 
 			BeforeEach(func() {
-				ctx = context.Background()
+				ctx, done = context.WithCancel(context.Background())
 			})
 
-			It("create new cluster", Label("create"), func() {
+			AfterEach(func() {
+				done()
+			})
+
+			It("create new cluster", Label("basic", "create"), func() {
 				ec = createE2ECluster(ctx, e2eCtx, ClusterConfig{
 					SpecName:                 "basic-cluster-creation-" + v,
-					NamespaceName:            fmt.Sprintf("e2e-basic-cluster-creation-%d", i),
-					ClusterName:              fmt.Sprintf("basic-%d", i),
+					NamespaceName:            fmt.Sprintf("basic-%d", i),
+					ClusterName:              "basic-cluster",
 					KubernetesVersion:        v,
 					ControlPlaneMachineImage: os.Getenv("E2E_CONTROL_PLANE_MACHINE_IMAGE_PREFIX") + strings.TrimPrefix(v, "v"),
 					ControlPlaneMachineCount: 1,
@@ -46,7 +51,7 @@ var _ = Describe("Basic Cluster", Ordered, Label("basic"), func() {
 				Expect(ec).ToNot(BeNil())
 			})
 
-			It("move from bootstrap to workload cluster", Label("move"), func() {
+			It("move from bootstrap to workload cluster", Label("basic", "move"), func() {
 				Expect(ec).NotTo(BeNil(), "e2e cluster required")
 
 				clusterctl.InitManagementClusterAndWatchControllerLogs(ctx, clusterctl.InitManagementClusterAndWatchControllerLogsInput{
@@ -79,7 +84,7 @@ var _ = Describe("Basic Cluster", Ordered, Label("basic"), func() {
 				Expect(err).ToNot(HaveOccurred(), "cluster should be present")
 			})
 
-			It("move from workload to bootstrap cluster", Label("move"), func() {
+			It("move from workload to bootstrap cluster", Label("basic", "move"), func() {
 				Expect(ec).NotTo(BeNil(), "e2e cluster required")
 
 				clusterctl.Move(ctx, clusterctl.MoveInput{
@@ -105,7 +110,7 @@ var _ = Describe("Basic Cluster", Ordered, Label("basic"), func() {
 				Expect(err).ToNot(HaveOccurred(), "cluster should be present")
 			})
 
-			It("delete cluster", Label("delete"), func() {
+			It("delete cluster", Label("basic", "teardown"), func() {
 				ec.Teardown(ctx)
 			})
 		})

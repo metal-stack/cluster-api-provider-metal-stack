@@ -111,6 +111,7 @@ E2E_METAL_API_URL ?= "$(METALCTL_API_URL)"
 E2E_METAL_API_HMAC ?= "$(METALCTL_HMAC)"
 E2E_METAL_API_HMAC_AUTH_TYPE ?= "$(or $(METALCTL_HMAC_AUTH_TYPE),Metal-Admin)"
 E2E_METAL_PROJECT_ID ?= "00000000-0000-0000-0000-000000000001"
+E2E_METAL_PROJECT_NAME ?= "test"
 E2E_METAL_PARTITION ?= "mini-lab"
 E2E_METAL_PUBLIC_NETWORK ?= "internet-mini-lab"
 E2E_KUBERNETES_VERSIONS ?= "v1.32.9"
@@ -126,7 +127,7 @@ ARTIFACTS ?= "$(PWD)/_artifacts"
 E2E_LABEL_FILTER ?= ""
 
 .PHONY: test-e2e
-test-e2e: manifests generate fmt vet ginkgo
+test-e2e: manifests generate fmt vet ginkgo sonobuoy
 	rm -rf $(ARTIFACTS)/config/target
 
 	mkdir -p $(ARTIFACTS)/config/target
@@ -136,6 +137,7 @@ test-e2e: manifests generate fmt vet ginkgo
 	METAL_API_HMAC=$(E2E_METAL_API_HMAC) \
 	METAL_API_HMAC_AUTH_TYPE=$(E2E_METAL_API_HMAC_AUTH_TYPE) \
 	METAL_PROJECT_ID=$(E2E_METAL_PROJECT_ID) \
+	E2E_METAL_PROJECT_NAME=$(E2E_METAL_PROJECT_NAME) \
 	METAL_PARTITION=$(E2E_METAL_PARTITION) \
 	METAL_PUBLIC_NETWORK=$(E2E_METAL_PUBLIC_NETWORK) \
 	E2E_KUBERNETES_VERSIONS=$(E2E_KUBERNETES_VERSIONS) \
@@ -147,7 +149,8 @@ test-e2e: manifests generate fmt vet ginkgo
 	FIREWALL_SIZE=$(E2E_FIREWALL_SIZE) \
 	FIREWALL_NETWORKS=$(E2E_FIREWALL_NETWORKS) \
 	ARTIFACTS=$(ARTIFACTS) \
-	$(GINKGO) -vv -r --junit-report="junit.e2e_suite.xml" --output-dir="$(ARTIFACTS)" --label-filter="$(E2E_LABEL_FILTER)" -timeout 60m ./test/e2e/frmwrk 
+	SONOBUOY_PATH=$(SONOBUOY) \
+	$(GINKGO) -vv -r --junit-report="junit.e2e_suite.xml" --output-dir="$(ARTIFACTS)" --label-filter="$(E2E_LABEL_FILTER)" -timeout 240m ./test/e2e/frmwrk
 
 .PHONY: lint
 lint: golangci-lint ## Run golangci-lint linter
@@ -243,6 +246,7 @@ CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 ENVTEST ?= $(LOCALBIN)/setup-envtest
 GINKGO ?= $(LOCALBIN)/ginkgo
 GOLANGCI_LINT = $(LOCALBIN)/golangci-lint
+SONOBUOY ?= $(LOCALBIN)/sonobuoy
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v5.4.3
@@ -250,6 +254,7 @@ CONTROLLER_TOOLS_VERSION ?= v0.16.4
 ENVTEST_VERSION ?= release-0.19
 GOLANGCI_LINT_VERSION ?= v1.61.0
 GINKGO_VERSION ?= v2.23.3
+SONOBUOY_VERSION ?= latest
 
 .PHONY: kustomize
 kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.
@@ -272,9 +277,14 @@ $(GOLANGCI_LINT): $(LOCALBIN)
 	$(call go-install-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/cmd/golangci-lint,$(GOLANGCI_LINT_VERSION))
 
 .PHONY: ginkgo
-ginkgo: $(GINKGO) ## Download setup-envtest locally if necessary.
+ginkgo: $(GINKGO) ## Download ginkgo locally if necessary.
 $(GINKGO): $(LOCALBIN)
 	$(call go-install-tool,$(GINKGO),github.com/onsi/ginkgo/v2/ginkgo,$(GINKGO_VERSION))
+
+.PHONY: sonobuoy
+sonobuoy: $(SONOBUOY) ## Download sonobuoy locally if necessary.
+$(SONOBUOY): $(LOCALBIN)
+	$(call go-install-tool,$(SONOBUOY),github.com/vmware-tanzu/sonobuoy,$(SONOBUOY_VERSION))
 
 # go-install-tool will 'go install' any package with custom target and name of binary, if it doesn't exist
 # $1 - target path with name of binary
