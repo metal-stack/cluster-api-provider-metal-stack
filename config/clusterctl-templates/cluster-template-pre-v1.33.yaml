@@ -68,7 +68,8 @@ spec:
     format: ignition
     clusterConfiguration:
       apiServer:
-        extraArgs: {}
+        extraArgs:
+          cloud-provider: external
       controllerManager:
         extraArgs:
           cloud-provider: external
@@ -193,7 +194,8 @@ spec:
       format: ignition
       clusterConfiguration:
         apiServer:
-          extraArgs: {}
+          extraArgs:
+            cloud-provider: external
         controllerManager:
           extraArgs:
             cloud-provider: external

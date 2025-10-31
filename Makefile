@@ -46,14 +46,28 @@ help: ## Display this help.
 
 ##@ Releases
 
+LATEST_RELEASE_TAG := $(shell git describe --tags `git rev-list --tags --max-count=1`)
+
 .PHONY: release-manifests
 release-manifests: $(KUSTOMIZE) build-installer ## Builds the manifests to publish with a release
 	mkdir -p $(RELEASE_DIR)
 	$(KUSTOMIZE) build config/default > $(RELEASE_DIR)/infrastructure-components.yaml
 	sed -i 's!image: $(IMG_NAME):latest!image: $(IMG_NAME):$(IMG_TAG)!' $(RELEASE_DIR)/infrastructure-components.yaml
 	cp metadata.yaml $(RELEASE_DIR)/metadata.yaml
-	cp config/clusterctl-templates/cluster-template.yaml $(RELEASE_DIR)/cluster-template.yaml
+	cp config/clusterctl-templates/cluster-template*.yaml $(RELEASE_DIR)/
 	cp config/clusterctl-templates/example_variables.rc $(RELEASE_DIR)/example_variables.rc
+
+ifneq ($(CI),true)
+	# for devel purposes with local overwrite in clusterctl.yaml
+	# $ cat ~/.config/cluster-api/clusterctl.yaml                                                                                                                                                                                                           1.25.3 13:33:07
+	# providers:
+	#   - name: "metal-stack"
+	#     # url: "https://github.com/metal-stack/cluster-api-provider-metal-stack/releases/latest/download/infrastructure-components.yaml"
+	#     url: <your-repo-path>/infrastructure-metal-stack/$(LATEST_RELEASE_TAG)/infrastructure-components.yaml
+	#     type: InfrastructureProvider
+	rm -rf infrastructure-metal-stack
+	mkdir -p infrastructure-metal-stack && cd infrastructure-metal-stack && ln -s ../.release $(LATEST_RELEASE_TAG)
+endif
 
 ##@ Development
 
@@ -149,7 +163,7 @@ test-e2e: manifests generate fmt vet ginkgo
 	FIREWALL_SIZE=$(E2E_FIREWALL_SIZE) \
 	FIREWALL_NETWORKS=$(E2E_FIREWALL_NETWORKS) \
 	ARTIFACTS=$(ARTIFACTS) \
-	$(GINKGO) -vv -r --junit-report="junit.e2e_suite.xml" --output-dir="$(ARTIFACTS)" --label-filter="$(E2E_LABEL_FILTER)" -timeout 60m ./test/e2e/frmwrk 
+	$(GINKGO) -vv -r --junit-report="junit.e2e_suite.xml" --output-dir="$(ARTIFACTS)" --label-filter="$(E2E_LABEL_FILTER)" -timeout 60m ./test/e2e/frmwrk
 
 .PHONY: lint
 lint: golangci-lint ## Run golangci-lint linter

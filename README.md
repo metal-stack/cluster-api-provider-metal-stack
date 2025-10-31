@@ -170,3 +170,13 @@ When generating your cluster, set `POD_CIDR` to your desired value.
 ```bash
 export POD_CIDR=["10.240.0.0/12"]
 ```
+
+## Flavors
+
+You might choose from different cluster template [flavors](https://cluster-api.sigs.k8s.io/clusterctl/commands/generate-cluster.html?highlight=flavor#flavors) to generate manifests with clusterctl. Here is a table describing the available flavors:
+
+| Name      | Description                                                                                                                                                                                                                                                                            | K8s Compatibility |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- |
+|           | This is the default flavor without providing the `--flavor` flag. This expects the user to deploy a CNI and a CCM.                                                                                                                                                                     | >= v1.33          |
+| calico    | Installs [calico](https://docs.tigera.io/calico/latest/about/) CNI along with [metal-ccm](https://github.com/metal-stack/metal-ccm). Depends on `ClusterResourceSet` and the [Add-on Provider for Helm](https://github.com/kubernetes-sigs/cluster-api-addon-provider-helm/tree/main). | >= v1.33          |
+| pre-v1.33 | The same as the default flavor but working for K8s versions < v1.33.                                                                                                                                                                                                                   | < v1.33           |
