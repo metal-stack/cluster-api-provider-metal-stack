@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/onsi/ginkgo/v2"
+	ginkgotypes "github.com/onsi/ginkgo/v2/types"
 	. "github.com/onsi/gomega"
 
 	"k8s.io/klog/v2"
@@ -36,6 +37,12 @@ var _ = ginkgo.AfterSuite(func() {
 		return
 	}
 	if e2eCtx != nil {
+		filter, err := ginkgotypes.ParseLabelFilter(ginkgo.GinkgoLabelFilter())
+		Expect(err).ToNot(HaveOccurred(), "failed to parse ginkgo label filter")
+
+		if !filter([]string{"teardown"}) {
+			return
+		}
 		e2eCtx.Teardown(context.TODO())
 	}
 })

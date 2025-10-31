@@ -37,7 +37,7 @@ var _ = Describe("Basic Cluster", Ordered, Label("basic"), func() {
 				done()
 			})
 
-			It("create new cluster", Label("create"), func() {
+			It("create new cluster", Label("basic", "create"), func() {
 				ec = createE2ECluster(ctx, e2eCtx, ClusterConfig{
 					SpecName:                 "basic-cluster-creation-" + v,
 					NamespaceName:            fmt.Sprintf("basic-%d", i),
@@ -51,7 +51,7 @@ var _ = Describe("Basic Cluster", Ordered, Label("basic"), func() {
 				Expect(ec).ToNot(BeNil())
 			})
 
-			It("move from bootstrap to workload cluster", Label("move"), func() {
+			It("move from bootstrap to workload cluster", Label("basic", "move"), func() {
 				Expect(ec).NotTo(BeNil(), "e2e cluster required")
 
 				clusterctl.InitManagementClusterAndWatchControllerLogs(ctx, clusterctl.InitManagementClusterAndWatchControllerLogsInput{
@@ -84,7 +84,7 @@ var _ = Describe("Basic Cluster", Ordered, Label("basic"), func() {
 				Expect(err).ToNot(HaveOccurred(), "cluster should be present")
 			})
 
-			It("move from workload to bootstrap cluster", Label("move"), func() {
+			It("move from workload to bootstrap cluster", Label("basic", "move"), func() {
 				Expect(ec).NotTo(BeNil(), "e2e cluster required")
 
 				clusterctl.Move(ctx, clusterctl.MoveInput{
@@ -110,7 +110,7 @@ var _ = Describe("Basic Cluster", Ordered, Label("basic"), func() {
 				Expect(err).ToNot(HaveOccurred(), "cluster should be present")
 			})
 
-			It("delete cluster", Label("teardown"), func() {
+			It("delete cluster", Label("basic", "teardown"), func() {
 				ec.Teardown(ctx)
 			})
 		})

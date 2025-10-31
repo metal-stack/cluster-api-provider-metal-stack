@@ -31,7 +31,7 @@ var _ = Describe("High Availability Cluster", Ordered, Label("ha"), func() {
 				done()
 			})
 
-			It("create new cluster", Label("create"), func() {
+			It("create new cluster", Label("ha", "create"), func() {
 				ec = createE2ECluster(ctx, e2eCtx, ClusterConfig{
 					SpecName:                 "ha-cluster-creation-" + v,
 					NamespaceName:            fmt.Sprintf("ha-%d", i),
@@ -45,7 +45,10 @@ var _ = Describe("High Availability Cluster", Ordered, Label("ha"), func() {
 				Expect(ec).ToNot(BeNil())
 			})
 
-			It("delete cluster", Label("teardown"), func() {
+			It("delete cluster", Label("ha", "teardown"), func() {
+				if ec == nil {
+					Skip("E2ECluster not initialized, skipping teardown")
+				}
 				ec.Teardown(ctx)
 			})
 		})
