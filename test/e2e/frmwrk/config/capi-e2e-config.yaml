@@ -135,6 +135,7 @@ intervals:
   default/wait-controllers: ["4m", "10s"]
   default/wait-cluster: ["5m", "10s"]
   metal-stack/wait-firewall-allocate: ["5m", "10s"]
+  metal-stack/machine-reclaim: ["10m", "10s"]
   default/wait-control-plane: ["10m", "10s"]
   default/wait-control-plane-machine: ["5m", "10s"]
   default/wait-worker-nodes: ["5m", "10s"]
