@@ -7,7 +7,7 @@ spec:
   strategy: Reconcile
   clusterSelector:
     matchLabels:
-      cluster.x-k8s.io/cluster-name: ${CLUSTER_NAME}
+      cluster.metal-stack.io/infrastructure-provider: metal-stack
   resources:
     - name: crs-cloud-controller-manager
       kind: ConfigMap
