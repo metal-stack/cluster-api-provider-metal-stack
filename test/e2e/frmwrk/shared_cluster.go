@@ -23,6 +23,7 @@ import (
 	"k8s.io/utils/ptr"
 
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	kubeadmvbootstrap1 "sigs.k8s.io/cluster-api/bootstrap/kubeadm/api/v1beta1"
 	"sigs.k8s.io/cluster-api/test/framework"
 	"sigs.k8s.io/cluster-api/test/framework/clusterctl"
 
@@ -78,7 +79,7 @@ func (e2e *E2ECluster) Variables() map[string]string {
 	vars["METAL_API_HMAC_AUTH_TYPE"] = e2e.E2EContext.envOrVar("METAL_API_HMAC_AUTH_TYPE")
 
 	vars["NAMESPACE"] = e2e.NamespaceName
-	vars["METAL_PROJECT_ID"] = e2e.E2EContext.Environment.project
+	vars["METAL_PROJECT_ID"] = e2e.E2EContext.Environment.projectID
 	vars["METAL_PARTITION"] = e2e.E2EContext.Environment.partition
 	vars["METAL_NODE_NETWORK_ID"] = *e2e.Refs.NodeNetwork.ID
 	vars["FIREWALL_MACHINE_SIZE"] = e2e.FirewallSize
@@ -103,7 +104,8 @@ func (e2e *E2ECluster) SetupNamespace(ctx context.Context) *corev1.Namespace {
 		Name:                e2e.NamespaceName,
 		IgnoreAlreadyExists: true,
 		Labels: map[string]string{
-			"e2e-test": e2e.SpecName,
+			"e2e-test":                  e2e.SpecName,
+			e2eMetalStackProjectIDLabel: e2e.E2EContext.Environment.projectID,
 		},
 	})
 	e2e.Refs.Namespace = ns
@@ -142,11 +144,12 @@ func (e2e *E2ECluster) setupNodeNetwork(ctx context.Context) {
 
 	nar := &metalmodels.V1NetworkAllocateRequest{
 		Partitionid: e2e.E2EContext.Environment.partition,
-		Projectid:   e2e.E2EContext.Environment.project,
+		Projectid:   e2e.E2EContext.Environment.projectID,
 		Name:        e2e.ClusterName + "-node",
 		Description: fmt.Sprintf("Node network for %s", e2e.ClusterName),
 		Labels: map[string]string{
-			"e2e-test": e2e.SpecName,
+			"e2e-test":                            e2e.SpecName,
+			capmsv1alpha1.TagInfraClusterResource: e2e.NamespaceName + "." + e2e.ClusterName,
 		},
 	}
 	net, err := e2e.E2EContext.Environment.Metal.Network().AllocateNetwork(metalnetwork.NewAllocateNetworkParamsWithContext(ctx).WithBody(nar), nil)
@@ -174,11 +177,11 @@ func (e2e *E2ECluster) setupFirewall(ctx context.Context) {
 		Hostname:    e2e.ClusterName + "-fw",
 		Description: "Firewall for " + e2e.ClusterName,
 		Partitionid: &e2e.E2EContext.Environment.partition,
-		Projectid:   &e2e.E2EContext.Environment.project,
+		Projectid:   &e2e.E2EContext.Environment.projectID,
 		Sizeid:      &e2e.FirewallSize,
 		Imageid:     &e2e.FirewallImage,
 		Tags: []string{
-			fmt.Sprintf("%s=%s", capmsv1alpha1.TagInfraClusterResource, e2e.ClusterName),
+			fmt.Sprintf("%s=%s.%s", capmsv1alpha1.TagInfraClusterResource, e2e.NamespaceName, e2e.ClusterName),
 			fmt.Sprintf("%s=%s", "e2e-test", e2e.SpecName),
 		},
 		Networks: []*metalmodels.V1MachineAllocationNetwork{
@@ -239,6 +242,8 @@ func (e2e *E2ECluster) setupFirewall(ctx context.Context) {
 		e2e.Refs.Firewall = fw.Payload
 		return nil
 	}, e2e.E2EContext.E2EConfig.GetIntervals("metal-stack", "wait-firewall-allocate")...).ShouldNot(HaveOccurred(), "firewall not available")
+
+	GinkgoWriter.Printf("Firewall allocated with ID: %s\n", *e2e.Refs.Firewall.ID)
 }
 
 func (e2e *E2ECluster) teardownFirewall(ctx context.Context) {
@@ -260,11 +265,11 @@ func (e2e *E2ECluster) setupControlPlaneIP(ctx context.Context) {
 	By("Setup Control Plane IP")
 
 	ipr := &metalmodels.V1IPAllocateRequest{
-		Projectid:   &e2e.E2EContext.Environment.project,
+		Projectid:   &e2e.E2EContext.Environment.projectID,
 		Name:        e2e.ClusterName + "-cp-ip",
 		Description: "Control plane IP for " + e2e.ClusterName,
 		Tags: []string{
-			fmt.Sprintf("%s=%s", capmsv1alpha1.TagInfraClusterResource, e2e.ClusterName),
+			fmt.Sprintf("%s=%s.%s", capmsv1alpha1.TagInfraClusterResource, e2e.NamespaceName, e2e.ClusterName),
 			fmt.Sprintf("%s=%s", "e2e-test", e2e.SpecName),
 		},
 		Networkid: ptr.To(e2e.E2EContext.Environment.publicNetwork),
@@ -343,6 +348,40 @@ func (e2e *E2ECluster) teardownCluster(ctx context.Context) {
 		ArtifactFolder:       e2e.E2EContext.Environment.artifactsPath,
 		Cluster:              e2e.Refs.Cluster,
 	}, e2e.E2EContext.E2EConfig.GetIntervals("default", "wait-delete-cluster")...)
+}
+
+func (ec *E2ECluster) Dump(ctx context.Context) {
+	framework.DumpResourcesForCluster(ctx, framework.DumpResourcesForClusterInput{
+		Lister:  ec.E2EContext.Environment.Bootstrap.GetClient(),
+		LogPath: path.Join(ec.E2EContext.Environment.artifactsPath, "clusters", ec.Refs.Cluster.Namespace+"_"+ec.Refs.Cluster.Name),
+		Cluster: ec.Refs.Cluster,
+		Resources: []framework.DumpNamespaceAndGVK{
+			{
+				GVK:       clusterv1.GroupVersion.WithKind("Cluster"),
+				Namespace: ec.Refs.Cluster.Namespace,
+			},
+			{
+				GVK:       capmsv1alpha1.GroupVersion.WithKind("MetalStackCluster"),
+				Namespace: ec.Refs.Cluster.Namespace,
+			},
+			{
+				GVK:       kubeadmvbootstrap1.GroupVersion.WithKind("KubeadmConfig"),
+				Namespace: ec.Refs.Cluster.Namespace,
+			},
+			{
+				GVK:       clusterv1.GroupVersion.WithKind("MachineDeployment"),
+				Namespace: ec.Refs.Cluster.Namespace,
+			},
+			{
+				GVK:       clusterv1.GroupVersion.WithKind("Machine"),
+				Namespace: ec.Refs.Cluster.Namespace,
+			},
+			{
+				GVK:       capmsv1alpha1.GroupVersion.WithKind("MetalStackMachine"),
+				Namespace: ec.Refs.Cluster.Namespace,
+			},
+		},
+	})
 }
 
 // deleteClusterAndWait deletes a cluster object and waits for it to be gone.
