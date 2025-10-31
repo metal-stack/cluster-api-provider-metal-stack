@@ -1,16 +1,22 @@
 # cluster-api-provider-metal-stack
 
-The Cluster API provider for metal-stack (CAPMS) implements the declarative management of Kubernetes cluster infrastructure.
+The Cluster API provider for metal-stack (CAPMS) implements the declarative management of Kubernetes cluster infrastructure on top of [metal-stack](https://metal-stack.io/) using [Cluster API (CAPI)](https://cluster-api.sigs.k8s.io/).
 
-> [!CAUTION]
-> This project is currently under heavy development and is not advised to be used in production any time soon.
-> Please use our stack on top of [Gardener](https://docs.metal-stack.io/stable/installation/deployment/#Gardener-with-metal-stack) instead.
+> [!WARNING]
+> As of now the CAPMS is not yet feature complete and there might be breaking changes in future releases.
+> In case you search for a feature stable alternative consider [Gardener on metal-stack](https://docs.metal-stack.io/stable/installation/deployment/#Gardener-with-metal-stack) instead.
 > For developing this project head to our [DEVELOPMENT.md](/DEVELOPMENT.md).
 
 Currently, we provide the following custom resources:
 
 - [`MetalStackCluster`](./api/v1alpha1/metalstackcluster_types.go) can be used as [infrastructure cluster](https://cluster-api.sigs.k8s.io/developer/providers/contracts/infra-cluster) and ensures that there is a control plane IP for the cluster.
 - [`MetalStackMachine`](./api/v1alpha1/metalstackmachine_types.go) bridges between [infrastructure machines](https://cluster-api.sigs.k8s.io/developer/providers/contracts/infra-machine) and metal-stack machines.
+
+We plan to cover more resources in the future:
+
+- Node Networks
+- Firewall Deployments
+- Improved configuration suggestion of CNIs
 
 > [!note]
 > Currently our infrastructure provider is only tested against the [Cluster API bootstrap provider Kubeadm (CABPK)](https://cluster-api.sigs.k8s.io/tasks/bootstrap/kubeadm-bootstrap/index.html?highlight=kubeadm#cluster-api-bootstrap-provider-kubeadm).
@@ -21,6 +27,7 @@ Currently, we provide the following custom resources:
 **Prerequisites:**
 
 - Running metal-stack installation. See our [installation](https://docs.metal-stack.io/stable/installation/deployment/) section on how to get started with metal-stack.
+- Operating system images available to metal-stack. See [metal-stack/metal-images](https://github.com/metal-stack/metal-images) for pre-built ones.
 - Management cluster (with network access to the metal-stack infrastructure).
 - CLI metalctl installed for communicating with the metal-api. Installation instructions can be found in the corresponding [repository](https://github.com/metal-stack/metalctl).
 - CLI clusterctl
@@ -91,7 +98,7 @@ export WORKER_MACHINE_IMAGE=<machine-image>
 export WORKER_MACHINE_SIZE=<machine-size>
 
 # generate manifest
-clusterctl generate cluster $CLUSTER_NAME --kubernetes-version v1.30.6 --infrastructure metal-stack
+clusterctl generate cluster $CLUSTER_NAME --kubernetes-version v1.32.9 --infrastructure metal-stack
 ```
 
 Apply the generated manifest from the `clusterctl` output.
