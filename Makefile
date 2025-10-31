@@ -59,7 +59,14 @@ release-manifests: $(KUSTOMIZE) build-installer ## Builds the manifests to publi
 
 ifneq ($(CI),true)
 	# for devel purposes with local overwrite in clusterctl.yaml
-	mkdir -p infrastructure-metal-stack && cd infrastructure-metal-stack && [ ! -L "$(LATEST_RELEASE_TAG)" ] && ln -s ../.release $(LATEST_RELEASE_TAG) || echo "devel symlink already exists"
+	# $ cat ~/.config/cluster-api/clusterctl.yaml                                                                                                                                                                                                           1.25.3 13:33:07
+	# providers:
+	#   - name: "metal-stack"
+	#     # url: "https://github.com/metal-stack/cluster-api-provider-metal-stack/releases/latest/download/infrastructure-components.yaml"
+	#     url: <your-repo-path>/infrastructure-metal-stack/$(LATEST_RELEASE_TAG)/infrastructure-components.yaml
+	#     type: InfrastructureProvider
+	rm -rf infrastructure-metal-stack
+	mkdir -p infrastructure-metal-stack && cd infrastructure-metal-stack && ln -s ../.release $(LATEST_RELEASE_TAG)
 endif
 
 ##@ Development
