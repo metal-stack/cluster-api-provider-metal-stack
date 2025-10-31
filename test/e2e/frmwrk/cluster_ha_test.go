@@ -18,19 +18,24 @@ var _ = Describe("High Availability Cluster", Ordered, Label("ha"), func() {
 	for i, v := range kubernetesVersions {
 		Context(fmt.Sprintf("with kubernetes %s", v), Ordered, func() {
 			var (
-				ec  *E2ECluster
-				ctx context.Context
+				ec   *E2ECluster
+				ctx  context.Context
+				done func()
 			)
 
 			BeforeEach(func() {
-				ctx = context.Background()
+				ctx, done = context.WithCancel(context.Background())
 			})
 
-			It("create new cluster", Label("create"), func() {
+			AfterEach(func() {
+				done()
+			})
+
+			It("create new cluster", Label("ha", "create"), func() {
 				ec = createE2ECluster(ctx, e2eCtx, ClusterConfig{
 					SpecName:                 "ha-cluster-creation-" + v,
-					NamespaceName:            fmt.Sprintf("e2e-ha-cluster-creation-%d", i),
-					ClusterName:              fmt.Sprintf("ha-%d", i),
+					NamespaceName:            fmt.Sprintf("ha-%d", i),
+					ClusterName:              "ha-cluster",
 					KubernetesVersion:        v,
 					ControlPlaneMachineImage: os.Getenv("E2E_CONTROL_PLANE_MACHINE_IMAGE_PREFIX") + strings.TrimPrefix(v, "v"),
 					ControlPlaneMachineCount: 3,
@@ -40,7 +45,10 @@ var _ = Describe("High Availability Cluster", Ordered, Label("ha"), func() {
 				Expect(ec).ToNot(BeNil())
 			})
 
-			It("delete cluster", Label("delete"), func() {
+			It("delete cluster", Label("ha", "teardown"), func() {
+				if ec == nil {
+					Skip("E2ECluster not initialized, skipping teardown")
+				}
 				ec.Teardown(ctx)
 			})
 		})

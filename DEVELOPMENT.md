@@ -44,40 +44,8 @@ kubectl get secret metal-test-kubeconfig -o jsonpath='{.data.value}' | base64 -d
 clusterctl get kubeconfig metal-test > capi-lab/.capms-cluster-kubeconfig.yaml
 ```
 
-It is now expected to deploy a CNI to the cluster:
-
-```bash
-kubectl --kubeconfig=capi-lab/.capms-cluster-kubeconfig.yaml create -f https://raw.githubusercontent.com/projectcalico/calico/v3.28.2/manifests/tigera-operator.yaml
-cat <<EOF | kubectl --kubeconfig=capi-lab/.capms-cluster-kubeconfig.yaml create -f -
-apiVersion: operator.tigera.io/v1
-kind: Installation
-metadata:
-  name: default
-spec:
-  # Configures Calico networking.
-  calicoNetwork:
-    bgp: Disabled
-    ipPools:
-    - name: default-ipv4-ippool
-      blockSize: 26
-      cidr: 10.240.0.0/12
-      encapsulation: None
-    mtu: 1440
-  cni:
-    ipam:
-      type: HostLocal
-    type: Calico
-EOF
-```
-
-> [!note]
-> Actually, Calico should be configured using BGP (no overlay), eBPF and DSR. An example will be proposed in this repository at a later point in time.
-
 The node's provider ID is provided by the [metal-ccm](https://github.com/metal-stack/metal-ccm), which needs to be deployed into the cluster:
 
-```bash
-make -C capi-lab deploy-metal-ccm
-```
 
 If you want to provide service's of type load balancer through MetalLB by the metal-ccm, you need to deploy MetalLB:
 
@@ -244,7 +212,7 @@ export control_plane_machine_id=
 metalctl machine console --ipmi $control_plane_machine_id
 # ip r
 # sudo systemctl restart kubeadm
-# crictl ps 
+# crictl ps
 # ~.
 
 clusterctl get kubeconfig > capms-cluster.kubeconfig
@@ -279,12 +247,15 @@ watch kubectl -n $NAMESPACE --kubeconfig kind-bootstrap.kubeconfig get cluster,m
 # until everything is ready
 ```
 
+> [!note]
+> Actually, Calico should be configured using BGP (no overlay), eBPF and DSR. An example will be proposed in this repository at a later point in time.
+
 Now you are able to move the cluster resources as you wish:
 
 ```bash
 clusterctl init --infrastructure metal-stack --kubeconfig capms-cluster.kubeconfig
 
-clusterctl move -n $NAMESPACE --kubeconfig kind-bootstrap.kubeconfig --to-kubeconfig capms-cluster.kubeconfig 
+clusterctl move -n $NAMESPACE --kubeconfig kind-bootstrap.kubeconfig --to-kubeconfig capms-cluster.kubeconfig
 # everything as expected
 kubectl --kubeconfig -n $NAMESPACE kind-bootstrap.kubeconfig get cluster,metalstackcluster,machine,metalstackmachine,kubeadmcontrolplanes,kubeadmconfigs
 kubectl --kubeconfig -n $NAMESPACE capms-cluster.kubeconfig get cluster,metalstackcluster,machine,metalstackmachine,kubeadmcontrolplanes,kubeadmconfigs

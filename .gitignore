@@ -11,6 +11,7 @@ _artifacts
 Dockerfile.cross
 .release
 
+infrastructure-metal-stack
 infrastructure-components.yaml
 .capms-cluster-kubeconfig.yaml
 

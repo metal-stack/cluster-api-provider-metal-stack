@@ -46,14 +46,28 @@ help: ## Display this help.
 
 ##@ Releases
 
+LATEST_RELEASE_TAG := $(shell git describe --tags `git rev-list --tags --max-count=1`)
+
 .PHONY: release-manifests
 release-manifests: $(KUSTOMIZE) build-installer ## Builds the manifests to publish with a release
 	mkdir -p $(RELEASE_DIR)
 	$(KUSTOMIZE) build config/default > $(RELEASE_DIR)/infrastructure-components.yaml
 	sed -i 's!image: $(IMG_NAME):latest!image: $(IMG_NAME):$(IMG_TAG)!' $(RELEASE_DIR)/infrastructure-components.yaml
 	cp metadata.yaml $(RELEASE_DIR)/metadata.yaml
-	cp config/clusterctl-templates/cluster-template.yaml $(RELEASE_DIR)/cluster-template.yaml
+	cp config/clusterctl-templates/cluster-template*.yaml $(RELEASE_DIR)/
 	cp config/clusterctl-templates/example_variables.rc $(RELEASE_DIR)/example_variables.rc
+
+ifneq ($(CI),true)
+	# for devel purposes with local overwrite in clusterctl.yaml
+	# $ cat ~/.config/cluster-api/clusterctl.yaml                                                                                                                                                                                                           1.25.3 13:33:07
+	# providers:
+	#   - name: "metal-stack"
+	#     # url: "https://github.com/metal-stack/cluster-api-provider-metal-stack/releases/latest/download/infrastructure-components.yaml"
+	#     url: <your-repo-path>/infrastructure-metal-stack/$(LATEST_RELEASE_TAG)/infrastructure-components.yaml
+	#     type: InfrastructureProvider
+	rm -rf infrastructure-metal-stack
+	mkdir -p infrastructure-metal-stack && cd infrastructure-metal-stack && ln -s ../.release $(LATEST_RELEASE_TAG)
+endif
 
 ##@ Development
 
@@ -111,6 +125,7 @@ E2E_METAL_API_URL ?= "$(METALCTL_API_URL)"
 E2E_METAL_API_HMAC ?= "$(METALCTL_HMAC)"
 E2E_METAL_API_HMAC_AUTH_TYPE ?= "$(or $(METALCTL_HMAC_AUTH_TYPE),Metal-Admin)"
 E2E_METAL_PROJECT_ID ?= "00000000-0000-0000-0000-000000000001"
+E2E_METAL_PROJECT_NAME ?= "test"
 E2E_METAL_PARTITION ?= "mini-lab"
 E2E_METAL_PUBLIC_NETWORK ?= "internet-mini-lab"
 E2E_KUBERNETES_VERSIONS ?= "v1.32.9"
@@ -122,20 +137,19 @@ E2E_FIREWALL_IMAGE ?= "firewall-ubuntu-3.0"
 E2E_FIREWALL_SIZE ?= "v1-small-x86"
 E2E_FIREWALL_NETWORKS ?= "internet-mini-lab"
 ARTIFACTS ?= "$(PWD)/_artifacts"
+E2E_DEFAULT_FLAVOR ?= "calico"
 # Can be something like: basic && !move
 E2E_LABEL_FILTER ?= ""
 
 .PHONY: test-e2e
 test-e2e: manifests generate fmt vet ginkgo
-	rm -rf $(ARTIFACTS)/config/target
-
-	mkdir -p $(ARTIFACTS)/config/target
-	kubectl kustomize test/e2e/frmwrk/config/target/base -o $(ARTIFACTS)/config/target/base.yaml
+	rm -rf $(ARTIFACTS)
 
 	@METAL_API_URL=$(E2E_METAL_API_URL) \
 	METAL_API_HMAC=$(E2E_METAL_API_HMAC) \
 	METAL_API_HMAC_AUTH_TYPE=$(E2E_METAL_API_HMAC_AUTH_TYPE) \
 	METAL_PROJECT_ID=$(E2E_METAL_PROJECT_ID) \
+	E2E_METAL_PROJECT_NAME=$(E2E_METAL_PROJECT_NAME) \
 	METAL_PARTITION=$(E2E_METAL_PARTITION) \
 	METAL_PUBLIC_NETWORK=$(E2E_METAL_PUBLIC_NETWORK) \
 	E2E_KUBERNETES_VERSIONS=$(E2E_KUBERNETES_VERSIONS) \
@@ -147,7 +161,8 @@ test-e2e: manifests generate fmt vet ginkgo
 	FIREWALL_SIZE=$(E2E_FIREWALL_SIZE) \
 	FIREWALL_NETWORKS=$(E2E_FIREWALL_NETWORKS) \
 	ARTIFACTS=$(ARTIFACTS) \
-	$(GINKGO) -vv -r --junit-report="junit.e2e_suite.xml" --output-dir="$(ARTIFACTS)" --label-filter="$(E2E_LABEL_FILTER)" -timeout 60m ./test/e2e/frmwrk 
+	E2E_DEFAULT_FLAVOR=$(E2E_DEFAULT_FLAVOR) \
+	$(GINKGO) -vv -r --junit-report="junit.e2e_suite.xml" --output-dir="$(ARTIFACTS)" --label-filter="$(E2E_LABEL_FILTER)" -timeout 60m ./test/e2e/frmwrk
 
 .PHONY: lint
 lint: golangci-lint ## Run golangci-lint linter
