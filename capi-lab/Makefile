@@ -35,7 +35,7 @@ bake:
 
 .PHONY: deploy-capi
 deploy-capi:
-	docker compose run --rm clusterctl init
+	docker compose run --rm clusterctl init --addon helm
 
 .PHONY: cleanup
 cleanup:
@@ -73,7 +73,7 @@ apply-sample-cluster:
 	$(eval METAL_NODE_NETWORK_ID = $(shell metalctl network list --name $(CLUSTER_NAME) -o template --template '{{ .id }}'))
 	$(eval CONTROL_PLANE_IP = $(shell metalctl network ip list --name "$(CLUSTER_NAME)-vip" -o template --template '{{ .ipaddress }}'))
 	echo  $(CLUSTER_NAME)
-	clusterctl generate cluster $(CLUSTER_NAME) \
+	clusterctl generate cluster --flavor calico $(CLUSTER_NAME) \
 		--kubeconfig=$(KUBECONFIG) \
 		--worker-machine-count 1 \
 		--control-plane-machine-count 1 \
@@ -85,7 +85,7 @@ apply-sample-cluster:
 delete-sample-cluster:
 	$(eval METAL_NODE_NETWORK_ID = $(shell metalctl network list --name $(CLUSTER_NAME) -o template --template '{{ .id }}'))
 	$(eval CONTROL_PLANE_IP = $(shell metalctl network ip list --name "$(CLUSTER_NAME)-vip" -o template --template '{{ .ipaddress }}'))
-	clusterctl generate cluster $(CLUSTER_NAME) \
+	clusterctl generate cluster --flavor calico $(CLUSTER_NAME) \
 		--kubeconfig=$(KUBECONFIG) \
 		--worker-machine-count 1 \
 		--control-plane-machine-count 1 \
@@ -97,10 +97,3 @@ delete-sample-cluster:
 mtu-fix:
 	cd mini-lab && ssh -F files/ssh/config leaf01 'ip link set dev vtep-1001 mtu 9100 && echo done'
 	cd mini-lab && ssh -F files/ssh/config leaf02 'ip link set dev vtep-1001 mtu 9100 && echo done'
-
-.PHONY: deploy-metal-ccm
-deploy-metal-ccm:
-	$(eval NAMESPACE = $(shell kubectl get metalstackclusters.infrastructure.cluster.x-k8s.io $(CLUSTER_NAME) -ojsonpath='{.metadata.namespace}'))
-	$(eval METAL_NODE_NETWORK_ID = $(shell metalctl network list --name $(CLUSTER_NAME) -o template --template '{{ .id }}'))
-	$(eval CONTROL_PLANE_IP = $(shell metalctl network ip list --name "$(CLUSTER_NAME)-vip" -o template --template '{{ .id }}'))
-	cat metal-ccm.yaml | envsubst | kubectl --kubeconfig=.capms-cluster-kubeconfig.yaml apply -f -
