@@ -231,7 +231,7 @@ data:
                   value: internet,${METAL_NODE_NETWORK_ID}
                 - name: METAL_SSH_PUBLICKEY
                   value: ""
-              image: ghcr.io/metal-stack/metal-ccm:v0.9.7
+              image: ghcr.io/metal-stack/metal-ccm:v0.9.8
               imagePullPolicy: IfNotPresent
               livenessProbe:
                 failureThreshold: 2
