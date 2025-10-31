@@ -99,6 +99,19 @@ providers:
   #     - old: --metrics-addr=127.0.0.1:8080
   #       new: --metrics-addr=:8080
 
+- name: helm
+  type: AddonProvider
+  versions:
+    - name: "{go://github.com/kubernetes-sigs/cluster-api-addon-provider-helm@v0.4}"
+      value: "https://github.com/kubernetes-sigs/cluster-api-addon-provider-helm/releases/download/{go://github.com/kubernetes-sigs/cluster-api-addon-provider-helm@v0.4}/addon-components.yaml"
+      type: "url"
+      contract: v1beta1
+      files:
+        - sourcePath: "../data/addon-helm/metadata.yaml"
+      replacements:
+        - old: --metrics-addr=127.0.0.1:8080
+          new: --metrics-addr=:8080
+
 - name: capms
   type: InfrastructureProvider
   versions:

@@ -142,10 +142,7 @@ E2E_LABEL_FILTER ?= ""
 
 .PHONY: test-e2e
 test-e2e: manifests generate fmt vet ginkgo
-	rm -rf $(ARTIFACTS)/config/target
-
-	mkdir -p $(ARTIFACTS)/config/target
-	kubectl kustomize test/e2e/frmwrk/config/target/base -o $(ARTIFACTS)/config/target/base.yaml
+	rm -rf $(ARTIFACTS)
 
 	@METAL_API_URL=$(E2E_METAL_API_URL) \
 	METAL_API_HMAC=$(E2E_METAL_API_HMAC) \
