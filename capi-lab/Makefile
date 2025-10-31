@@ -7,7 +7,7 @@ KUBECONFIG := $(shell pwd)/mini-lab/.kubeconfig
 MINI_LAB_FLAVOR=capms
 
 CLUSTER_NAME ?= metal-test
-KUBERNETES_VERSION ?= 1.32.9
+KUBERNETES_VERSION ?= 1.33.5
 
 METAL_API_URL=http://metal.203.0.113.1.nip.io:8080
 METAL_API_HMAC=metal-edit
@@ -73,24 +73,24 @@ apply-sample-cluster:
 	$(eval METAL_NODE_NETWORK_ID = $(shell metalctl network list --name $(CLUSTER_NAME) -o template --template '{{ .id }}'))
 	$(eval CONTROL_PLANE_IP = $(shell metalctl network ip list --name "$(CLUSTER_NAME)-vip" -o template --template '{{ .ipaddress }}'))
 	echo  $(CLUSTER_NAME)
-	clusterctl generate cluster --flavor calico $(CLUSTER_NAME) \
+	clusterctl generate cluster $(CLUSTER_NAME) \
 		--kubeconfig=$(KUBECONFIG) \
 		--worker-machine-count 1 \
 		--control-plane-machine-count 1 \
 		--kubernetes-version $(KUBERNETES_VERSION) \
-		--from ../config/clusterctl-templates/cluster-template.yaml \
+		--from ../config/clusterctl-templates/cluster-template-calico.yaml \
 		| kubectl --kubeconfig=$(KUBECONFIG) apply -f -
 
 .PHONY: delete-sample-cluster
 delete-sample-cluster:
 	$(eval METAL_NODE_NETWORK_ID = $(shell metalctl network list --name $(CLUSTER_NAME) -o template --template '{{ .id }}'))
 	$(eval CONTROL_PLANE_IP = $(shell metalctl network ip list --name "$(CLUSTER_NAME)-vip" -o template --template '{{ .ipaddress }}'))
-	clusterctl generate cluster --flavor calico $(CLUSTER_NAME) \
+	clusterctl generate cluster $(CLUSTER_NAME) \
 		--kubeconfig=$(KUBECONFIG) \
 		--worker-machine-count 1 \
 		--control-plane-machine-count 1 \
 		--kubernetes-version $(KUBERNETES_VERSION) \
-		--from ../config/clusterctl-templates/cluster-template.yaml \
+		--from ../config/clusterctl-templates/cluster-template-calico.yaml \
 		| kubectl --kubeconfig=$(KUBECONFIG) delete -f -
 
 .PHONY: mtu-fix
