@@ -4,6 +4,8 @@ kind: Cluster
 metadata:
   name: ${CLUSTER_NAME}
   namespace: ${NAMESPACE}
+  labels:
+    cluster.x-k8s.io/cluster-name: ${CLUSTER_NAME}
 spec:
   clusterNetwork:
     pods:
@@ -24,6 +26,8 @@ kind: MetalStackCluster
 metadata:
   name: ${CLUSTER_NAME}
   namespace: ${NAMESPACE}
+  labels:
+    cluster.x-k8s.io/cluster-name: ${CLUSTER_NAME}
 spec:
   projectID: ${METAL_PROJECT_ID}
   partition: ${METAL_PARTITION}
@@ -55,6 +59,8 @@ kind: KubeadmControlPlane
 apiVersion: controlplane.cluster.x-k8s.io/v1beta1
 metadata:
   name: ${CLUSTER_NAME}-controlplane
+  labels:
+    cluster.x-k8s.io/cluster-name: ${CLUSTER_NAME}
 spec:
   replicas: ${CONTROL_PLANE_MACHINE_COUNT}
   version: ${KUBERNETES_VERSION}
@@ -78,6 +84,7 @@ spec:
         advertiseAddress: 127.0.0.1
         bindPort: 443
       nodeRegistration:
+        taints: []
         kubeletExtraArgs:
           cloud-provider: external
     joinConfiguration:
@@ -86,6 +93,7 @@ spec:
           advertiseAddress: 127.0.0.1
           bindPort: 443
       nodeRegistration:
+        taints: []
         kubeletExtraArgs:
           cloud-provider: external
     files:
