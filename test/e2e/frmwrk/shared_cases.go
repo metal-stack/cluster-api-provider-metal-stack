@@ -7,21 +7,7 @@ import (
 	. "github.com/onsi/gomega"    //nolint:staticcheck
 
 	"sigs.k8s.io/cluster-api/test/framework"
-	"sigs.k8s.io/cluster-api/test/framework/clusterctl"
 )
-
-type ClusterUpgradeSpecInput struct {
-	E2EConfig                *clusterctl.E2EConfig
-	ClusterctlConfigPath     string
-	BootstrapClusterProxy    framework.ClusterProxy
-	ArtifactFolder           string
-	SkipCleanup              bool
-	SkipConformanceTests     bool
-	ControlPlaneWaiters      clusterctl.ControlPlaneWaiters
-	InfrastructureProvider   *string
-	ControlPlaneMachineCount *int64
-	WorkerMachineCount       *int64
-}
 
 func createE2ECluster(ctx context.Context, e2eCtx *E2EContext, cfg ClusterConfig) *E2ECluster {
 	ec := e2eCtx.NewE2ECluster(cfg)
