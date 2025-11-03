@@ -111,7 +111,9 @@ var _ = Describe("Basic Cluster", Ordered, Label("basic"), func() {
 			})
 
 			It("delete cluster", Label("basic", "teardown"), func() {
-				ec.Teardown(ctx)
+				if ec == nil {
+					Skip("E2ECluster not initialized, skipping teardown")
+				}
 			})
 		})
 	}

@@ -122,6 +122,8 @@ providers:
     files:
       - sourcePath: "../../../../metadata.yaml"
       - sourcePath: "../../../../config/clusterctl-templates/cluster-template.yaml"
+      - sourcePath: "../../../../config/clusterctl-templates/cluster-template-calico.yaml"
+      - sourcePath: "../../../../config/clusterctl-templates/cluster-template-pre-v1.33.yaml"
     replacements:
       - old: --metrics-addr=127.0.0.1:8080
         new: --metrics-addr=:8080
