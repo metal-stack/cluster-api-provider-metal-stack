@@ -285,6 +285,8 @@ func (e2e *E2ECluster) setupControlPlaneIP(ctx context.Context) {
 
 	e2e.Refs.ControlPlaneIP = ip.Payload
 	e2e.ControlPlaneIP = *e2e.Refs.ControlPlaneIP.Ipaddress
+
+	GinkgoWriter.Printf("Control Plane IP allocated: %s\n", *e2e.Refs.ControlPlaneIP.Ipaddress)
 }
 
 func (e2e *E2ECluster) teardownControlPlaneIP(ctx context.Context) {
