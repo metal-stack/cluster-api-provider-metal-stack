@@ -19,6 +19,7 @@ import (
 	"github.com/metal-stack/metal-go/api/client/network"
 	"github.com/metal-stack/metal-go/api/models"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/cluster-api/test/framework"
 	"sigs.k8s.io/cluster-api/test/framework/bootstrap"
@@ -207,8 +208,8 @@ func (ee *E2EContext) InitManagementCluster(ctx context.Context) {
 		ClusterProxy:            ee.Environment.Bootstrap,
 		ClusterctlConfigPath:    ee.Environment.ClusterctlConfigPath,
 		InfrastructureProviders: ee.E2EConfig.InfrastructureProviders(),
-		LogFolder:               path.Join(ee.Environment.artifactsPath, "clusters", "bootstrap"),
 		AddonProviders:          ee.E2EConfig.AddonProviders(),
+		LogFolder:               path.Join(ee.Environment.artifactsPath, "clusters", "bootstrap"),
 	})
 }
 
@@ -245,11 +246,31 @@ func (ee *E2EContext) TeardownMetalStackProject(ctx context.Context) {
 		for _, ns := range namespaces.Items {
 			By(fmt.Sprintf("Deleting all clusters in namespace %s", ns.Name))
 			framework.DeleteAllClustersAndWait(ctx, framework.DeleteAllClustersAndWaitInput{
-				ClusterProxy:         nil,
+				ClusterProxy:         ee.Environment.Bootstrap,
 				ClusterctlConfigPath: ee.Environment.ClusterctlConfigPath,
 				Namespace:            ns.Name,
 				ArtifactFolder:       path.Join(ee.Environment.artifactsPath, "clusters", "bootstrap"),
+			}, ee.E2EConfig.GetIntervals("default", "wait-delete-cluster")...)
+
+			resources := framework.GetCAPIResources(ctx, framework.GetCAPIResourcesInput{
+				Lister:    ee.Environment.Bootstrap.GetClient(),
+				Namespace: ns.Name,
+				IncludeTypes: []metav1.TypeMeta{
+					{
+						Kind:       "HelmChartProxy",
+						APIVersion: "addons.cluster.x-k8s.io/v1alpha1",
+					},
+					{
+						Kind:       "ClusterResourceSet",
+						APIVersion: "addons.cluster.x-k8s.io/v1beta1",
+					},
+				},
 			})
+
+			for _, r := range resources {
+				err := ee.Environment.Bootstrap.GetClient().Delete(ctx, r)
+				Expect(err).NotTo(HaveOccurred(), fmt.Sprintf("failed to delete resource %s/%s of kind %s", r.GetNamespace(), r.GetName(), r.GetObjectKind().GroupVersionKind().Kind))
+			}
 
 			framework.DeleteNamespace(ctx, framework.DeleteNamespaceInput{
 				Deleter: ee.Environment.Bootstrap.GetClient(),

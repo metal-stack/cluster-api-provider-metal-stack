@@ -19,6 +19,8 @@ import (
 	metalmodels "github.com/metal-stack/metal-go/api/models"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/utils/ptr"
 
@@ -310,10 +312,9 @@ func (e2e *E2ECluster) GenerateAndApplyClusterTemplate(ctx context.Context) {
 		WorkerMachineCount:       &e2e.WorkerMachineCount,
 		ClusterctlConfigPath:     e2e.E2EContext.Environment.ClusterctlConfigPath,
 		Flavor:                   e2e.E2EContext.Environment.Flavor,
-		// TODO: why does this not work with clusterctl.DefaultInfrastructureProvider?
-		InfrastructureProvider: "capms:v0.6.2",
-		LogFolder:              path.Join(e2e.E2EContext.Environment.artifactsPath, "clusters", e2e.ClusterName),
-		ClusterctlVariables:    e2e.Variables(),
+		LogFolder:                path.Join(e2e.E2EContext.Environment.artifactsPath, "clusters", e2e.ClusterName),
+		ClusterctlVariables:      e2e.Variables(),
+		InfrastructureProvider:   "metal-stack:v0.6.2",
 	})
 
 	By("Apply cluster template")
@@ -342,6 +343,30 @@ func (e2e *E2ECluster) teardownCluster(ctx context.Context) {
 		return
 	}
 	Expect(e2e.Refs.Cluster).NotTo(BeNil(), "cluster not created yet")
+
+	resources := framework.GetCAPIResources(ctx, framework.GetCAPIResourcesInput{
+		Lister:    e2e.E2EContext.Environment.Bootstrap.GetClient(),
+		Namespace: e2e.NamespaceName,
+		IncludeTypes: []metav1.TypeMeta{
+			{
+				Kind:       "HelmChartProxy",
+				APIVersion: "addons.cluster.x-k8s.io/v1alpha1",
+			},
+			{
+				Kind:       "ClusterResourceSet",
+				APIVersion: "addons.cluster.x-k8s.io/v1beta1",
+			},
+		},
+	})
+
+	for _, r := range resources {
+		err := e2e.E2EContext.Environment.Bootstrap.GetClient().Delete(ctx, r)
+		Expect(err).To(Or(
+			Not(HaveOccurred()),
+			Satisfy(apierrors.IsNotFound)),
+			fmt.Sprintf("failed to delete resource %s/%s of kind %s", r.GetNamespace(), r.GetName(), r.GetObjectKind().GroupVersionKind().Kind),
+		)
+	}
 
 	deleteClusterAndWait(ctx, framework.DeleteClusterAndWaitInput{
 		ClusterProxy:         e2e.E2EContext.Environment.Bootstrap,

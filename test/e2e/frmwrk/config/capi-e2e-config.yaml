@@ -112,7 +112,7 @@ providers:
         - old: --metrics-addr=127.0.0.1:8080
           new: --metrics-addr=:8080
 
-- name: capms
+- name: metal-stack
   type: InfrastructureProvider
   versions:
   - name: "{go://github.com/metal-stack/cluster-api-provider-metal-stack@v0.6}"
@@ -153,6 +153,7 @@ intervals:
   metal-stack/machine-reclaim: ["10m", "10s"]
   default/wait-control-plane: ["10m", "10s"]
   default/wait-control-plane-machine: ["5m", "10s"]
+  default/wait-control-plane-and-machines-ready: ["15m", "10s"]
   default/wait-worker-nodes: ["5m", "10s"]
   default/wait-machine-pool-nodes: ["5m", "10s"]
   default/wait-delete-cluster: ["3m", "10s"]

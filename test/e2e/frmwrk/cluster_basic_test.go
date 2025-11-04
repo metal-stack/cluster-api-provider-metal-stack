@@ -58,6 +58,7 @@ var _ = Describe("Basic Cluster", Ordered, Label("basic"), func() {
 					ClusterProxy:            ec.Refs.Workload,
 					ClusterctlConfigPath:    e2eCtx.Environment.ClusterctlConfigPath,
 					InfrastructureProviders: e2eCtx.E2EConfig.InfrastructureProviders(),
+					AddonProviders:          e2eCtx.E2EConfig.AddonProviders(),
 					LogFolder:               path.Join(e2eCtx.Environment.artifactsPath, "clusters", ec.ClusterName, "init"),
 				})
 
