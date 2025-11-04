@@ -58,6 +58,7 @@ var _ = Describe("Basic Cluster", Ordered, Label("basic"), func() {
 					ClusterProxy:            ec.Refs.Workload,
 					ClusterctlConfigPath:    e2eCtx.Environment.ClusterctlConfigPath,
 					InfrastructureProviders: e2eCtx.E2EConfig.InfrastructureProviders(),
+					AddonProviders:          e2eCtx.E2EConfig.AddonProviders(),
 					LogFolder:               path.Join(e2eCtx.Environment.artifactsPath, "clusters", ec.ClusterName, "init"),
 				})
 
@@ -111,6 +112,10 @@ var _ = Describe("Basic Cluster", Ordered, Label("basic"), func() {
 			})
 
 			It("delete cluster", Label("basic", "teardown"), func() {
+				if ec == nil {
+					Skip("E2ECluster not initialized, skipping teardown")
+				}
+
 				ec.Teardown(ctx)
 			})
 		})

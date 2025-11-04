@@ -19,6 +19,8 @@ import (
 	metalmodels "github.com/metal-stack/metal-go/api/models"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/utils/ptr"
 
@@ -26,6 +28,7 @@ import (
 	kubeadmvbootstrap1 "sigs.k8s.io/cluster-api/bootstrap/kubeadm/api/v1beta1"
 	"sigs.k8s.io/cluster-api/test/framework"
 	"sigs.k8s.io/cluster-api/test/framework/clusterctl"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	capmsv1alpha1 "github.com/metal-stack/cluster-api-provider-metal-stack/api/v1alpha1"
 )
@@ -310,10 +313,9 @@ func (e2e *E2ECluster) GenerateAndApplyClusterTemplate(ctx context.Context) {
 		WorkerMachineCount:       &e2e.WorkerMachineCount,
 		ClusterctlConfigPath:     e2e.E2EContext.Environment.ClusterctlConfigPath,
 		Flavor:                   e2e.E2EContext.Environment.Flavor,
-		// TODO: why does this not work with clusterctl.DefaultInfrastructureProvider?
-		InfrastructureProvider: "capms:v0.6.2",
-		LogFolder:              path.Join(e2e.E2EContext.Environment.artifactsPath, "clusters", e2e.ClusterName),
-		ClusterctlVariables:    e2e.Variables(),
+		LogFolder:                path.Join(e2e.E2EContext.Environment.artifactsPath, "clusters", e2e.ClusterName),
+		ClusterctlVariables:      e2e.Variables(),
+		InfrastructureProvider:   "metal-stack:v0.6.2",
 	})
 
 	By("Apply cluster template")
@@ -342,6 +344,47 @@ func (e2e *E2ECluster) teardownCluster(ctx context.Context) {
 		return
 	}
 	Expect(e2e.Refs.Cluster).NotTo(BeNil(), "cluster not created yet")
+
+	resources := framework.GetCAPIResources(ctx, framework.GetCAPIResourcesInput{
+		Lister:    e2e.E2EContext.Environment.Bootstrap.GetClient(),
+		Namespace: e2e.NamespaceName,
+		IncludeTypes: []metav1.TypeMeta{
+			{
+				Kind:       "HelmReleaseProxy",
+				APIVersion: "addons.cluster.x-k8s.io/v1alpha1",
+			},
+			{
+				Kind:       "HelmChartProxy",
+				APIVersion: "addons.cluster.x-k8s.io/v1alpha1",
+			},
+			{
+				Kind:       "ClusterResourceSetBinding",
+				APIVersion: "addons.cluster.x-k8s.io/v1beta1",
+			},
+			{
+				Kind:       "ClusterResourceSet",
+				APIVersion: "addons.cluster.x-k8s.io/v1beta1",
+			},
+		},
+	})
+
+	for _, r := range resources {
+		err := e2e.E2EContext.Environment.Bootstrap.GetClient().Delete(ctx, r)
+		Expect(err).To(Or(
+			Not(HaveOccurred()),
+			Satisfy(apierrors.IsNotFound)),
+			fmt.Sprintf("failed to delete resource %s/%s of kind %s", r.GetNamespace(), r.GetName(), r.GetObjectKind().GroupVersionKind().Kind),
+		)
+	}
+
+	for _, r := range resources {
+		Eventually(func() bool {
+			err := e2e.E2EContext.Environment.Bootstrap.GetClient().Get(ctx, client.ObjectKeyFromObject(r), r)
+			return apierrors.IsNotFound(err)
+		}, e2e.E2EContext.E2EConfig.GetIntervals("default", "wait-delete-resource")...).Should(BeTrue(),
+			fmt.Sprintf("resource %s/%s of kind %s still exists", r.GetNamespace(), r.GetName(), r.GetObjectKind().GroupVersionKind().Kind),
+		)
+	}
 
 	deleteClusterAndWait(ctx, framework.DeleteClusterAndWaitInput{
 		ClusterProxy:         e2e.E2EContext.Environment.Bootstrap,
