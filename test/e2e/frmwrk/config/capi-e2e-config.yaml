@@ -124,8 +124,7 @@ providers:
       - sourcePath: "../../../../config/clusterctl-templates/cluster-template.yaml"
       - sourcePath: "../../../../config/clusterctl-templates/cluster-template-calico.yaml"
       - sourcePath: "../../../../config/clusterctl-templates/cluster-template-pre-v1.33.yaml"
-      - sourcePath: "../../../../config/clusterctl-templates/cluster-template-mt-control-plane-upgrade-to.yaml"
-      - sourcePath: "../../../../config/clusterctl-templates/cluster-template-mt-worker-upgrade-to.yaml"
+      - sourcePath: "../data/clusterctl-templates/cluster-template-upgrade.yaml"
     replacements:
       - old: --metrics-addr=127.0.0.1:8080
         new: --metrics-addr=:8080

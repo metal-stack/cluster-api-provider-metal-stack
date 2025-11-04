@@ -141,10 +141,13 @@ E2E_DEFAULT_FLAVOR ?= "calico"
 # Can be something like: basic && !move
 E2E_LABEL_FILTER ?= ""
 
+E2E_TEMPLATES := test/e2e/frmwrk/data/clusterctl-templates
 .PHONY: test-e2e
 test-e2e: manifests generate fmt vet ginkgo
 	rm -rf $(ARTIFACTS)
 
+	$(KUSTOMIZE) build $(E2E_TEMPLATES)/upgrade --load-restrictor LoadRestrictionsNone > $(E2E_TEMPLATES)/cluster-template-upgrade.yaml
+	
 	@METAL_API_URL=$(E2E_METAL_API_URL) \
 	METAL_API_HMAC=$(E2E_METAL_API_HMAC) \
 	METAL_API_HMAC_AUTH_TYPE=$(E2E_METAL_API_HMAC_AUTH_TYPE) \

@@ -40,7 +40,7 @@ var _ = Describe("Upgrade Kubernetes Cluster Version", Ordered, Label("upgrade")
 			ControlPlaneMachineImage: e2eCtx.envOrVar("E2E_CONTROL_PLANE_MACHINE_IMAGE_PREFIX") + fromKubernetesVersion,
 			ControlPlaneMachineCount: 1,
 			WorkerMachineImage:       e2eCtx.envOrVar("E2E_WORKER_MACHINE_IMAGE_PREFIX") + fromKubernetesVersion,
-			WorkerMachineCount:       1,
+			WorkerMachineCount:       0,
 		})
 		ec.SetupMetalStackPreconditions(ctx)
 		ec.SetupNamespace(ctx)
@@ -66,8 +66,8 @@ var _ = Describe("Upgrade Kubernetes Cluster Version", Ordered, Label("upgrade")
 			SkipCleanup:              false,
 			SkipConformanceTests:     true,
 			ControlPlaneMachineCount: ptr.To[int64](1),
-			WorkerMachineCount:       ptr.To[int64](1),
-			Flavor:                   ptr.To(e2eCtx.Environment.Flavor),
+			WorkerMachineCount:       ptr.To[int64](0),
+			Flavor:                   ptr.To("upgrade"),
 		}
 	})
 

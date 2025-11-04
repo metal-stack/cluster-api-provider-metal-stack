@@ -6,7 +6,7 @@
 *.dylib
 bin/*
 test/external-crds
-test/e2e/frmwrk/artifacts
+test/e2e/frmwrk/data/clusterctl-templates/cluster-template-*.yaml
 _artifacts
 Dockerfile.cross
 .release
