@@ -257,8 +257,16 @@ func (ee *E2EContext) TeardownMetalStackProject(ctx context.Context) {
 				Namespace: ns.Name,
 				IncludeTypes: []metav1.TypeMeta{
 					{
+						Kind:       "HelmReleaseProxy",
+						APIVersion: "addons.cluster.x-k8s.io/v1alpha1",
+					},
+					{
 						Kind:       "HelmChartProxy",
 						APIVersion: "addons.cluster.x-k8s.io/v1alpha1",
+					},
+					{
+						Kind:       "ClusterResourceSetBinding",
+						APIVersion: "addons.cluster.x-k8s.io/v1beta1",
 					},
 					{
 						Kind:       "ClusterResourceSet",
