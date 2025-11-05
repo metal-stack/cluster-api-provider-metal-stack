@@ -55,7 +55,7 @@ import (
 
 const (
 	defaultProviderMachineRequeueTime         = time.Second * 30
-	defaultControlPlaneMachineFreeRequeueTime = time.Minute
+	defaultControlPlaneMachineFreeRequeueTime = time.Second * 30
 )
 
 var errProviderMachineNotFound = errors.New("provider machine not found")
