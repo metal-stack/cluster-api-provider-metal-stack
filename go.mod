@@ -3,7 +3,6 @@ module github.com/metal-stack/cluster-api-provider-metal-stack
 go 1.23.0
 
 require (
-	github.com/drone/envsubst/v2 v2.0.0-20210730161058-179042472c46
 	github.com/go-logr/logr v1.4.2
 	github.com/metal-stack/metal-go v0.40.4
 	github.com/metal-stack/metal-lib v0.20.2
@@ -47,6 +46,7 @@ require (
 	github.com/docker/docker v28.0.2+incompatible // indirect
 	github.com/docker/go-connections v0.5.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
+	github.com/drone/envsubst/v2 v2.0.0-20210730161058-179042472c46 // indirect
 	github.com/emicklei/go-restful/v3 v3.12.2 // indirect
 	github.com/evanphx/json-patch/v5 v5.9.11 // indirect
 	github.com/fatih/color v1.18.0 // indirect
