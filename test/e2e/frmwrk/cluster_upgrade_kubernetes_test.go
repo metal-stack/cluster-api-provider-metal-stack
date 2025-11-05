@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 
 	. "github.com/onsi/ginkgo/v2" //nolint:staticcheck
@@ -54,21 +55,51 @@ var _ = Describe("Upgrade Kubernetes Cluster Version", Ordered, Label("upgrade")
 		cfg.Variables["KUBERNETES_VERSION_UPGRADE_TO"] = toKubernetesVersion
 	})
 
-	capi_e2e_ClusterUpgradeConformanceSpec(ctx, func() capi_e2e.ClusterUpgradeConformanceSpecInput {
-		Expect(cfg.Variables).NotTo(BeNil(), "E2E config variables map must be initialized")
-		Expect(cfg.Variables).To(HaveKey("CONTROL_PLANE_IP"))
-		Expect(cfg.Variables).To(HaveKey("METAL_NODE_NETWORK_ID"))
-		return capi_e2e.ClusterUpgradeConformanceSpecInput{
-			E2EConfig:                cfg,
-			ClusterctlConfigPath:     e2eCtx.Environment.ClusterctlConfigPath,
-			BootstrapClusterProxy:    e2eCtx.Environment.Bootstrap,
-			ArtifactFolder:           e2eCtx.Environment.artifactsPath,
-			SkipCleanup:              false,
-			SkipConformanceTests:     true,
-			ControlPlaneMachineCount: ptr.To[int64](1),
-			WorkerMachineCount:       ptr.To[int64](0),
-			Flavor:                   ptr.To("upgrade"),
-		}
+	Context("rolling upgrade", func() {
+		capi_e2e_ClusterUpgradeConformanceSpec(ctx, func() capi_e2e.ClusterUpgradeConformanceSpecInput {
+			Expect(cfg.Variables).NotTo(BeNil(), "E2E config variables map must be initialized")
+			Expect(cfg.Variables).To(HaveKey("CONTROL_PLANE_IP"))
+			Expect(cfg.Variables).To(HaveKey("METAL_NODE_NETWORK_ID"))
+			return capi_e2e.ClusterUpgradeConformanceSpecInput{
+				E2EConfig:                cfg,
+				ClusterctlConfigPath:     e2eCtx.Environment.ClusterctlConfigPath,
+				BootstrapClusterProxy:    e2eCtx.Environment.Bootstrap,
+				ArtifactFolder:           e2eCtx.Environment.artifactsPath,
+				SkipCleanup:              true,
+				SkipConformanceTests:     true,
+				ControlPlaneMachineCount: ptr.To[int64](1),
+				WorkerMachineCount:       ptr.To[int64](0),
+				Flavor:                   ptr.To("upgrade"),
+				ControlPlaneWaiters:      clusterctl.ControlPlaneWaiters{},
+				InfrastructureProvider:   new(string),
+				PostNamespaceCreated: func(managementClusterProxy framework.ClusterProxy, workloadClusterNamespace string) {
+					ec.NamespaceName = workloadClusterNamespace
+					ec.Refs.Namespace = &corev1.Namespace{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: workloadClusterNamespace,
+						},
+					}
+					err := ec.E2EContext.Environment.Bootstrap.GetClient().Get(ctx, util.ObjectKey(ec.Refs.Namespace), ec.Refs.Namespace)
+					Expect(err).NotTo(HaveOccurred(), "Failed to get workload cluster namespace %s", ec.NamespaceName)
+
+					ec.Refs.Namespace.SetLabels(map[string]string{
+						e2eMetalStackProjectIDLabel: ec.E2EContext.Environment.projectID,
+					})
+					err = ec.E2EContext.Environment.Bootstrap.GetClient().Update(ctx, ec.Refs.Namespace)
+					Expect(err).NotTo(HaveOccurred(), "Failed to add e2e project label workload cluster namespace %s", ec.NamespaceName)
+				},
+				PreWaitForControlPlaneToBeUpgraded: func(managementClusterProxy framework.ClusterProxy, workloadClusterNamespace string, workloadClusterName string) {
+					ec.NamespaceName = workloadClusterNamespace
+					ec.ClusterName = workloadClusterName
+					ec.Refs.Workload = ec.E2EContext.Environment.Bootstrap.GetWorkloadCluster(ctx, ec.NamespaceName, ec.ClusterName)
+					ec.Refs.Cluster = framework.GetClusterByName(ctx, framework.GetClusterByNameInput{
+						Getter:    ec.E2EContext.Environment.Bootstrap.GetClient(),
+						Name:      workloadClusterName,
+						Namespace: workloadClusterNamespace,
+					})
+				},
+			}
+		})
 	})
 
 	It("delete cluster", Label("upgrade", "teardown"), func() {

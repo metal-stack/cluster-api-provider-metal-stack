@@ -135,6 +135,7 @@ func (e2e *E2ECluster) SetupMetalStackPreconditions(ctx context.Context) {
 }
 
 func (e2e *E2ECluster) Teardown(ctx context.Context) {
+	e2e.teardownAddons(ctx)
 	e2e.teardownCluster(ctx)
 	e2e.teardownControlPlaneIP(ctx)
 	e2e.teardownFirewall(ctx)
@@ -317,7 +318,6 @@ func (e2e *E2ECluster) GenerateAndApplyClusterTemplate(ctx context.Context) {
 		Flavor:                   e2e.E2EContext.Environment.Flavor,
 		LogFolder:                path.Join(e2e.E2EContext.Environment.artifactsPath, "clusters", e2e.ClusterName),
 		ClusterctlVariables:      e2e.Variables(),
-		InfrastructureProvider:   "metal-stack:v0.6.2",
 	})
 
 	By("Apply cluster template")
@@ -341,54 +341,75 @@ func (e2e *E2ECluster) GenerateAndApplyClusterTemplate(ctx context.Context) {
 	Expect(e2e.Refs.Cluster).NotTo(BeNil(), "failed to get cluster")
 }
 
-func (e2e *E2ECluster) teardownCluster(ctx context.Context) {
-	if e2e.Refs.Cluster == nil {
-		return
-	}
-	Expect(e2e.Refs.Cluster).NotTo(BeNil(), "cluster not created yet")
+func (e2e *E2ECluster) teardownAddons(ctx context.Context) {
+	By("Teardown Addons")
 
-	resources := framework.GetCAPIResources(ctx, framework.GetCAPIResourcesInput{
-		Lister:    e2e.E2EContext.Environment.Bootstrap.GetClient(),
-		Namespace: e2e.NamespaceName,
-		IncludeTypes: []metav1.TypeMeta{
-			{
-				Kind:       "HelmReleaseProxy",
-				APIVersion: "addons.cluster.x-k8s.io/v1alpha1",
-			},
-			{
-				Kind:       "HelmChartProxy",
-				APIVersion: "addons.cluster.x-k8s.io/v1alpha1",
-			},
-			{
-				Kind:       "ClusterResourceSetBinding",
-				APIVersion: "addons.cluster.x-k8s.io/v1beta1",
-			},
-			{
-				Kind:       "ClusterResourceSet",
-				APIVersion: "addons.cluster.x-k8s.io/v1beta1",
-			},
+	includeTypes := []metav1.TypeMeta{
+		{
+			Kind:       "HelmChartProxy",
+			APIVersion: "addons.cluster.x-k8s.io/v1alpha1",
 		},
-	})
+		{
+			Kind:       "HelmReleaseProxy",
+			APIVersion: "addons.cluster.x-k8s.io/v1alpha1",
+		},
+		{
+			Kind:       "ClusterResourceSet",
+			APIVersion: "addons.cluster.x-k8s.io/v1beta1",
+		},
+		{
+			Kind:       "ClusterResourceSetBinding",
+			APIVersion: "addons.cluster.x-k8s.io/v1beta1",
+		},
+	}
+
+	resources := []*unstructured.Unstructured{}
+	for _, typ := range includeTypes {
+		typeList := new(unstructured.UnstructuredList)
+		typeList.SetAPIVersion(typ.APIVersion)
+		typeList.SetKind(typ.Kind)
+
+		if err := e2e.E2EContext.Environment.Bootstrap.GetClient().List(ctx, typeList, client.InNamespace(e2e.NamespaceName)); err != nil {
+			if apierrors.IsNotFound(err) {
+				continue
+			}
+			if apierrors.IsForbidden(err) {
+				fmt.Printf("Warning: failed to list %s resources due to a rbac issue: %v", typeList.GroupVersionKind(), err)
+				continue
+			}
+			Fail(fmt.Sprintf("failed to list %q resources: %v", typeList.GroupVersionKind(), err))
+		}
+		for i := range typeList.Items {
+			obj := typeList.Items[i]
+			resources = append(resources, &obj)
+		}
+	}
 
 	for _, r := range resources {
+		By(fmt.Sprintf("Deleting resource %s/%s of kind %s", r.GetNamespace(), r.GetName(), r.GetObjectKind().GroupVersionKind().Kind))
 		err := e2e.E2EContext.Environment.Bootstrap.GetClient().Delete(ctx, r)
 		Expect(err).To(Or(
 			Not(HaveOccurred()),
 			Satisfy(apierrors.IsNotFound)),
 			fmt.Sprintf("failed to delete resource %s/%s of kind %s", r.GetNamespace(), r.GetName(), r.GetObjectKind().GroupVersionKind().Kind),
 		)
-	}
-
-	for _, r := range resources {
 		Eventually(func() bool {
+			By(fmt.Sprintf("Waiting for resource %s/%s of kind %s to be deleted", r.GetNamespace(), r.GetName(), r.GetObjectKind().GroupVersionKind().Kind))
 			err := e2e.E2EContext.Environment.Bootstrap.GetClient().Get(ctx, client.ObjectKeyFromObject(r), r)
 			return apierrors.IsNotFound(err)
 		}, e2e.E2EContext.E2EConfig.GetIntervals("default", "wait-delete-resource")...).Should(BeTrue(),
 			fmt.Sprintf("resource %s/%s of kind %s still exists", r.GetNamespace(), r.GetName(), r.GetObjectKind().GroupVersionKind().Kind),
 		)
 	}
+}
 
-	deleteClusterAndWait(ctx, framework.DeleteClusterAndWaitInput{
+func (e2e *E2ECluster) teardownCluster(ctx context.Context) {
+	if e2e.Refs.Cluster == nil {
+		return
+	}
+	Expect(e2e.Refs.Cluster).NotTo(BeNil(), "cluster not created yet")
+
+	capi_e2e_DeleteClusterAndWait(ctx, framework.DeleteClusterAndWaitInput{
 		ClusterProxy:         e2e.E2EContext.Environment.Bootstrap,
 		ClusterctlConfigPath: e2e.E2EContext.Environment.ClusterctlConfigPath,
 		ArtifactFolder:       e2e.E2EContext.Environment.artifactsPath,
@@ -430,9 +451,9 @@ func (ec *E2ECluster) Dump(ctx context.Context) {
 	})
 }
 
-// deleteClusterAndWait deletes a cluster object and waits for it to be gone.
+// capi_e2e_DeleteClusterAndWait deletes a cluster object and waits for it to be gone.
 // TODO: remove once cluster expectation has been fixed in framework
-func deleteClusterAndWait(ctx context.Context, input framework.DeleteClusterAndWaitInput, intervals ...any) {
+func capi_e2e_DeleteClusterAndWait(ctx context.Context, input framework.DeleteClusterAndWaitInput, intervals ...any) {
 	var (
 		retryableOperationInterval = 3 * time.Second
 		// retryableOperationTimeout requires a higher value especially for self-hosted upgrades.
