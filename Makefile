@@ -147,6 +147,7 @@ test-e2e: manifests generate fmt vet ginkgo
 	rm -rf $(ARTIFACTS)
 
 	$(KUSTOMIZE) build $(E2E_TEMPLATES)/upgrade --load-restrictor LoadRestrictionsNone > $(E2E_TEMPLATES)/cluster-template-upgrade.yaml
+	$(KUSTOMIZE) build $(E2E_TEMPLATES)/upgrade-workerless --load-restrictor LoadRestrictionsNone > $(E2E_TEMPLATES)/cluster-template-upgrade-workerless.yaml
 	
 	@METAL_API_URL=$(E2E_METAL_API_URL) \
 	METAL_API_HMAC=$(E2E_METAL_API_HMAC) \

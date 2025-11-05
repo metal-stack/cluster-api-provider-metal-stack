@@ -55,7 +55,7 @@ var _ = Describe("Upgrade Kubernetes Cluster Version", Ordered, Label("upgrade")
 		cfg.Variables["KUBERNETES_VERSION_UPGRADE_TO"] = toKubernetesVersion
 	})
 
-	Context("rolling upgrade", func() {
+	Context("rolling workerless upgrade", func() {
 		capi_e2e_ClusterUpgradeConformanceSpec(ctx, func() capi_e2e.ClusterUpgradeConformanceSpecInput {
 			Expect(cfg.Variables).NotTo(BeNil(), "E2E config variables map must be initialized")
 			Expect(cfg.Variables).To(HaveKey("CONTROL_PLANE_IP"))
@@ -69,7 +69,7 @@ var _ = Describe("Upgrade Kubernetes Cluster Version", Ordered, Label("upgrade")
 				SkipConformanceTests:     true,
 				ControlPlaneMachineCount: ptr.To[int64](1),
 				WorkerMachineCount:       ptr.To[int64](0),
-				Flavor:                   ptr.To("upgrade"),
+				Flavor:                   ptr.To("upgrade-workerless"),
 				ControlPlaneWaiters:      clusterctl.ControlPlaneWaiters{},
 				InfrastructureProvider:   new(string),
 				PostNamespaceCreated: func(managementClusterProxy framework.ClusterProxy, workloadClusterNamespace string) {
