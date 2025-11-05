@@ -24,6 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/utils/ptr"
 
+	kubeadmbootstrapv1 "sigs.k8s.io/cluster-api/api/bootstrap/kubeadm/v1beta2"
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/cluster-api/test/framework"
 	"sigs.k8s.io/cluster-api/test/framework/clusterctl"
@@ -431,7 +432,7 @@ func (ec *E2ECluster) Dump(ctx context.Context) {
 				Namespace: ec.Refs.Cluster.Namespace,
 			},
 			{
-				GVK:       kubeadmvbootstrap1.GroupVersion.WithKind("KubeadmConfig"),
+				GVK:       kubeadmbootstrapv1.GroupVersion.WithKind("KubeadmConfig"),
 				Namespace: ec.Refs.Cluster.Namespace,
 			},
 			{
