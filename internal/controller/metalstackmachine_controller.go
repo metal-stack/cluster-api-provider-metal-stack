@@ -400,12 +400,12 @@ func (r *machineReconciler) delete() (ctrl.Result, error) {
 		}
 
 		if r.infraMachine.DeletionTimestamp.Add(defaultControlPlaneMachineFreeRequeueTime).Before(time.Now()) {
-			r.log.Info("control plane machine already freed for more than a minute, BGP routes should be up to date, removing finalizer")
+			r.log.Info("control plane machine deleted, removing finalizer")
 			controllerutil.RemoveFinalizer(r.infraMachine, v1alpha1.MachineFinalizer)
 			return ctrl.Result{}, nil
 		}
 
-		r.log.Info("control plane machine already freed, waiting a grace period for BGP routes to refresh")
+		r.log.Info("control plane machine deleted, giving load balancers some time to adjust")
 		return ctrl.Result{RequeueAfter: defaultControlPlaneMachineFreeRequeueTime / 2}, nil
 	}
 	if err != nil {
@@ -425,7 +425,7 @@ func (r *machineReconciler) delete() (ctrl.Result, error) {
 		return ctrl.Result{}, nil
 	}
 
-	r.log.Info("control plane machine delete finished, waiting a grace period for BGP routes to refresh")
+	r.log.Info("control plane machine delete finished, giving load balancers some to adjust")
 	return ctrl.Result{RequeueAfter: time.Minute}, nil
 }
 
