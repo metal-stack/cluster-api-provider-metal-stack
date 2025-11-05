@@ -42,6 +42,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/go-logr/logr"
 	"github.com/metal-stack/cluster-api-provider-metal-stack/api/v1alpha1"
@@ -52,7 +53,10 @@ import (
 	"github.com/metal-stack/metal-lib/pkg/tag"
 )
 
-const defaultProviderMachineRequeueTime = time.Second * 30
+const (
+	defaultProviderMachineRequeueTime         = time.Second * 30
+	defaultControlPlaneMachineFreeRequeueTime = time.Second * 30
+)
 
 var errProviderMachineNotFound = errors.New("provider machine not found")
 
@@ -153,7 +157,7 @@ func (r *MetalStackMachineReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	case annotations.IsPaused(cluster, infraMachine):
 		log.Info("reconciliation is paused")
 	case !infraMachine.DeletionTimestamp.IsZero():
-		err = reconciler.delete()
+		result, err = reconciler.delete()
 	case !controllerutil.ContainsFinalizer(infraMachine, v1alpha1.MachineFinalizer):
 		log.Info("adding finalizer")
 		controllerutil.AddFinalizer(infraMachine, v1alpha1.MachineFinalizer)
@@ -380,34 +384,49 @@ func (r *machineReconciler) reconcile() (ctrl.Result, error) {
 	return result, nil
 }
 
-func (r *machineReconciler) delete() error {
+func (r *machineReconciler) delete() (ctrl.Result, error) {
 	if !controllerutil.ContainsFinalizer(r.infraMachine, v1alpha1.MachineFinalizer) {
-		return nil
+		return ctrl.Result{}, nil
 	}
 
 	r.log.Info("reconciling resource deletion flow")
 
 	m, err := r.findProviderMachine()
 	if errors.Is(err, errProviderMachineNotFound) {
-		r.log.Info("machine already freed, removing finalizer")
-		controllerutil.RemoveFinalizer(r.infraMachine, v1alpha1.MachineFinalizer)
-		return nil
+		if !util.IsControlPlaneMachine(r.clusterMachine) {
+			r.log.Info("worker machine not found at provider, removing finalizer")
+			controllerutil.RemoveFinalizer(r.infraMachine, v1alpha1.MachineFinalizer)
+			return ctrl.Result{}, nil
+		}
+
+		if r.infraMachine.DeletionTimestamp.Add(defaultControlPlaneMachineFreeRequeueTime).Before(time.Now()) {
+			r.log.Info("control plane machine deleted, removing finalizer")
+			controllerutil.RemoveFinalizer(r.infraMachine, v1alpha1.MachineFinalizer)
+			return ctrl.Result{}, nil
+		}
+
+		r.log.Info("control plane machine deleted, giving load balancers some time to adjust")
+		return ctrl.Result{RequeueAfter: defaultControlPlaneMachineFreeRequeueTime / 2}, nil
 	}
 	if err != nil {
-		return fmt.Errorf("failed to find provider machine: %w", err)
+		return reconcile.Result{}, fmt.Errorf("failed to find provider machine: %w", err)
 	}
 
 	_, err = r.metalClient.Machine().FreeMachine(metalmachine.NewFreeMachineParamsWithContext(r.ctx).WithID(*m.ID), nil)
 	if err != nil {
-		return fmt.Errorf("failed to delete provider machine: %w", err)
+		return reconcile.Result{}, fmt.Errorf("failed to delete provider machine: %w", err)
 	}
 
 	r.log.Info("freed provider machine")
 
-	r.log.Info("deletion finished, removing finalizer")
-	controllerutil.RemoveFinalizer(r.infraMachine, v1alpha1.MachineFinalizer)
+	if !util.IsControlPlaneMachine(r.clusterMachine) {
+		r.log.Info("worker machine delete finished, removing finalizer")
+		controllerutil.RemoveFinalizer(r.infraMachine, v1alpha1.MachineFinalizer)
+		return ctrl.Result{}, nil
+	}
 
-	return nil
+	r.log.Info("control plane machine delete finished, giving load balancers some to adjust")
+	return ctrl.Result{RequeueAfter: time.Minute}, nil
 }
 
 func (r *machineReconciler) create() (*models.V1MachineResponse, error) {
