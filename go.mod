@@ -4,8 +4,8 @@ go 1.25.0
 
 require (
 	github.com/go-logr/logr v1.4.3
-	github.com/metal-stack/metal-go v0.42.4
-	github.com/metal-stack/metal-lib v0.23.5
+	github.com/metal-stack/metal-go v0.40.4
+	github.com/metal-stack/metal-lib v0.20.2
 	github.com/onsi/ginkgo/v2 v2.23.4
 	github.com/onsi/gomega v1.38.0
 	github.com/stretchr/testify v1.11.1
@@ -14,10 +14,10 @@ require (
 	k8s.io/apimachinery v0.34.1
 	k8s.io/client-go v0.34.1
 	k8s.io/klog/v2 v2.130.1
-	k8s.io/utils v0.0.0-20251002143259-bc988d571ff4
-	sigs.k8s.io/cluster-api v1.11.3
-	sigs.k8s.io/cluster-api/test v1.11.3
-	sigs.k8s.io/controller-runtime v0.22.4
+	k8s.io/utils v0.0.0-20250604170112-4c0f3b243397
+	sigs.k8s.io/cluster-api v1.11.2
+	sigs.k8s.io/cluster-api/test v1.11.2
+	sigs.k8s.io/controller-runtime v0.21.0
 )
 
 require (
@@ -111,9 +111,7 @@ require (
 	github.com/modern-go/reflect2 v1.0.3-0.20250322232337-35a7c28c31ee // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/oklog/ulid v1.3.1 // indirect
-	github.com/olekukonko/errors v1.1.0 // indirect
-	github.com/olekukonko/ll v0.0.9 // indirect
-	github.com/olekukonko/tablewriter v1.0.8 // indirect
+	github.com/olekukonko/tablewriter v0.0.5 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.0 // indirect
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
