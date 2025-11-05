@@ -1,0 +1,10 @@
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+kind: MetalStackMachineTemplate
+metadata:
+  name: k8s-upgrade-worker
+  namespace: ${NAMESPACE}
+spec:
+  template:
+    spec:
+      size: ${WORKER_MACHINE_SIZE}
+      image: ${KUBERNETES_IMAGE_UPGRADE_TO}

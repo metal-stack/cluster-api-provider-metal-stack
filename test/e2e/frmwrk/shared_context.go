@@ -276,8 +276,20 @@ func (ee *E2EContext) TeardownMetalStackProject(ctx context.Context) {
 			})
 
 			for _, r := range resources {
+				By(fmt.Sprintf("Deleting resource %s/%s of kind %s", r.GetNamespace(), r.GetName(), r.GetObjectKind().GroupVersionKind().Kind))
 				err := ee.Environment.Bootstrap.GetClient().Delete(ctx, r)
 				Expect(err).NotTo(HaveOccurred(), fmt.Sprintf("failed to delete resource %s/%s of kind %s", r.GetNamespace(), r.GetName(), r.GetObjectKind().GroupVersionKind().Kind))
+			}
+
+			for _, r := range resources {
+				By(fmt.Sprintf("Waiting for resource %s/%s of kind %s to be deleted", r.GetNamespace(), r.GetName(), r.GetObjectKind().GroupVersionKind().Kind))
+				Eventually(ctx, func(g Gomega) {
+					err := ee.Environment.Bootstrap.GetClient().Get(ctx, client.ObjectKey{
+						Namespace: r.GetNamespace(),
+						Name:      r.GetName(),
+					}, r)
+					g.Expect(client.IgnoreNotFound(err)).NotTo(HaveOccurred(), fmt.Sprintf("failed to get resource %s/%s of kind %s", r.GetNamespace(), r.GetName(), r.GetObjectKind().GroupVersionKind().Kind))
+				}, "5m", "10s").WithContext(ctx).Should(Succeed(), fmt.Sprintf("timed out waiting for resource %s/%s of kind %s to be deleted", r.GetNamespace(), r.GetName(), r.GetObjectKind().GroupVersionKind().Kind))
 			}
 
 			framework.DeleteNamespace(ctx, framework.DeleteNamespaceInput{

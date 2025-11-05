@@ -124,6 +124,8 @@ providers:
       - sourcePath: "../../../../config/clusterctl-templates/cluster-template.yaml"
       - sourcePath: "../../../../config/clusterctl-templates/cluster-template-calico.yaml"
       - sourcePath: "../../../../config/clusterctl-templates/cluster-template-pre-v1.33.yaml"
+      - sourcePath: "../data/clusterctl-templates/cluster-template-upgrade.yaml"
+      - sourcePath: "../data/clusterctl-templates/cluster-template-upgrade-workerless.yaml"
     replacements:
       - old: --metrics-addr=127.0.0.1:8080
         new: --metrics-addr=:8080
@@ -133,7 +135,7 @@ variables:
   # NAMESPACE:
   KUBERNETES_VERSION: "v1.34.1"
   EXP_KUBEADM_BOOTSTRAP_FORMAT_IGNITION: "true"
-  # METAL_PARTITION: 
+  # METAL_PARTITION:
   # METAL_PROJECT_ID:
   # METAL_NODE_NETWORK_ID:
   # CONTROL_PLANE_IP:
@@ -145,6 +147,15 @@ variables:
   WORKER_MACHINE_SIZE: "c1-medium-x86"
   CONTROL_PLANE_MACHINE_COUNT: "1"
   WORKER_MACHINE_COUNT: "1"
+  # K8s Upgrade variables
+  KUBERNETES_VERSION_UPGRADE_FROM: "v1.33.5"
+  KUBERNETES_VERSION_UPGRADE_TO: "v1.34.1"
+  CONTROL_PLANE_MACHINE_TEMPLATE_UPGRADE_TO: "k8s-upgrade-controlplane"
+  WORKERS_MACHINE_TEMPLATE_UPGRADE_TO: "k8s-upgrade-worker"
+  KUBERNETES_IMAGE_UPGRADE_TO: "capms-ubuntu-1.34.1"
+  # TODO: remove once merged into upstream
+  # https://github.com/kubernetes-sigs/cluster-api/pull/12948
+  KUBETEST_CONFIGURATION: "test/e2e/frmwrk/data/kubetest/conformance.yaml" # must be absolute, actual path provided by Makefile
 
 intervals:
   default/wait-controllers: ["4m", "10s"]

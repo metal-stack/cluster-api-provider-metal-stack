@@ -1,0 +1,3 @@
+resources:
+  - ../../../../../../config/clusterctl-templates/cluster-template-calico.yaml
+  - ../bases/cluster-template-mt-control-plane-upgrade-to.yaml

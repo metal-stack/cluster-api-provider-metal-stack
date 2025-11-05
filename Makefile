@@ -141,10 +141,14 @@ E2E_DEFAULT_FLAVOR ?= "calico"
 # Can be something like: basic && !move
 E2E_LABEL_FILTER ?= ""
 
+E2E_TEMPLATES := test/e2e/frmwrk/data/clusterctl-templates
 .PHONY: test-e2e
 test-e2e: manifests generate fmt vet ginkgo
 	rm -rf $(ARTIFACTS)
 
+	$(KUSTOMIZE) build $(E2E_TEMPLATES)/upgrade --load-restrictor LoadRestrictionsNone > $(E2E_TEMPLATES)/cluster-template-upgrade.yaml
+	$(KUSTOMIZE) build $(E2E_TEMPLATES)/upgrade-workerless --load-restrictor LoadRestrictionsNone > $(E2E_TEMPLATES)/cluster-template-upgrade-workerless.yaml
+	
 	@METAL_API_URL=$(E2E_METAL_API_URL) \
 	METAL_API_HMAC=$(E2E_METAL_API_HMAC) \
 	METAL_API_HMAC_AUTH_TYPE=$(E2E_METAL_API_HMAC_AUTH_TYPE) \
@@ -162,6 +166,7 @@ test-e2e: manifests generate fmt vet ginkgo
 	FIREWALL_NETWORKS=$(E2E_FIREWALL_NETWORKS) \
 	ARTIFACTS=$(ARTIFACTS) \
 	E2E_DEFAULT_FLAVOR=$(E2E_DEFAULT_FLAVOR) \
+	KUBETEST_CONFIGURATION="$(shell git rev-parse --show-toplevel)/test/e2e/frmwrk/data/kubetest/conformance.yaml" \
 	$(GINKGO) -vv -r --junit-report="junit.e2e_suite.xml" --output-dir="$(ARTIFACTS)" --label-filter="$(E2E_LABEL_FILTER)" -timeout 60m ./test/e2e/frmwrk
 
 .PHONY: lint
