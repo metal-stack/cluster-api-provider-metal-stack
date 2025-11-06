@@ -355,11 +355,11 @@ func (e2e *E2ECluster) teardownAddons(ctx context.Context) {
 		},
 		{
 			Kind:       "ClusterResourceSet",
-			APIVersion: "addons.cluster.x-k8s.io/v1beta1",
+			APIVersion: "addons.cluster.x-k8s.io/v1beta2",
 		},
 		{
 			Kind:       "ClusterResourceSetBinding",
-			APIVersion: "addons.cluster.x-k8s.io/v1beta1",
+			APIVersion: "addons.cluster.x-k8s.io/v1beta2",
 		},
 	}
 

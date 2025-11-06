@@ -242,7 +242,7 @@ spec:
     whisker:
       enabled: false
 ---
-apiVersion: addons.cluster.x-k8s.io/v1beta1
+apiVersion: addons.cluster.x-k8s.io/v1beta2
 kind: ClusterResourceSet
 metadata:
   name: ${CLUSTER_NAME}-metal-ccm
