@@ -181,9 +181,22 @@ spec:
                   state, and will be set to a token value suitable for
                   programmatic interpretation.
                 type: string
+              initialization:
+                description: Initialization provides information about the initialization
+                  status of the MetalStackMachine.
+                minProperties: 1
+                properties:
+                  provisioned:
+                    description: |-
+                      Provisioned indicates that the initial provisioning has been completed.
+                      NOTE: this field is part of the Cluster API v1beta2 contract, and it is used to orchestrate initial Cluster provisioning.
+                    type: boolean
+                type: object
               ready:
                 default: false
-                description: Ready denotes that the machine is ready.
+                description: |-
+                  Ready denotes that the machine is ready.
+                  NOTE: this field is part of the Cluster API v1beta1 contract.
                 type: boolean
             required:
             - ready

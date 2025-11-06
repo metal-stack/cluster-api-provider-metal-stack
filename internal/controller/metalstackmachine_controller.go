@@ -148,15 +148,17 @@ func (r *MetalStackMachineReconciler) Reconcile(ctx context.Context, req ctrl.Re
 
 	if annotations.IsPaused(cluster, infraMachine) {
 		conditions.Set(infraMachine, metav1.Condition{
-			Status: metav1.ConditionTrue,
-			Type:   clusterv1.PausedCondition,
-			Reason: clusterv1.PausedReason,
+			Status:  metav1.ConditionTrue,
+			Type:    clusterv1.PausedCondition,
+			Reason:  clusterv1.PausedReason,
+			Message: "Reconciliation is paused",
 		})
 	} else {
 		conditions.Set(infraMachine, metav1.Condition{
-			Status: metav1.ConditionFalse,
-			Type:   clusterv1.PausedCondition,
-			Reason: clusterv1.NotPausedReason,
+			Status:  metav1.ConditionFalse,
+			Type:    clusterv1.PausedCondition,
+			Reason:  clusterv1.NotPausedReason,
+			Message: "Reconciliation is not paused",
 		})
 	}
 
@@ -370,8 +372,10 @@ func (r *machineReconciler) reconcile() (ctrl.Result, error) {
 	}
 
 	conditions.Set(r.infraMachine, metav1.Condition{
-		Status: metav1.ConditionTrue,
-		Type:   v1alpha1.ProviderMachineCreated,
+		Status:  metav1.ConditionTrue,
+		Type:    v1alpha1.ProviderMachineCreated,
+		Reason:  "MachineCreated",
+		Message: "machine successfully created at provider",
 	})
 
 	if m.ID == nil {
@@ -394,15 +398,19 @@ func (r *machineReconciler) reconcile() (ctrl.Result, error) {
 		result.RequeueAfter = defaultProviderMachineRequeueTime
 	} else {
 		conditions.Set(r.infraMachine, metav1.Condition{
-			Status: metav1.ConditionTrue,
-			Type:   v1alpha1.ProviderMachineHealthy,
+			Status:  metav1.ConditionTrue,
+			Type:    v1alpha1.ProviderMachineHealthy,
+			Reason:  "Healthy",
+			Message: "machine is healthy at provider",
 		})
 	}
 
 	if isReady {
 		conditions.Set(r.infraMachine, metav1.Condition{
-			Status: metav1.ConditionTrue,
-			Type:   v1alpha1.ProviderMachineReady,
+			Status:  metav1.ConditionTrue,
+			Type:    v1alpha1.ProviderMachineReady,
+			Reason:  "Ready",
+			Message: "machine is in phoned home state",
 		})
 		r.infraMachine.Status.Ready = isReady
 		r.infraMachine.Status.Initialization.Provisioned = &isReady

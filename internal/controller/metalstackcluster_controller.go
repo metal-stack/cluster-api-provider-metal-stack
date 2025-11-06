@@ -115,15 +115,17 @@ func (r *MetalStackClusterReconciler) Reconcile(ctx context.Context, req ctrl.Re
 
 	if annotations.IsPaused(cluster, infraCluster) {
 		conditions.Set(infraCluster, metav1.Condition{
-			Status: metav1.ConditionTrue,
-			Type:   clusterv1.PausedCondition,
-			Reason: clusterv1.PausedReason,
+			Status:  metav1.ConditionTrue,
+			Type:    clusterv1.PausedCondition,
+			Reason:  clusterv1.PausedReason,
+			Message: "Reconciliation is paused",
 		})
 	} else {
 		conditions.Set(infraCluster, metav1.Condition{
-			Status: metav1.ConditionFalse,
-			Type:   clusterv1.PausedCondition,
-			Reason: clusterv1.NotPausedReason,
+			Status:  metav1.ConditionFalse,
+			Type:    clusterv1.PausedCondition,
+			Reason:  clusterv1.NotPausedReason,
+			Message: "Reconciliation is not paused",
 		})
 	}
 
@@ -282,9 +284,10 @@ func (r *clusterReconciler) reconcile() error {
 			return fmt.Errorf("unable to ensure control plane ip: %w", err)
 		}
 		conditions.Set(r.infraCluster, metav1.Condition{
-			Status: metav1.ConditionTrue,
-			Type:   v1alpha1.ClusterControlPlaneIPEnsured,
-			Reason: "ControlPlaneIPEnsured",
+			Status:  metav1.ConditionTrue,
+			Type:    v1alpha1.ClusterControlPlaneIPEnsured,
+			Reason:  "ControlPlaneIPEnsured",
+			Message: fmt.Sprintf("Control plane IP %s ensured", ip),
 		})
 
 		r.log.Info("reconciled control plane ip", "ip", ip)
