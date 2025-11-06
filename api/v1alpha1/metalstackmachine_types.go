@@ -49,8 +49,13 @@ type MetalStackMachineSpec struct {
 // MetalStackMachineStatus defines the observed state of MetalStackMachine.
 type MetalStackMachineStatus struct {
 	// Ready denotes that the machine is ready.
+	// NOTE: this field is part of the Cluster API v1beta1 contract.
 	// +kubebuilder:default=false
 	Ready bool `json:"ready"`
+
+	// Initialization provides information about the initialization status of the MetalStackMachine.
+	// +optional
+	Initialization MetalStackMachineInitializationStatus `json:"initialization,omitzero"`
 
 	// FailureReason indicates that there is a fatal problem reconciling the
 	// state, and will be set to a token value suitable for
@@ -69,6 +74,15 @@ type MetalStackMachineStatus struct {
 
 	// MachineAddresses contains all host names, external or internal IP addresses and external or internal DNS names.
 	Addresses clusterv1.MachineAddresses `json:"addresses,omitempty"`
+}
+
+// MetalStackMachineInitializationStatus defines the observed initialization status of the MetalStackMachine.
+// +kubebuilder:validation:MinProperties=1
+type MetalStackMachineInitializationStatus struct {
+	// Provisioned indicates that the initial provisioning has been completed.
+	// NOTE: this field is part of the Cluster API v1beta2 contract, and it is used to orchestrate initial Cluster provisioning.
+	// +optional
+	Provisioned *bool `json:"provisioned,omitempty"`
 }
 
 // +kubebuilder:object:root=true

@@ -10,7 +10,7 @@ resources:
 labels:
 - includeSelectors: true
   pairs:
-    cluster.x-k8s.io/v1beta1: v1alpha1
+    cluster.x-k8s.io/v1beta2: v1alpha1
 
 patches:
 # [WEBHOOK] To enable webhook, uncomment all the sections with [WEBHOOK] prefix.

@@ -299,6 +299,7 @@ func (r *clusterReconciler) reconcile() error {
 	}
 
 	r.infraCluster.Status.Ready = true
+	r.infraCluster.Status.Initialization.Provisioned = ptr.To(true)
 
 	return nil
 }

@@ -405,6 +405,7 @@ func (r *machineReconciler) reconcile() (ctrl.Result, error) {
 			Type:   v1alpha1.ProviderMachineReady,
 		})
 		r.infraMachine.Status.Ready = isReady
+		r.infraMachine.Status.Initialization.Provisioned = &isReady
 	} else {
 		conditions.Set(r.infraMachine, metav1.Condition{
 			Status:  metav1.ConditionFalse,

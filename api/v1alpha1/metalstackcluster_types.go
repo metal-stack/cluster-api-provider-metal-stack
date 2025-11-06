@@ -78,8 +78,13 @@ type APIEndpoint struct {
 // MetalStackClusterStatus defines the observed state of MetalStackCluster.
 type MetalStackClusterStatus struct {
 	// Ready denotes that the cluster is ready.
+	// NOTE: this field is part of the Cluster API v1beta1 contract.
 	// +kubebuilder:default=false
 	Ready bool `json:"ready"`
+
+	// Initialization provides information about the initialization status of the MetalStackCluster.
+	// +optional
+	Initialization MetalStackClusterInitializationStatus `json:"initialization,omitzero"`
 
 	// FailureReason indicates that there is a fatal problem reconciling the
 	// state, and will be set to a token value suitable for
@@ -95,6 +100,15 @@ type MetalStackClusterStatus struct {
 	// Conditions defines current service state of the MetalStackCluster.
 	// +optional
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
+}
+
+// MetalStackClusterInitializationStatus defines the observed initialization status of the MetalStackCluster.
+// +kubebuilder:validation:MinProperties=1
+type MetalStackClusterInitializationStatus struct {
+	// Provisioned indicates that the initial provisioning has been completed.
+	// NOTE: this field is part of the Cluster API v1beta2 contract, and it is used to orchestrate initial Cluster provisioning.
+	// +optional
+	Provisioned *bool `json:"provisioned,omitempty"`
 }
 
 // +kubebuilder:object:root=true
