@@ -31,7 +31,7 @@ providers:
     type: "url"
     contract: v1beta2
     files:
-      - sourcePath: "./data/cluster-api/metadata.yaml"
+      - sourcePath: "../data/cluster-api/metadata.yaml"
     replacements:
       - old: --metrics-addr=127.0.0.1:8080
         new: --metrics-addr=:8080
@@ -63,6 +63,8 @@ providers:
     value: "https://github.com/kubernetes-sigs/cluster-api/releases/download/{go://sigs.k8s.io/cluster-api@v1.11}/bootstrap-components.yaml"
     type: "url"
     contract: v1beta2
+    files:
+      - sourcePath: "../data/cluster-api/metadata.yaml"
     replacements:
       - old: --metrics-addr=127.0.0.1:8080
         new: --metrics-addr=:8080
@@ -94,6 +96,8 @@ providers:
     value: "https://github.com/kubernetes-sigs/cluster-api/releases/download/{go://sigs.k8s.io/cluster-api@v1.11}/control-plane-components.yaml"
     type: "url"
     contract: v1beta2
+    files:
+      - sourcePath: "../data/cluster-api/metadata.yaml"
     replacements:
       - old: --metrics-addr=127.0.0.1:8080
         new: --metrics-addr=:8080
@@ -118,6 +122,20 @@ providers:
     value: "https://github.com/metal-stack/cluster-api-provider-metal-stack/releases/download/{go://github.com/metal-stack/cluster-api-provider-metal-stack@v0.6}/infrastructure-components.yaml"
     type: "url"
     contract: v1beta1
+    files:
+      - sourcePath: "../../../../metadata.yaml"
+      - sourcePath: "../../../../config/clusterctl-templates/cluster-template.yaml"
+      - sourcePath: "../../../../config/clusterctl-templates/cluster-template-calico.yaml"
+      - sourcePath: "../../../../config/clusterctl-templates/cluster-template-pre-v1.33.yaml"
+      - sourcePath: "../data/clusterctl-templates/cluster-template-upgrade.yaml"
+      - sourcePath: "../data/clusterctl-templates/cluster-template-upgrade-workerless.yaml"
+    replacements:
+      - old: --metrics-addr=127.0.0.1:8080
+        new: --metrics-addr=:8080
+
+  - name: "v0.7.99"
+    value: "../../../../config/default"
+    contract: v1beta2
     files:
       - sourcePath: "../../../../metadata.yaml"
       - sourcePath: "../../../../config/clusterctl-templates/cluster-template.yaml"
