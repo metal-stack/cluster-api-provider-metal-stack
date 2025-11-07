@@ -39,8 +39,8 @@ spec:
       priority: 1
       type: string
     - description: MetalStackCluster is ready
-      jsonPath: .status.ready
-      name: Ready
+      jsonPath: .status.initialization.provisioned
+      name: Provisioned
       type: string
     - description: Uptime of the cluster
       jsonPath: .metadata.creationTimestamp

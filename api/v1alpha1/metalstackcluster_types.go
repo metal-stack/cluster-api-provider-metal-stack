@@ -118,7 +118,7 @@ type MetalStackClusterInitializationStatus struct {
 // +kubebuilder:printcolumn:name="Partition",type="string",priority=1,JSONPath=".spec.partition",description="The partition within metal-stack"
 // +kubebuilder:printcolumn:name="Project",type="string",priority=1,JSONPath=".spec.projectID",description="The project within metal-stack"
 // +kubebuilder:printcolumn:name="Network",type="string",priority=1,JSONPath=".spec.nodeNetworkID",description="The network within metal-stack"
-// +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.ready",description="MetalStackCluster is ready"
+// +kubebuilder:printcolumn:name="Provisioned",type="string",JSONPath=".status.initialization.provisioned",description="MetalStackCluster is ready"
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp",description="Uptime of the cluster"
 
 // MetalStackCluster is the Schema for the metalstackclusters API.
