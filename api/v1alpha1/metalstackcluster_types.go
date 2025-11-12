@@ -21,7 +21,6 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	capierrors "sigs.k8s.io/cluster-api/errors" //nolint:staticcheck
 
 	"github.com/metal-stack/metal-lib/pkg/tag"
@@ -35,8 +34,7 @@ const (
 
 	ClusterControlPlaneEndpointDefaultPort = 443
 
-	ClusterControlPlaneIPEnsured clusterv1.ConditionType = "ClusterControlPlaneIPEnsured"
-	ClusterPaused                clusterv1.ConditionType = clusterv1.PausedV1Beta2Condition
+	ClusterControlPlaneIPEnsured = "ClusterControlPlaneIPEnsured"
 )
 
 var (
@@ -80,8 +78,13 @@ type APIEndpoint struct {
 // MetalStackClusterStatus defines the observed state of MetalStackCluster.
 type MetalStackClusterStatus struct {
 	// Ready denotes that the cluster is ready.
+	// NOTE: this field is part of the Cluster API v1beta1 contract.
 	// +kubebuilder:default=false
 	Ready bool `json:"ready"`
+
+	// Initialization provides information about the initialization status of the MetalStackCluster.
+	// +optional
+	Initialization MetalStackClusterInitializationStatus `json:"initialization,omitzero"`
 
 	// FailureReason indicates that there is a fatal problem reconciling the
 	// state, and will be set to a token value suitable for
@@ -96,7 +99,16 @@ type MetalStackClusterStatus struct {
 
 	// Conditions defines current service state of the MetalStackCluster.
 	// +optional
-	Conditions clusterv1.Conditions `json:"conditions,omitempty"`
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
+}
+
+// MetalStackClusterInitializationStatus defines the observed initialization status of the MetalStackCluster.
+// +kubebuilder:validation:MinProperties=1
+type MetalStackClusterInitializationStatus struct {
+	// Provisioned indicates that the initial provisioning has been completed.
+	// NOTE: this field is part of the Cluster API v1beta2 contract, and it is used to orchestrate initial Cluster provisioning.
+	// +optional
+	Provisioned *bool `json:"provisioned,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -106,7 +118,7 @@ type MetalStackClusterStatus struct {
 // +kubebuilder:printcolumn:name="Partition",type="string",priority=1,JSONPath=".spec.partition",description="The partition within metal-stack"
 // +kubebuilder:printcolumn:name="Project",type="string",priority=1,JSONPath=".spec.projectID",description="The project within metal-stack"
 // +kubebuilder:printcolumn:name="Network",type="string",priority=1,JSONPath=".spec.nodeNetworkID",description="The network within metal-stack"
-// +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.ready",description="MetalStackCluster is ready"
+// +kubebuilder:printcolumn:name="Provisioned",type="string",JSONPath=".status.initialization.provisioned",description="MetalStackCluster is ready"
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp",description="Uptime of the cluster"
 
 // MetalStackCluster is the Schema for the metalstackclusters API.
@@ -132,12 +144,12 @@ func init() {
 }
 
 // GetConditions returns the list of conditions.
-func (c *MetalStackCluster) GetConditions() clusterv1.Conditions {
+func (c *MetalStackCluster) GetConditions() []metav1.Condition {
 	return c.Status.Conditions
 }
 
 // SetConditions will set the given conditions.
-func (c *MetalStackCluster) SetConditions(conditions clusterv1.Conditions) {
+func (c *MetalStackCluster) SetConditions(conditions []metav1.Condition) {
 	c.Status.Conditions = conditions
 }
 

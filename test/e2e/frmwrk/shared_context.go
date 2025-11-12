@@ -266,11 +266,11 @@ func (ee *E2EContext) TeardownMetalStackProject(ctx context.Context) {
 					},
 					{
 						Kind:       "ClusterResourceSetBinding",
-						APIVersion: "addons.cluster.x-k8s.io/v1beta1",
+						APIVersion: "addons.cluster.x-k8s.io/v1beta2",
 					},
 					{
 						Kind:       "ClusterResourceSet",
-						APIVersion: "addons.cluster.x-k8s.io/v1beta1",
+						APIVersion: "addons.cluster.x-k8s.io/v1beta2",
 					},
 				},
 			})
