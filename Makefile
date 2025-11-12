@@ -121,6 +121,7 @@ test-e2e-controller: manifests generate update-test-crds fmt vet ## Run the e2e 
 	}
 	go test ./test/e2e/ -v -ginkgo.v
 
+E2E_KUBECONFIG ?= ""
 E2E_METAL_API_URL ?= "$(METALCTL_API_URL)"
 E2E_METAL_API_HMAC ?= "$(METALCTL_HMAC)"
 E2E_METAL_API_HMAC_AUTH_TYPE ?= "$(or $(METALCTL_HMAC_AUTH_TYPE),Metal-Admin)"
@@ -149,7 +150,8 @@ test-e2e: manifests generate fmt vet ginkgo kustomize
 	$(KUSTOMIZE) build $(E2E_TEMPLATES)/upgrade --load-restrictor LoadRestrictionsNone > $(E2E_TEMPLATES)/cluster-template-upgrade.yaml
 	$(KUSTOMIZE) build $(E2E_TEMPLATES)/upgrade-workerless --load-restrictor LoadRestrictionsNone > $(E2E_TEMPLATES)/cluster-template-upgrade-workerless.yaml
 	
-	@METAL_API_URL=$(E2E_METAL_API_URL) \
+	@KUBECONFIG=$(E2E_KUBECONFIG) \
+	METAL_API_URL=$(E2E_METAL_API_URL) \
 	METAL_API_HMAC=$(E2E_METAL_API_HMAC) \
 	METAL_API_HMAC_AUTH_TYPE=$(E2E_METAL_API_HMAC_AUTH_TYPE) \
 	METAL_PROJECT_ID=$(E2E_METAL_PROJECT_ID) \

@@ -66,7 +66,7 @@ func (e2e *E2EContext) envOrVar(name string) string {
 
 func withDefaultEnvironment() Option {
 	return func(e2e *E2EContext) {
-		e2e.Environment.kubeconfigPath = os.Getenv("E2E_KUBECONFIG")
+		e2e.Environment.kubeconfigPath = os.Getenv("KUBECONFIG")
 
 		if p, ok := os.LookupEnv("ARTIFACTS"); ok {
 			e2e.Environment.artifactsPath = p
@@ -166,8 +166,8 @@ func (ee *E2EContext) ProvideBootstrapCluster() {
 }
 
 func (ee *E2EContext) provideExistingBootstrapClusterKubeconfig() string {
-	Expect(ee.Environment.kubeconfigPath).ToNot(BeEmpty(), "E2E_KUBECONFIG must be set to use an existing bootstrap cluster")
-	Expect(ee.Environment.kubeconfigPath).To(BeAnExistingFile(), "E2E_KUBECONFIG must point to an existing file")
+	Expect(ee.Environment.kubeconfigPath).ToNot(BeEmpty(), "KUBECONFIG must be set to use an existing bootstrap cluster")
+	Expect(ee.Environment.kubeconfigPath).To(BeAnExistingFile(), "KUBECONFIG must point to an existing file")
 	return ee.Environment.kubeconfigPath
 }
 

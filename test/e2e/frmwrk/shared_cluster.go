@@ -318,6 +318,7 @@ func (e2e *E2ECluster) GenerateAndApplyClusterTemplate(ctx context.Context) {
 		Flavor:                   e2e.E2EContext.Environment.Flavor,
 		LogFolder:                path.Join(e2e.E2EContext.Environment.artifactsPath, "clusters", e2e.ClusterName),
 		ClusterctlVariables:      e2e.Variables(),
+		KubeconfigPath:           e2e.E2EContext.Environment.Bootstrap.GetKubeconfigPath(),
 	})
 
 	By("Apply cluster template")
