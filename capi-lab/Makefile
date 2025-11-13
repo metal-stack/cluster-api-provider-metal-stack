@@ -23,6 +23,9 @@ CONTROL_PLANE_MACHINE_IMAGE ?= capms-ubuntu-$(KUBERNETES_VERSION)
 CONTROL_PLANE_MACHINE_SIZE ?= v1-small-x86
 WORKER_MACHINE_IMAGE ?= capms-ubuntu-$(KUBERNETES_VERSION)
 WORKER_MACHINE_SIZE ?= v1-small-x86
+FIREWALL_MACHINE_IMAGE ?= firewall-ubuntu-3.0
+FIREWALL_MACHINE_SIZE ?= v1-small-x86
+FIREWALL_EXTERNAL_NETWORKS ?= ["internet-mini-lab"]
 
 IMG ?= ghcr.io/metal-stack/cluster-api-metal-stack-controller:latest
 

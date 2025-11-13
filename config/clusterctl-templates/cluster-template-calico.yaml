@@ -33,6 +33,53 @@ spec:
   partition: ${METAL_PARTITION}
   nodeNetworkID: ${METAL_NODE_NETWORK_ID}
   controlPlaneIP: ${CONTROL_PLANE_IP}
+  firewallDeploymentSpec:
+    autoUpdate:
+      machineImage: true
+    template:
+      spec:
+        image: ${FIREWALL_MACHINE_IMAGE}
+        size: ${FIREWALL_MACHINE_SIZE}
+        networks: ${FIREWALL_EXTERNAL_NETWORKS:=["internet"]}
+        partition: ${METAL_PARTITION}
+        project: ${METAL_PROJECT_ID}
+        initialRuleSet:
+          egress:
+            - comment: allow outgoing HTTP and HTTPS traffic
+              ports:
+                - 80
+                - 443
+              protocol: TCP
+              to:
+                - 0.0.0.0/0
+            - comment: allow outgoing DNS traffic via TCP
+              ports:
+                - 53
+              protocol: TCP
+              to:
+                - 0.0.0.0/0
+            - comment: allow outgoing traffic to control plane for ccm
+              ports:
+                - 8080
+              protocol: TCP
+              to:
+                - 0.0.0.0/0 # could be more specific
+            - comment: allow outgoing DNS and NTP traffic via UDP
+              ports:
+                - 53
+                - 123
+              protocol: UDP
+              to:
+                - 0.0.0.0/0
+
+          ingress:
+            - comment: allow incoming HTTP and HTTPS traffic
+              ports:
+                - 80
+                - 443
+              protocol: TCP
+              from:
+                - 0.0.0.0/0 # could be more specific
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
 kind: MetalStackMachineTemplate

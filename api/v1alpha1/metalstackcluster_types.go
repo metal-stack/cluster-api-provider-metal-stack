@@ -24,6 +24,7 @@ import (
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	capierrors "sigs.k8s.io/cluster-api/errors" //nolint:staticcheck
 
+	fcmv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
 	"github.com/metal-stack/metal-lib/pkg/tag"
 )
 
@@ -35,8 +36,9 @@ const (
 
 	ClusterControlPlaneEndpointDefaultPort = 443
 
-	ClusterControlPlaneIPEnsured clusterv1.ConditionType = "ClusterControlPlaneIPEnsured"
-	ClusterPaused                clusterv1.ConditionType = clusterv1.PausedV1Beta2Condition
+	ClusterPaused                    clusterv1.ConditionType = clusterv1.PausedV1Beta2Condition
+	ClusterControlPlaneIPEnsured     clusterv1.ConditionType = "ClusterControlPlaneIPEnsured"
+	ClusterFirewallDeploymentEnsured clusterv1.ConditionType = "ClusterFirewallDeploymentEnsured"
 )
 
 var (
@@ -50,7 +52,7 @@ var (
 type MetalStackClusterSpec struct {
 	// ControlPlaneEndpoint represents the endpoint used to communicate with the control plane.
 	// +optional
-	ControlPlaneEndpoint APIEndpoint `json:"controlPlaneEndpoint,omitempty"`
+	ControlPlaneEndpoint APIEndpoint `json:"controlPlaneEndpoint,omitzero"`
 
 	// ProjectID is the project id of the project in metal-stack in which the associated metal-stack resources are created.
 	ProjectID string `json:"projectID"`
@@ -66,6 +68,9 @@ type MetalStackClusterSpec struct {
 
 	// Partition is the data center partition in which the resources are created.
 	Partition string `json:"partition"`
+
+	// FirewallDeploymentSpec defines the firewall deployment template spec used to create firewalls for the cluster.
+	FirewallDeploymentSpec *fcmv2.FirewallDeploymentSpec `json:"firewallDeploymentSpec,omitempty"`
 }
 
 // APIEndpoint represents a reachable Kubernetes API endpoint.

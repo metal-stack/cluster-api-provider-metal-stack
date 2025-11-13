@@ -21,6 +21,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"github.com/metal-stack/firewall-controller-manager/api/v2"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/errors"
@@ -108,6 +109,11 @@ func (in *MetalStackClusterSpec) DeepCopyInto(out *MetalStackClusterSpec) {
 		in, out := &in.ControlPlaneIP, &out.ControlPlaneIP
 		*out = new(string)
 		**out = **in
+	}
+	if in.FirewallDeploymentSpec != nil {
+		in, out := &in.FirewallDeploymentSpec, &out.FirewallDeploymentSpec
+		*out = new(v2.FirewallDeploymentSpec)
+		(*in).DeepCopyInto(*out)
 	}
 }
 

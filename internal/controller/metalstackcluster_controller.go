@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -45,7 +46,10 @@ import (
 	"github.com/go-logr/logr"
 
 	"github.com/metal-stack/cluster-api-provider-metal-stack/api/v1alpha1"
+	fcmv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
+	"github.com/metal-stack/metal-go/api/client/firewall"
 	ipmodels "github.com/metal-stack/metal-go/api/client/ip"
+	"github.com/metal-stack/metal-go/api/client/machine"
 	"github.com/metal-stack/metal-go/api/client/network"
 	"github.com/metal-stack/metal-go/api/models"
 	"github.com/metal-stack/metal-lib/pkg/tag"
@@ -286,6 +290,21 @@ func (r *clusterReconciler) reconcile() error {
 
 	}
 
+	if r.infraCluster.Spec.FirewallDeploymentSpec != nil {
+		err := r.ensureFirewallDeployment()
+		if err != nil {
+			conditions.MarkFalse(r.infraCluster, v1alpha1.ClusterFirewallDeploymentEnsured, "InternalError", clusterv1.ConditionSeverityError, "%s", err.Error())
+			return fmt.Errorf("unable to ensure firewall deployment: %w", err)
+		}
+		conditions.MarkTrue(r.infraCluster, v1alpha1.ClusterFirewallDeploymentEnsured)
+	} else {
+		err := r.deleteFirewallDeployment()
+		if err != nil {
+			conditions.MarkFalse(r.infraCluster, v1alpha1.ClusterFirewallDeploymentEnsured, "InternalError", clusterv1.ConditionSeverityError, "%s", err.Error())
+			return fmt.Errorf("unable to delete firewall deployment: %w", err)
+		}
+	}
+
 	r.infraCluster.Status.Ready = true
 
 	return nil
@@ -301,6 +320,11 @@ func (r *clusterReconciler) delete() error {
 	r.log.Info("reconciling resource deletion flow")
 
 	err = r.ensureAllMetalStackMachinesAreGone()
+	if err != nil {
+		return err
+	}
+
+	err = r.deleteFirewallDeployment()
 	if err != nil {
 		return err
 	}
@@ -357,6 +381,103 @@ func (r *clusterReconciler) ensureControlPlaneIP() (string, error) {
 	return *resp.Payload.Ipaddress, nil
 }
 
+func (r *clusterReconciler) ensureFirewallDeployment() error {
+	// TODO: migrate this to actually create a firewall deployment
+	// Temporarily we will instead create the firewall manually
+
+	var (
+		name = fmt.Sprintf("%s-firewall", r.infraCluster.GetName())
+		tags = []string{
+			tag.New(tag.ClusterID, r.infraCluster.Spec.NodeNetworkID),
+			tag.New(v1alpha1.TagInfraClusterResource, fmt.Sprintf("%s.%s", r.infraCluster.Namespace, r.infraCluster.Name)),
+			tag.New(fcmv2.FirewallControllerManagedByAnnotation, "cluster-api-provider-metal-stack"),
+		}
+	)
+
+	fwFindResp, err := r.metalClient.Firewall().FindFirewalls(firewall.NewFindFirewallsParamsWithContext(r.ctx).WithBody(&models.V1FirewallFindRequest{
+		PartitionID:       r.infraCluster.Spec.Partition,
+		Sizeid:            r.infraCluster.Spec.FirewallDeploymentSpec.Template.Spec.Size,
+		AllocationImageID: r.infraCluster.Spec.FirewallDeploymentSpec.Template.Spec.Image,
+		Tags:              tags,
+	}), nil)
+	if err != nil {
+		return fmt.Errorf("error finding firewall deployments: %w", err)
+	}
+
+	if len(fwFindResp.Payload) > 1 {
+		fwids := make([]string, 0, len(fwFindResp.Payload))
+		for _, fw := range fwFindResp.Payload {
+			if fw.ID != nil {
+				fwids = append(fwids, *fw.ID)
+			}
+		}
+		r.log.Info("multiple firewalls found, manual intervention needed due to manual roll", "firewalls", fwids)
+	}
+
+	if len(fwFindResp.Payload) == 1 {
+		return nil
+	}
+
+	networkIDs := r.infraCluster.Spec.FirewallDeploymentSpec.Template.Spec.Networks
+	if !slices.Contains(networkIDs, r.infraCluster.Spec.NodeNetworkID) {
+		networkIDs = append(networkIDs, r.infraCluster.Spec.NodeNetworkID)
+		r.infraCluster.Spec.FirewallDeploymentSpec.Template.Spec.Networks = networkIDs
+	}
+
+	networks := make([]*models.V1MachineAllocationNetwork, 0, len(networkIDs))
+	for _, n := range networkIDs {
+		network := &models.V1MachineAllocationNetwork{
+			Networkid:   &n,
+			Autoacquire: ptr.To(true),
+		}
+		networks = append(networks, network)
+	}
+
+	egressRules := make([]*models.V1FirewallEgressRule, 0, len(r.infraCluster.Spec.FirewallDeploymentSpec.Template.Spec.InitialRuleSet.Egress))
+	for _, er := range r.infraCluster.Spec.FirewallDeploymentSpec.Template.Spec.InitialRuleSet.Egress {
+		egressRules = append(egressRules, &models.V1FirewallEgressRule{
+			Comment:  er.Comment,
+			Ports:    er.Ports,
+			Protocol: string(er.Protocol),
+			To:       er.To,
+		})
+	}
+
+	ingressRules := make([]*models.V1FirewallIngressRule, 0, len(r.infraCluster.Spec.FirewallDeploymentSpec.Template.Spec.InitialRuleSet.Ingress))
+	for _, ir := range r.infraCluster.Spec.FirewallDeploymentSpec.Template.Spec.InitialRuleSet.Ingress {
+		ingressRules = append(ingressRules, &models.V1FirewallIngressRule{
+			Comment:  ir.Comment,
+			Ports:    ir.Ports,
+			Protocol: string(ir.Protocol),
+			From:     ir.From,
+		})
+	}
+
+	fwresp, err := r.metalClient.Firewall().AllocateFirewall(firewall.NewAllocateFirewallParamsWithContext(r.ctx).WithBody(&models.V1FirewallCreateRequest{
+		Hostname:    name,
+		Name:        name,
+		Description: fmt.Sprintf("firewall for cluster %s", r.infraCluster.GetName()),
+		Partitionid: ptr.To(r.infraCluster.Spec.Partition),
+		Projectid:   &r.infraCluster.Spec.ProjectID,
+		Tags:        tags,
+		SSHPubKeys:  []string{},
+		Networks:    networks,
+		Imageid:     ptr.To(r.infraCluster.Spec.FirewallDeploymentSpec.Template.Spec.Image),
+		Sizeid:      ptr.To(r.infraCluster.Spec.FirewallDeploymentSpec.Template.Spec.Size),
+		FirewallRules: &models.V1FirewallRules{
+			Egress:  egressRules,
+			Ingress: ingressRules,
+		},
+	}), nil)
+	if err != nil {
+		return fmt.Errorf("error creating firewall deployment: %w", err)
+	}
+
+	r.log.Info("created firewall deployment", "firewallID", fwresp.Payload.ID)
+
+	return nil
+}
+
 func (r *clusterReconciler) ensureAllMetalStackMachinesAreGone() error {
 	infraMachines := &v1alpha1.MetalStackMachineList{}
 	err := r.client.List(r.ctx, infraMachines, &client.ListOptions{
@@ -410,4 +531,45 @@ func (r *clusterReconciler) deleteControlPlaneIP() error {
 	r.log.Info("deleted control plane ip", "address", *ip.Ipaddress)
 
 	return nil
+}
+
+func (r *clusterReconciler) deleteFirewallDeployment() error {
+	// TODO: migrate this to actually delete a firewall deployment
+	// Temporarily we will instead delete all firewalls manually
+
+	var (
+		tags = []string{
+			tag.New(tag.ClusterID, r.infraCluster.Spec.NodeNetworkID),
+			tag.New(v1alpha1.TagInfraClusterResource, fmt.Sprintf("%s.%s", r.infraCluster.Namespace, r.infraCluster.Name)),
+			tag.New(fcmv2.FirewallControllerManagedByAnnotation, "cluster-api-provider-metal-stack"),
+		}
+	)
+
+	fwFindResp, err := r.metalClient.Firewall().FindFirewalls(firewall.NewFindFirewallsParamsWithContext(r.ctx).WithBody(&models.V1FirewallFindRequest{
+		PartitionID: r.infraCluster.Spec.Partition,
+		Tags:        tags,
+	}), nil)
+	if err != nil {
+		return fmt.Errorf("error finding firewall deployments: %w", err)
+	}
+
+	if len(fwFindResp.Payload) == 0 {
+		return nil
+	}
+
+	var errs []error
+	for _, fw := range fwFindResp.Payload {
+		if fw.ID == nil {
+			continue
+		}
+
+		_, err := r.metalClient.Machine().FreeMachine(machine.NewFreeMachineParamsWithContext(r.ctx).WithID(*fw.ID), nil)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("error deleting firewall deployment %s: %w", *fw.ID, err))
+			continue
+		}
+		r.log.Info("deleted firewall deployment", "machine-id", *fw.ID)
+	}
+
+	return errors.Join(errs...)
 }
