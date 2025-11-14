@@ -24,7 +24,6 @@ import (
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	capierrors "sigs.k8s.io/cluster-api/errors" //nolint:staticcheck
 
-	fcmv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
 	"github.com/metal-stack/metal-lib/pkg/tag"
 )
 
@@ -68,9 +67,6 @@ type MetalStackClusterSpec struct {
 
 	// Partition is the data center partition in which the resources are created.
 	Partition string `json:"partition"`
-
-	// FirewallDeploymentSpec defines the firewall deployment template spec used to create firewalls for the cluster.
-	FirewallDeploymentSpec *fcmv2.FirewallDeploymentSpec `json:"firewallDeploymentSpec,omitempty"`
 }
 
 // APIEndpoint represents a reachable Kubernetes API endpoint.

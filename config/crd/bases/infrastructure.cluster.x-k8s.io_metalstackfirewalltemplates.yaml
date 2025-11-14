@@ -1,0 +1,358 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.16.4
+  name: metalstackfirewalltemplates.infrastructure.cluster.x-k8s.io
+spec:
+  group: infrastructure.cluster.x-k8s.io
+  names:
+    categories:
+    - cluster-api
+    kind: MetalStackFirewallTemplate
+    listKind: MetalStackFirewallTemplateList
+    plural: metalstackfirewalltemplates
+    shortNames:
+    - msfwtemplate
+    singular: metalstackfirewalltemplate
+  scope: Cluster
+  versions:
+  - additionalPrinterColumns:
+    - description: The Metal Stack partition where the firewall will be created
+      jsonPath: .spec.partition
+      name: Partition
+      type: string
+    - description: The Metal Stack project where the firewall will be created
+      jsonPath: .spec.project
+      name: Project
+      type: string
+    - description: The Metal Stack firewall image
+      jsonPath: .spec.image
+      name: Image
+      type: string
+    - description: The Metal Stack firewall size
+      jsonPath: .spec.size
+      name: Size
+      type: string
+    - description: The age of the firewall template
+      jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: Spec defines the firewall deployment template spec used to
+              create firewalls for the cluster.
+            properties:
+              allowedNetworks:
+                description: |-
+                  AllowedNetworks defines dedicated networks for which the firewall allows in- and outgoing traffic.
+                  The firewall-controller only enforces this setting in combination with NetworkAccessType set to forbidden.
+                  The node network is always allowed.
+                properties:
+                  egress:
+                    description: Egress defines a list of cidrs which are allowed
+                      for outgoing traffic.
+                    items:
+                      type: string
+                    type: array
+                  ingress:
+                    description: Ingress defines a list of cidrs which are allowed
+                      for incoming traffic like service type loadbalancer.
+                    items:
+                      type: string
+                    type: array
+                type: object
+              controllerURL:
+                description: ControllerURL points to the downloadable binary artifact
+                  of the firewall controller.
+                type: string
+              controllerVersion:
+                description: ControllerVersion holds the firewall-controller version
+                  to reconcile.
+                type: string
+              dnsPort:
+                description: DNSPort specifies port to which DNS proxy should be bound
+                type: integer
+              dnsServerAddress:
+                description: DNSServerAddress specifies DNS server address used by
+                  DNS proxy
+                type: string
+              dryRun:
+                description: DryRun if set to true, firewall rules are not applied.
+                  For devel-purposes only.
+                type: boolean
+              egressRules:
+                description: EgressRules contains egress rules configured for this
+                  firewall.
+                items:
+                  description: EgressRuleSNAT holds a Source-NAT rule
+                  properties:
+                    ips:
+                      description: IPs contains the ips used as source addresses for
+                        packets leaving the specified network.
+                      items:
+                        type: string
+                      type: array
+                    networkID:
+                      description: NetworkID is the network for which the egress rule
+                        will be configured.
+                      type: string
+                  required:
+                  - ips
+                  - networkID
+                  type: object
+                type: array
+              image:
+                description: |-
+                  Image is the os image of the firewall.
+                  An update on this field requires the recreation of the physical firewall and can therefore lead to traffic interruption for the cluster.
+                type: string
+              initialRuleSet:
+                description: InitialRuleSet is the initial firewall ruleset applied
+                  before the firewall-controller starts running.
+                properties:
+                  egress:
+                    description: Egress rules to be deployed initially on the firewall.
+                    items:
+                      properties:
+                        comment:
+                          description: Comment provides a human readable description
+                            of this rule.
+                          type: string
+                        ports:
+                          description: Ports contains all affected network ports.
+                          items:
+                            format: int32
+                            type: integer
+                          type: array
+                        protocol:
+                          description: Protocol constraints the protocol this rule
+                            applies to.
+                          type: string
+                        to:
+                          description: To source address cidrs this rule applies to.
+                          items:
+                            type: string
+                          type: array
+                      required:
+                      - ports
+                      - protocol
+                      - to
+                      type: object
+                    type: array
+                  ingress:
+                    description: Ingress rules to be deployed initially on the firewall.
+                    items:
+                      properties:
+                        comment:
+                          description: Comment provides a human readable description
+                            of this rule.
+                          type: string
+                        from:
+                          description: From source address cidrs this rule applies
+                            to.
+                          items:
+                            type: string
+                          type: array
+                        ports:
+                          description: Ports contains all affected network ports.
+                          items:
+                            format: int32
+                            type: integer
+                          type: array
+                        protocol:
+                          description: Protocol constraints the protocol this rule
+                            applies to.
+                          type: string
+                      required:
+                      - from
+                      - ports
+                      - protocol
+                      type: object
+                    type: array
+                type: object
+              internalPrefixes:
+                description: |-
+                  InternalPrefixes specify prefixes which are considered local to the partition or all regions. This is used for the traffic counters.
+                  Traffic to/from these prefixes is counted as internal traffic.
+                items:
+                  type: string
+                type: array
+              interval:
+                description: Interval on which rule reconciliation by the firewall-controller
+                  should happen.
+                type: string
+              ipv4RuleFile:
+                description: Ipv4RuleFile defines where to store the generated ipv4
+                  firewall rules on disk.
+                type: string
+              logAcceptedConnections:
+                description: LogAcceptedConnections if set to true, also log accepted
+                  connections in the droptailer log.
+                type: boolean
+              networks:
+                description: |-
+                  Networks are the networks to which this firewall is connected.
+                  An update on this field requires the recreation of the physical firewall and can therefore lead to traffic interruption for the cluster.
+                  Detailed information about the networks are fetched continuously during runtime and stored in the status.firewallNetworks.
+                items:
+                  type: string
+                type: array
+              nftablesExporterURL:
+                description: NftablesExporterURL points to the downloadable binary
+                  artifact of the nftables exporter.
+                type: string
+              nftablesExporterVersion:
+                description: NftablesExporterVersion holds the nftables exporter version
+                  to reconcile.
+                type: string
+              partition:
+                description: Partition is the partition in which the firewall resides.
+                type: string
+              project:
+                description: Project is the project in which the firewall resides.
+                type: string
+              rateLimits:
+                description: RateLimits allows configuration of rate limit rules for
+                  interfaces.
+                items:
+                  description: RateLimit contains the rate limit rule for a network.
+                  properties:
+                    networkID:
+                      description: NetworkID specifies the network which should be
+                        rate limited.
+                      type: string
+                    rate:
+                      description: Rate is the input rate in MiB/s.
+                      format: int32
+                      type: integer
+                  required:
+                  - networkID
+                  - rate
+                  type: object
+                type: array
+              size:
+                description: |-
+                  Size is the machine size of the firewall.
+                  An update on this field requires the recreation of the physical firewall and can therefore lead to traffic interruption for the cluster.
+                type: string
+              sshPublicKeys:
+                description: |-
+                  SSHPublicKeys are public keys which are added to the firewall's authorized keys file on creation.
+                  It gets defaulted to the public key of ssh secret as provided by the controller flags.
+                items:
+                  type: string
+                type: array
+              userdata:
+                description: |-
+                  Userdata contains the userdata used for the creation of the firewall.
+                  It gets defaulted to a userdata matching for the firewall-controller with connection to Gardener shoot and seed.
+                type: string
+              userdataContents:
+                description: |-
+                  UserdataContents contains the unprocessed userdata as separate files.
+                  This is meant as an alternative to `Userdata`.
+                items:
+                  description: UserdataContent represents a file at a specific path
+                    with either direct content or content sourced from a secret or
+                    configmap.
+                  properties:
+                    content:
+                      description: Content is the direct content of the file.
+                      type: string
+                    contentFrom:
+                      description: ContentFrom represents the source from which to
+                        obtain the content of the file.
+                      properties:
+                        configMapKeyRef:
+                          description: ConfigMapKeyRef is a reference to a key within
+                            a configmap.
+                          properties:
+                            key:
+                              description: Key is the key within the configmap.
+                              type: string
+                            name:
+                              description: Name is the name of the configmap.
+                              type: string
+                          required:
+                          - key
+                          - name
+                          type: object
+                        firewallControllerKubeconfigSecret:
+                          description: FirewallControllerKubeconfigSecret is a reference
+                            to the desired kubeconfig secret for the firewall-controller
+                            to access the seed cluster. This kubeconfig will be generated
+                            by the firewall-controller-manager.
+                          properties:
+                            key:
+                              description: Key is the key within the secret.
+                              type: string
+                            name:
+                              description: Name is the name of the secret.
+                              type: string
+                          required:
+                          - key
+                          - name
+                          type: object
+                        secretKeyRef:
+                          description: SecretKeyRef is a reference to a key within
+                            a secret.
+                          properties:
+                            key:
+                              description: Key is the key within the secret.
+                              type: string
+                            name:
+                              description: Name is the name of the secret.
+                              type: string
+                          required:
+                          - key
+                          - name
+                          type: object
+                      required:
+                      - configMapKeyRef
+                      - secretKeyRef
+                      type: object
+                    path:
+                      description: Path is the file path where the content should
+                        be placed.
+                      type: string
+                  required:
+                  - contentFrom
+                  - path
+                  type: object
+                type: array
+            required:
+            - image
+            - networks
+            - partition
+            - project
+            - size
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
