@@ -75,7 +75,6 @@ type MetalStackFirewallDeployment struct {
 
 // +kubebuilder:object:root=true
 
-// MetalStackFirewallDeploymentList contains a list of MetalStackFirewallDeployment
 type MetalStackFirewallDeploymentList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`

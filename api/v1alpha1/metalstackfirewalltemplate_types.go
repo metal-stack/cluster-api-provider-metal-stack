@@ -28,9 +28,9 @@ type MetalStackFirewallTemplate struct {
 // +kubebuilder:object:root=true
 
 type MetalStackFirewallTemplateList struct {
-	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata,omitempty"`
-	Items             []MetalStackFirewallTemplate `json:"items"`
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []MetalStackFirewallTemplate `json:"items"`
 }
 
 func init() {
