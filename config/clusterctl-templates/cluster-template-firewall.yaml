@@ -1,0 +1,247 @@
+---
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: Cluster
+metadata:
+  name: ${CLUSTER_NAME}
+  namespace: ${NAMESPACE}
+spec:
+  clusterNetwork:
+    pods:
+      cidrBlocks: ${POD_CIDR:=["10.240.0.0/12"]}
+  controlPlaneRef:
+    apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+    kind: KubeadmControlPlane
+    name: ${CLUSTER_NAME}-controlplane
+    namespace: ${NAMESPACE}
+  infrastructureRef:
+    apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+    kind: MetalStackCluster
+    name: ${CLUSTER_NAME}
+    namespace: ${NAMESPACE}
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+kind: MetalStackCluster
+metadata:
+  name: ${CLUSTER_NAME}
+  namespace: ${NAMESPACE}
+spec:
+  projectID: ${METAL_PROJECT_ID}
+  partition: ${METAL_PARTITION}
+  nodeNetworkID: ${METAL_NODE_NETWORK_ID}
+  controlPlaneIP: ${CONTROL_PLANE_IP}
+  firewallDeploymentSpec:
+    template:
+      spec:
+        image: ${FIREWALL_MACHINE_IMAGE}
+        size: ${FIREWALL_MACHINE_SIZE}
+        networks: ${FIREWALL_EXTERNAL_NETWORKS:=["internet"]}
+        egressRules:
+          - comment: allow outgoing HTTP and HTTPS traffic
+            ports:
+              - 80
+              - 443
+            protocol: TCP
+            to:
+              - 0.0.0.0/0
+          - comment: allow outgoing DNS traffic via TCP
+            ports:
+              - 53
+            protocol: TCP
+            to:
+              - 0.0.0.0/0
+          - comment: allow outgoing traffic to control plane for ccm
+            ports:
+              - 8080
+            protocol: TCP
+            to:
+              - 0.0.0.0/0 # could be more specific
+          - comment: allow outgoing DNS and NTP traffic via UDP
+            ports:
+              - 53
+              - 123
+            protocol: UDP
+            to:
+              - 0.0.0.0/0
+
+        ingressRules:
+          - comment: allow incoming HTTP and HTTPS traffic
+            ports:
+              - 80
+              - 443
+            protocol: TCP
+            from:
+              - 0.0.0.0/0 # could be more specific
+            to:
+              - 0.0.0.0/0 # could be more specific
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+kind: MetalStackMachineTemplate
+metadata:
+  name: ${CLUSTER_NAME}-controlplane
+  namespace: ${NAMESPACE}
+spec:
+  template:
+    spec:
+      size: ${CONTROL_PLANE_MACHINE_SIZE}
+      image: ${CONTROL_PLANE_MACHINE_IMAGE}
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+kind: MetalStackMachineTemplate
+metadata:
+  name: ${CLUSTER_NAME}-worker
+spec:
+  template:
+    spec:
+      size: ${WORKER_MACHINE_SIZE}
+      image: ${WORKER_MACHINE_IMAGE}
+---
+kind: KubeadmControlPlane
+apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+metadata:
+  name: ${CLUSTER_NAME}-controlplane
+spec:
+  replicas: ${CONTROL_PLANE_MACHINE_COUNT}
+  version: ${KUBERNETES_VERSION}
+  machineTemplate:
+    nodeDrainTimeout: 10m
+    infrastructureRef:
+      kind: MetalStackMachineTemplate
+      apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+      name: ${CLUSTER_NAME}-controlplane
+  kubeadmConfigSpec:
+    format: ignition
+    clusterConfiguration:
+      apiServer:
+        extraArgs: {}
+      controllerManager:
+        extraArgs:
+          cloud-provider: external
+    initConfiguration:
+      localAPIEndpoint:
+        advertiseAddress: 127.0.0.1
+        bindPort: 443
+      nodeRegistration:
+        kubeletExtraArgs:
+          cloud-provider: external
+    joinConfiguration:
+      controlPlane:
+        localAPIEndpoint:
+          advertiseAddress: 127.0.0.1
+          bindPort: 443
+      nodeRegistration:
+        kubeletExtraArgs:
+          cloud-provider: external
+    files:
+      - path: /etc/kubernetes/manifests/kubevip.yaml
+        owner: root:root
+        permissions: "0644"
+        content: |
+          apiVersion: v1
+          kind: Pod
+          metadata:
+            name: kube-vip
+            namespace: kube-system
+          spec:
+            containers:
+            - args:
+              - manager
+              env:
+              - name: vip_arp
+                value: "false"
+              - name: port
+                value: "443"
+              - name: vip_interface
+                value: lo
+              - name: cp_enable
+                value: "true"
+              - name: cp_namespace
+                value: kube-system
+              - name: bgp_enable
+                value: "true"
+              - name: bgp_routerid
+                value: 127.0.0.1
+              - name: bgp_as
+                value: "METAL_MACHINE_ASN"
+              - name: bgp_peeraddress
+                value: 127.0.0.1
+              - name: bgp_peerpass
+              - name: bgp_peeras
+                value: "METAL_MACHINE_ASN"
+              - name: address
+                value: ${CONTROL_PLANE_IP}
+              image: ghcr.io/kube-vip/kube-vip:v0.8.10
+              imagePullPolicy: IfNotPresent
+              name: kube-vip
+              resources: {}
+              securityContext:
+                capabilities:
+                  add:
+                  - NET_ADMIN
+                  - NET_RAW
+                  drop:
+                  - ALL
+              volumeMounts:
+              - mountPath: /etc/kubernetes/admin.conf
+                name: kubeconfig
+            hostAliases:
+            - hostnames:
+              - kubernetes
+              ip: 127.0.0.1
+            hostNetwork: true
+            volumes:
+            - hostPath:
+                path: /etc/kubernetes/admin.conf
+              name: kubeconfig
+
+---
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: MachineDeployment
+metadata:
+  name: ${CLUSTER_NAME}-md-0
+  labels:
+    cluster.x-k8s.io/cluster-name: ${CLUSTER_NAME}
+    nodepool: nodepool-0
+spec:
+  clusterName: ${CLUSTER_NAME}
+  replicas: ${WORKER_MACHINE_COUNT}
+  selector:
+    matchLabels:
+      cluster.x-k8s.io/cluster-name: ${CLUSTER_NAME}
+      nodepool: nodepool-0
+  template:
+    metadata:
+      labels:
+        cluster.x-k8s.io/cluster-name: ${CLUSTER_NAME}
+        nodepool: nodepool-0
+    spec:
+      nodeDrainTimeout: 120s
+      clusterName: ${CLUSTER_NAME}
+      version: "${KUBERNETES_VERSION}"
+      bootstrap:
+        configRef:
+          name: ${CLUSTER_NAME}-md-0
+          apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+          kind: KubeadmConfigTemplate
+      infrastructureRef:
+        name: ${CLUSTER_NAME}-worker
+        apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+        kind: MetalStackMachineTemplate
+---
+apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+kind: KubeadmConfigTemplate
+metadata:
+  name: ${CLUSTER_NAME}-md-0
+spec:
+  template:
+    spec:
+      format: ignition
+      clusterConfiguration:
+        apiServer:
+          extraArgs: {}
+        controllerManager:
+          extraArgs:
+            cloud-provider: external
+      joinConfiguration:
+        nodeRegistration:
+          kubeletExtraArgs:
+            cloud-provider: external

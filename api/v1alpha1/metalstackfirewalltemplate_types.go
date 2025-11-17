@@ -28,3 +28,7 @@ type MetalStackFirewallTemplateList struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 	Items             []MetalStackFirewallTemplate `json:"items"`
 }
+
+func init() {
+	SchemeBuilder.Register(&MetalStackFirewallTemplate{}, &MetalStackFirewallTemplateList{})
+}

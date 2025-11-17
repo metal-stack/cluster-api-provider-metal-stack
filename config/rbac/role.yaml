@@ -25,6 +25,8 @@ rules:
   - infrastructure.cluster.x-k8s.io
   resources:
   - metalstackclusters
+  - metalstackfirewalldeployments
+  - metalstackfirewalltemplates
   - metalstackmachines
   verbs:
   - create
@@ -38,6 +40,8 @@ rules:
   - infrastructure.cluster.x-k8s.io
   resources:
   - metalstackclusters/finalizers
+  - metalstackfirewalldeployments/finalizers
+  - metalstackfirewalltemplates/finalizers
   - metalstackmachines/finalizers
   verbs:
   - update
@@ -45,6 +49,7 @@ rules:
   - infrastructure.cluster.x-k8s.io
   resources:
   - metalstackclusters/status
+  - metalstackfirewalldeployments/status
   - metalstackmachines/status
   verbs:
   - get

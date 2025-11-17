@@ -35,9 +35,8 @@ const (
 
 	ClusterControlPlaneEndpointDefaultPort = 443
 
-	ClusterPaused                    clusterv1.ConditionType = clusterv1.PausedV1Beta2Condition
-	ClusterControlPlaneIPEnsured     clusterv1.ConditionType = "ClusterControlPlaneIPEnsured"
-	ClusterFirewallDeploymentEnsured clusterv1.ConditionType = "ClusterFirewallDeploymentEnsured"
+	ClusterPaused                clusterv1.ConditionType = clusterv1.PausedV1Beta2Condition
+	ClusterControlPlaneIPEnsured clusterv1.ConditionType = "ClusterControlPlaneIPEnsured"
 )
 
 var (
@@ -67,6 +66,15 @@ type MetalStackClusterSpec struct {
 
 	// Partition is the data center partition in which the resources are created.
 	Partition string `json:"partition"`
+
+	// FirewallDeploymentRef references a MetalStackFirewallDeployment resource which manages the firewall for this cluster.
+	FirewallDeploymentRef *MetalStackFirewallDeploymentRef `json:"firewallDeploymentRef,omitempty"`
+}
+
+// MetalStackFirewallDeploymentRef contains a reference to a MetalStackFirewallDeployment resource.
+type MetalStackFirewallDeploymentRef struct {
+	// Name is the name of the MetalStackFirewallDeployment resource.
+	Name string `json:"name"`
 }
 
 // APIEndpoint represents a reachable Kubernetes API endpoint.
