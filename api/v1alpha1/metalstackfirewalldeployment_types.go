@@ -6,6 +6,7 @@ import (
 )
 
 const (
+	MetalStackFirewallDeploymentResourceKind = "MetalStackFirewallDeployment"
 	// FirewallDeploymentFinalizer allows to clean up resources associated with before removing it from the apiserver.
 	FirewallDeploymentFinalizer = "metal-stack.infrastructure.cluster.x-k8s.io/firewall-deployment"
 

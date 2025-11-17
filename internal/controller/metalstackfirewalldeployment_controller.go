@@ -302,7 +302,7 @@ func (r *firewallDeploymentReconciler) ensureAllMetalStackMachinesAreGone() erro
 }
 
 func (r *firewallDeploymentReconciler) ensureFirewallTemplateOwnerRefAndFinalizer() error {
-	ownerref := metav1.NewControllerRef(r.firewallDeployment, v1alpha1.GroupVersion.WithKind("MetalStackFirewallDeployment"))
+	ownerref := metav1.NewControllerRef(r.firewallDeployment, v1alpha1.GroupVersion.WithKind(v1alpha1.MetalStackFirewallDeploymentResourceKind))
 	if util.HasOwnerRef(r.firewallTemplate.OwnerReferences, *ownerref) {
 		return nil
 	}
@@ -464,7 +464,7 @@ func (r *firewallDeploymentReconciler) deleteFirewallDeployment() error {
 // GetOwnerMetalStackCluster returns the Cluster object owning the current resource.
 func GetOwnerMetalStackCluster(ctx context.Context, c client.Client, obj metav1.ObjectMeta) (*v1alpha1.MetalStackCluster, error) {
 	for _, ref := range obj.GetOwnerReferences() {
-		if ref.Kind != "MetalStackCluster" {
+		if ref.Kind != v1alpha1.MetalStackClusterResourceKind {
 			continue
 		}
 		gv, err := schema.ParseGroupVersion(ref.APIVersion)

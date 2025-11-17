@@ -172,7 +172,7 @@ func (r *MetalStackClusterReconciler) clusterToMetalStackCluster(log logr.Logger
 		if cluster.Spec.InfrastructureRef == nil {
 			return nil
 		}
-		if cluster.Spec.InfrastructureRef.GroupVersionKind().Kind != "MetalStackCluster" {
+		if cluster.Spec.InfrastructureRef.GroupVersionKind().Kind != v1alpha1.MetalStackClusterResourceKind {
 			return nil
 		}
 
@@ -247,7 +247,7 @@ func (r *MetalStackClusterReconciler) metalStackMachineToMetalStackCluster(log l
 			return nil
 		}
 
-		if cluster.Spec.InfrastructureRef.GroupVersionKind().Kind != "MetalStackCluster" {
+		if cluster.Spec.InfrastructureRef.GroupVersionKind().Kind != v1alpha1.MetalStackClusterResourceKind {
 			log.Info("different infra cluster", "kind", cluster.Spec.InfrastructureRef.GroupVersionKind().Kind)
 			return nil
 		}
