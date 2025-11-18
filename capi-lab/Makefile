@@ -59,10 +59,6 @@ controller:
 	kubectl --kubeconfig=$(KUBECONFIG) patch deployments.apps -n cap-metal-stack metal-stack-controller-manager --patch='{"spec":{"template":{"spec":{"containers":[{"name": "manager","imagePullPolicy":"IfNotPresent","image":"$(IMG)"}]}}}}'
 	kubectl --kubeconfig=$(KUBECONFIG) delete pod -n cap-metal-stack -l control-plane=metal-stack-controller-manager
 
-.PHONY: firewall
-firewall:
-	metalctl firewall create --description fw --name fw --hostname fw --project 00000000-0000-0000-0000-000000000001 --partition mini-lab --image firewall-ubuntu-3.0 --size v1-small-x86 --firewall-rules-file=firewall-rules.yaml --networks internet-mini-lab,$(shell metalctl network list --name $(CLUSTER_NAME) -o template --template '{{ .id }}')
-
 .PHONY: node-network
 node-network:
 	metalctl network allocate --description "node network for $(CLUSTER_NAME) cluster" --name $(CLUSTER_NAME) --project 00000000-0000-0000-0000-000000000001 --partition mini-lab
