@@ -6,12 +6,12 @@ import (
 )
 
 const (
-	MetalStackFirewallTemplateResourceKind = "MetalStackFirewallTemplate"
+	MetalStackFirewallTemplateKind = "MetalStackFirewallTemplate"
 )
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +kubebuilder:resource:scope=Cluster,categories=cluster-api,shortName=msfwtemplate
+// +kubebuilder:resource:scope=Namespaced,categories=cluster-api,shortName=msfwtemplate
 // +kubebuilder:printcolumn:name="Partition",type="string",JSONPath=".spec.partition",description="The Metal Stack partition where the firewall will be created"
 // +kubebuilder:printcolumn:name="Project",type="string",JSONPath=".spec.project",description="The Metal Stack project where the firewall will be created"
 // +kubebuilder:printcolumn:name="Image",type="string",JSONPath=".spec.image",description="The Metal Stack firewall image"

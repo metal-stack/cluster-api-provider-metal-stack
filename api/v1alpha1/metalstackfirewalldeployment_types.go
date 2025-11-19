@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	MetalStackFirewallDeploymentResourceKind = "MetalStackFirewallDeployment"
+	MetalStackFirewallDeploymentKind = "MetalStackFirewallDeployment"
 	// FirewallDeploymentFinalizer allows to clean up resources associated with before removing it from the apiserver.
 	FirewallDeploymentFinalizer = "metal-stack.infrastructure.cluster.x-k8s.io/firewall-deployment"
 
@@ -61,6 +61,7 @@ type MetalStackFirewallDeploymentStatus struct {
 // +kubebuilder:resource:scope=Namespaced,categories=cluster-api,shortName=msfwdeploy
 // +kubebuilder:printcolumn:name="Cluster",type="string",JSONPath=".metadata.labels.cluster\\.x-k8s\\.io/cluster-name",description="Cluster to which this MetalStackCluster belongs"
 // +kubebuilder:printcolumn:name="Template",type="string",JSONPath=".spec.firewallTemplateRef.name",description="Name of the MetalStackFirewallTemplate used"
+// +kubebuilder:printcolumn:name="Deployment",type="string",JSONPath=".spec.managedResourceRef.name",description="Name of the managed FirewallDeployment"
 // +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.ready",description="Indicates if the MetalStackFirewallDeployment is ready"
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp",description="Age of the MetalStackFirewallDeployment"
 

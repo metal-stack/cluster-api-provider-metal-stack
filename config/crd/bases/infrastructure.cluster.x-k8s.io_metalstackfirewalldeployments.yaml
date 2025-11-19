@@ -27,6 +27,10 @@ spec:
       jsonPath: .spec.firewallTemplateRef.name
       name: Template
       type: string
+    - description: Name of the managed FirewallDeployment
+      jsonPath: .spec.managedResourceRef.name
+      name: Deployment
+      type: string
     - description: Indicates if the MetalStackFirewallDeployment is ready
       jsonPath: .status.ready
       name: Ready

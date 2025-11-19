@@ -23,7 +23,7 @@ import (
 )
 
 const (
-	MetalStackMachineResourceKind = "MetalStackMachine"
+	MetalStackMachineKind = "MetalStackMachine"
 	// MachineFinalizer allows to clean up resources associated with before removing it from the apiserver.
 	MachineFinalizer = "metal-stack.infrastructure.cluster.x-k8s.io/machine"
 

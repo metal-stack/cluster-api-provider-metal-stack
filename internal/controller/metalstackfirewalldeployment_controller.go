@@ -73,6 +73,8 @@ func (r *MetalStackFirewallDeploymentReconciler) Reconcile(ctx context.Context, 
 		fwtemplate = &v1alpha1.MetalStackFirewallTemplate{}
 	)
 
+	log.Info("starting reconciliation for metal-stack firewall deployment")
+
 	if err := r.Client.Get(ctx, req.NamespacedName, fwdeploy); err != nil {
 		if apierrors.IsNotFound(err) {
 			log.Info("metal-stack firewall deployment resource not found. Ignoring since object must be deleted")
@@ -81,7 +83,18 @@ func (r *MetalStackFirewallDeploymentReconciler) Reconcile(ctx context.Context, 
 		return ctrl.Result{}, err
 	}
 
-	cluster, err := util.GetOwnerCluster(ctx, r.Client, fwdeploy.ObjectMeta)
+	infraCluster, err := GetOwnerMetalStackCluster(ctx, r.Client, fwdeploy.ObjectMeta)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to get owner metal-stack cluster: %w", err)
+	}
+
+	if infraCluster == nil {
+		log.Info("metal-stack firewall deployment is not associated with a metal-stack cluster yet")
+		return ctrl.Result{}, nil
+	}
+
+	log = log.WithValues("metalStackCluster", fmt.Sprintf("%s/%s", infraCluster.Namespace, infraCluster.Name))
+	cluster, err := util.GetOwnerCluster(ctx, r.Client, infraCluster.ObjectMeta)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -90,11 +103,7 @@ func (r *MetalStackFirewallDeploymentReconciler) Reconcile(ctx context.Context, 
 		log.Info("metal-stack firewall deployment is not associated with a cluster yet")
 		return ctrl.Result{}, nil
 	}
-
-	infraCluster, err := GetOwnerMetalStackCluster(ctx, r.Client, cluster.ObjectMeta)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
+	log = log.WithValues("cluster", fmt.Sprintf("%s/%s", cluster.Namespace, cluster.Name))
 
 	if err := r.Client.Get(ctx, client.ObjectKey{
 		Namespace: fwdeploy.Namespace,
@@ -137,6 +146,7 @@ func (r *MetalStackFirewallDeploymentReconciler) Reconcile(ctx context.Context, 
 		err = reconciler.delete()
 	case !controllerutil.ContainsFinalizer(fwdeploy, v1alpha1.FirewallDeploymentFinalizer):
 		log.Info("adding finalizer")
+		controllerutil.AddFinalizer(fwdeploy, v1alpha1.FirewallDeploymentFinalizer)
 	default:
 		log.Info("reconciling firewall deployment")
 		err = reconciler.reconcile()
@@ -152,6 +162,17 @@ func (r *MetalStackFirewallDeploymentReconciler) Reconcile(ctx context.Context, 
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *MetalStackFirewallDeploymentReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	err := mgr.GetCache().IndexField(context.TODO(), &v1alpha1.MetalStackFirewallDeployment{}, "spec.firewallTemplateRef.name", func(obj client.Object) []string {
+		fwdeploy := obj.(*v1alpha1.MetalStackFirewallDeployment)
+		if fwdeploy.Spec.FirewallTemplateRef == nil {
+			return nil
+		}
+		return []string{fwdeploy.Spec.FirewallTemplateRef.Name}
+	})
+	if err != nil {
+		panic(err)
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.MetalStackFirewallDeployment{}).
 		Named("metalstackfirewalldeployment").
@@ -238,21 +259,15 @@ func (r *firewallDeploymentReconciler) reconcile() error {
 	}
 
 	if r.firewallDeployment.Spec.ManagedResourceRef == nil {
-		err := r.ensureFirewallDeployment()
+		err = r.ensureFirewallDeployment()
 		if err != nil {
 			conditions.MarkFalse(r.infraCluster, v1alpha1.ClusterFirewallDeploymentEnsured, "InternalError", clusterv1.ConditionSeverityError, "%s", err.Error())
 			return fmt.Errorf("unable to ensure firewall deployment: %w", err)
 		}
 		conditions.MarkTrue(r.infraCluster, v1alpha1.ClusterFirewallDeploymentEnsured)
-	} else {
-		err := r.deleteFirewallDeployment()
-		if err != nil {
-			conditions.MarkFalse(r.infraCluster, v1alpha1.ClusterFirewallDeploymentEnsured, "InternalError", clusterv1.ConditionSeverityError, "%s", err.Error())
-			return fmt.Errorf("unable to delete firewall deployment: %w", err)
-		}
 	}
 
-	r.infraCluster.Status.Ready = true
+	r.firewallDeployment.Status.Ready = true
 
 	return nil
 }
@@ -260,7 +275,8 @@ func (r *firewallDeploymentReconciler) reconcile() error {
 func (r *firewallDeploymentReconciler) delete() error {
 	var err error
 
-	if !controllerutil.ContainsFinalizer(r.infraCluster, v1alpha1.ClusterFinalizer) {
+	if !controllerutil.ContainsFinalizer(r.firewallDeployment, v1alpha1.FirewallDeploymentFinalizer) {
+		r.log.Info("finalizer not present, skipping deletion flow")
 		return nil
 	}
 
@@ -277,9 +293,9 @@ func (r *firewallDeploymentReconciler) delete() error {
 	}
 
 	r.log.Info("deletion finished, removing finalizer")
-	controllerutil.RemoveFinalizer(r.infraCluster, v1alpha1.ClusterFinalizer)
+	controllerutil.RemoveFinalizer(r.firewallDeployment, v1alpha1.FirewallDeploymentFinalizer)
 
-	return err
+	return nil
 }
 
 func (r *firewallDeploymentReconciler) ensureAllMetalStackMachinesAreGone() error {
@@ -302,7 +318,12 @@ func (r *firewallDeploymentReconciler) ensureAllMetalStackMachinesAreGone() erro
 }
 
 func (r *firewallDeploymentReconciler) ensureFirewallTemplateOwnerRefAndFinalizer() error {
-	ownerref := metav1.NewControllerRef(r.firewallDeployment, v1alpha1.GroupVersion.WithKind(v1alpha1.MetalStackFirewallDeploymentResourceKind))
+	ownerref := &metav1.OwnerReference{
+		APIVersion: v1alpha1.GroupVersion.String(),
+		Kind:       v1alpha1.MetalStackFirewallDeploymentKind,
+		Name:       r.firewallDeployment.Name,
+		UID:        r.firewallDeployment.UID,
+	}
 	if util.HasOwnerRef(r.firewallTemplate.OwnerReferences, *ownerref) {
 		return nil
 	}
@@ -416,6 +437,10 @@ func (r *firewallDeploymentReconciler) ensureFirewallDeployment() error {
 
 	r.log.Info("created firewall deployment", "firewallID", fwresp.Payload.ID)
 
+	r.firewallDeployment.Spec.ManagedResourceRef = &v1alpha1.MetalStackManagedResourceRef{
+		Name: fmt.Sprintf("metal://%s/%s", r.infraCluster.Spec.Partition, *fwresp.Payload.ID),
+	}
+
 	return nil
 }
 
@@ -464,14 +489,14 @@ func (r *firewallDeploymentReconciler) deleteFirewallDeployment() error {
 // GetOwnerMetalStackCluster returns the Cluster object owning the current resource.
 func GetOwnerMetalStackCluster(ctx context.Context, c client.Client, obj metav1.ObjectMeta) (*v1alpha1.MetalStackCluster, error) {
 	for _, ref := range obj.GetOwnerReferences() {
-		if ref.Kind != v1alpha1.MetalStackClusterResourceKind {
+		if ref.Kind != v1alpha1.MetalStackClusterKind {
 			continue
 		}
 		gv, err := schema.ParseGroupVersion(ref.APIVersion)
 		if err != nil {
 			return nil, pkgerrors.WithStack(err)
 		}
-		if gv.Group == clusterv1.GroupVersion.Group {
+		if gv.Group == v1alpha1.GroupVersion.Group {
 			return GetInfraClusterByName(ctx, c, obj.Namespace, ref.Name)
 		}
 	}

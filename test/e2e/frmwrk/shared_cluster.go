@@ -335,7 +335,7 @@ func (ec *E2ECluster) Dump(ctx context.Context) {
 				Namespace: ec.Refs.Cluster.Namespace,
 			},
 			{
-				GVK:       capmsv1alpha1.GroupVersion.WithKind(capmsv1alpha1.MetalStackClusterResourceKind),
+				GVK:       capmsv1alpha1.GroupVersion.WithKind(capmsv1alpha1.MetalStackClusterKind),
 				Namespace: ec.Refs.Cluster.Namespace,
 			},
 			{
@@ -351,15 +351,15 @@ func (ec *E2ECluster) Dump(ctx context.Context) {
 				Namespace: ec.Refs.Cluster.Namespace,
 			},
 			{
-				GVK:       capmsv1alpha1.GroupVersion.WithKind(capmsv1alpha1.MetalStackMachineResourceKind),
+				GVK:       capmsv1alpha1.GroupVersion.WithKind(capmsv1alpha1.MetalStackMachineKind),
 				Namespace: ec.Refs.Cluster.Namespace,
 			},
 			{
-				GVK:       capmsv1alpha1.GroupVersion.WithKind(capmsv1alpha1.MetalStackFirewallDeploymentResourceKind),
+				GVK:       capmsv1alpha1.GroupVersion.WithKind(capmsv1alpha1.MetalStackFirewallDeploymentKind),
 				Namespace: ec.Refs.Cluster.Namespace,
 			},
 			{
-				GVK:       capmsv1alpha1.GroupVersion.WithKind(capmsv1alpha1.MetalStackFirewallTemplateResourceKind),
+				GVK:       capmsv1alpha1.GroupVersion.WithKind(capmsv1alpha1.MetalStackFirewallTemplateKind),
 				Namespace: ec.Refs.Cluster.Namespace,
 			},
 		},

@@ -16,7 +16,7 @@ spec:
     shortNames:
     - msfwtemplate
     singular: metalstackfirewalltemplate
-  scope: Cluster
+  scope: Namespaced
   versions:
   - additionalPrinterColumns:
     - description: The Metal Stack partition where the firewall will be created
