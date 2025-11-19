@@ -70,7 +70,7 @@ type MetalStackFirewallDeployment struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	Spec   MetalStackFirewallDeploymentSpec   `json:"spec,omitzero"`
-	Status MetalStackFirewallDeploymentStatus `json:"status,omitzero"`
+	Status MetalStackFirewallDeploymentStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true

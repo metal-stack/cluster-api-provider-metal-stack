@@ -61,7 +61,6 @@ type E2ECluster struct {
 type E2EClusterRefs struct {
 	Namespace      *corev1.Namespace
 	NodeNetwork    *metalmodels.V1NetworkResponse
-	Firewall       *metalmodels.V1FirewallResponse
 	ControlPlaneIP *metalmodels.V1IPResponse
 
 	Workload framework.ClusterProxy
@@ -214,7 +213,6 @@ func (e2e *E2ECluster) GenerateAndApplyClusterTemplate(ctx context.Context) {
 
 	Expect(e2e.Refs.Namespace).NotTo(BeNil(), "namespace not created yet")
 	Expect(e2e.Refs.NodeNetwork).NotTo(BeNil(), "node network not created yet")
-	Expect(e2e.Refs.Firewall).NotTo(BeNil(), "firewall not created yet")
 
 	workloadTempl := clusterctl.ConfigCluster(ctx, clusterctl.ConfigClusterInput{
 		Namespace:                e2e.NamespaceName,
