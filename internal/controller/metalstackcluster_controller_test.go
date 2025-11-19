@@ -113,7 +113,7 @@ var _ = Describe("MetalStackCluster Controller", func() {
 			}
 		})
 
-		It("should skip reconciles due to cluster.spec.ready", func() {
+		It("should skip reconciles due to cluster.spec.paused", func() {
 			Expect(k8sClient.Create(ctx, resource)).To(Succeed())
 
 			By("creating the cluster resource and setting the owner reference")
@@ -168,7 +168,7 @@ var _ = Describe("MetalStackCluster Controller", func() {
 			})
 		})
 
-		It("should skip reconciles due to infra annotation", func() {
+		It("should skip reconciles due to infra pause annotation", func() {
 			resource.Annotations = map[string]string{
 				clusterv1beta1.PausedAnnotation: "true",
 			}

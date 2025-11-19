@@ -23,6 +23,9 @@ CONTROL_PLANE_MACHINE_IMAGE ?= capms-ubuntu-$(KUBERNETES_VERSION)
 CONTROL_PLANE_MACHINE_SIZE ?= v1-small-x86
 WORKER_MACHINE_IMAGE ?= capms-ubuntu-$(KUBERNETES_VERSION)
 WORKER_MACHINE_SIZE ?= v1-small-x86
+FIREWALL_MACHINE_IMAGE ?= firewall-ubuntu-3.0
+FIREWALL_MACHINE_SIZE ?= v1-small-x86
+FIREWALL_EXTERNAL_NETWORKS ?= ["internet-mini-lab"]
 
 IMG ?= ghcr.io/metal-stack/cluster-api-metal-stack-controller:latest
 
@@ -55,10 +58,6 @@ controller:
 	kind --name metal-control-plane load docker-image $(IMG)
 	kubectl --kubeconfig=$(KUBECONFIG) patch deployments.apps -n cap-metal-stack metal-stack-controller-manager --patch='{"spec":{"template":{"spec":{"containers":[{"name": "manager","imagePullPolicy":"IfNotPresent","image":"$(IMG)"}]}}}}'
 	kubectl --kubeconfig=$(KUBECONFIG) delete pod -n cap-metal-stack -l control-plane=metal-stack-controller-manager
-
-.PHONY: firewall
-firewall:
-	metalctl firewall create --description fw --name fw --hostname fw --project 00000000-0000-0000-0000-000000000001 --partition mini-lab --image firewall-ubuntu-3.0 --size v1-small-x86 --firewall-rules-file=firewall-rules.yaml --networks internet-mini-lab,$(shell metalctl network list --name $(CLUSTER_NAME) -o template --template '{{ .id }}')
 
 .PHONY: node-network
 node-network:

@@ -18,10 +18,10 @@ Next install our CAPMS provider into the cluster.
 make push-to-capi-lab
 ```
 
-Before creating a cluster some manual steps are required beforehand: you need to allocate a node network and a firewall.
+Before creating a cluster some manual steps are required beforehand: you need to allocate a node network.
 
 ```bash
-make -C capi-lab node-network firewall control-plane-ip
+make -C capi-lab node-network control-plane-ip
 ```
 
 A basic cluster configuration that relies on `config/clusterctl-templates/cluster-template.yaml` and uses the aforementioned node network can be generated and applied to the management cluster using a make target.
@@ -181,16 +181,14 @@ export WORKER_MACHINE_COUNT=1
 export repo_path=$HOME/path/to/cluster-api-provider-metal-stack
 export project_name=
 export tenant_name=
-export firewall_id=
 ```
 
-Create firewall if needed:
+Create project, node network and control plane ip if needed:
 
 ```bash
 metalctl project create --name $project_name --tenant $tenant_name --description "Cluster API test project"
 metalctl network allocate --description "Node network for $CLUSTER_NAME" --name $CLUSTER_NAME --project $METAL_PROJECT_ID --partition $METAL_PARTITION
 metalctl network ip create --network internet --project $METAL_PROJECT_ID --name "$CLUSTER_NAME-vip" --type static -o template --template "{{ .ipaddress }}"
-metalctl firewall create --description "Firewall for $CLUSTER_NAME cluster" --name firewall-$CLUSTER_NAME --hostname firewall-$CLUSTER_NAME --project $METAL_PROJECT_ID --partition $METAL_PARTITION --image $FIREWALL_MACHINE_IMAGE  --size $FIREWALL_MACHINE_SIZE --firewall-rules-file $repo_path/config/target-cluster/firewall-rules.yaml --networks internet,$METAL_NODE_NETWORK_ID
 ```
 
 ```bash
@@ -200,12 +198,6 @@ kind export kubeconfig --name bootstrap --kubeconfig kind-bootstrap.kubeconfig
 clusterctl init --infrastructure metal-stack --kubeconfig kind-bootstrap.kubeconfig
 clusterctl generate cluster $CLUSTER_NAME --infrastructure metal-stack > cluster-$CLUSTER_NAME.yaml
 kubectl apply -n $NAMESPACE -f cluster-$CLUSTER_NAME.yaml
-
-# once the control plane node is in phoned home
-metalctl machine consolepassword $firewall_id
-metalctl machine console --ipmi $firewall_id
-# sudo systemctl restart frr
-# ~.
 
 kubectl --kubeconfig kind-bootstrap.kubeconfig -n $NAMESPACE get metalstackmachines.infrastructure.cluster.x-k8s.io
 export control_plane_machine_id=
