@@ -18,7 +18,7 @@ const (
 // MetalStackFirewallDeploymentSpec defines the desired state of MetalStackFirewallDeployment
 type MetalStackFirewallDeploymentSpec struct {
 	// FirewallTemplateRef references the MetalStackFirewallTemplate to use for the firewall deployment.
-	FirewallTemplateRef *MetalStackFirewallTemplateRef `json:"firewallTemplateRef,omitempty"`
+	FirewallTemplateRef MetalStackFirewallTemplateRef `json:"firewallTemplateRef"`
 	// ManagedResourceRef references the MetalStackManagedResource that provides the underlying infrastructure for the firewall deployment.
 	// +optional
 	ManagedResourceRef *MetalStackManagedResourceRef `json:"managedResourceRef,omitempty"`

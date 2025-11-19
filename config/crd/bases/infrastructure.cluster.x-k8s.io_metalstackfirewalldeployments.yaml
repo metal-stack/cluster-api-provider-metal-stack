@@ -95,6 +95,8 @@ spec:
                 required:
                 - name
                 type: object
+            required:
+            - firewallTemplateRef
             type: object
           status:
             description: MetalStackFirewallDeploymentStatus defines the observed state

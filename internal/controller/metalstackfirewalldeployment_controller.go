@@ -163,8 +163,8 @@ func (r *MetalStackFirewallDeploymentReconciler) Reconcile(ctx context.Context, 
 // SetupWithManager sets up the controller with the Manager.
 func (r *MetalStackFirewallDeploymentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	err := mgr.GetCache().IndexField(context.TODO(), &v1alpha1.MetalStackFirewallDeployment{}, "spec.firewallTemplateRef.name", func(obj client.Object) []string {
-		fwdeploy := obj.(*v1alpha1.MetalStackFirewallDeployment)
-		if fwdeploy.Spec.FirewallTemplateRef == nil {
+		fwdeploy, ok := obj.(*v1alpha1.MetalStackFirewallDeployment)
+		if !ok {
 			return nil
 		}
 		return []string{fwdeploy.Spec.FirewallTemplateRef.Name}
@@ -357,27 +357,7 @@ func (r *firewallDeploymentReconciler) ensureFirewallDeployment() error {
 		}
 	)
 
-	fwFindResp, err := r.metalClient.Firewall().FindFirewalls(firewall.NewFindFirewallsParamsWithContext(r.ctx).WithBody(&models.V1FirewallFindRequest{
-		PartitionID:       r.firewallTemplate.Spec.Partition,
-		Sizeid:            r.firewallTemplate.Spec.Size,
-		AllocationImageID: r.firewallTemplate.Spec.Image,
-		Tags:              tags,
-	}), nil)
-	if err != nil {
-		return fmt.Errorf("error finding firewall deployments: %w", err)
-	}
-
-	if len(fwFindResp.Payload) > 1 {
-		fwids := make([]string, 0, len(fwFindResp.Payload))
-		for _, fw := range fwFindResp.Payload {
-			if fw.ID != nil {
-				fwids = append(fwids, *fw.ID)
-			}
-		}
-		r.log.Info("multiple firewalls found, manual intervention needed due to manual roll", "firewalls", fwids)
-	}
-
-	if len(fwFindResp.Payload) == 1 {
+	if r.firewallDeployment.Spec.ManagedResourceRef != nil {
 		return nil
 	}
 
@@ -393,6 +373,10 @@ func (r *firewallDeploymentReconciler) ensureFirewallDeployment() error {
 			Autoacquire: ptr.To(true),
 		}
 		networks = append(networks, network)
+	}
+
+	if r.firewallTemplate.Spec.InitialRuleSet == nil {
+		return fmt.Errorf("firewall template %s/%s has no initial rule set defined and will not allow any traffic", r.firewallTemplate.Namespace, r.firewallTemplate.Name)
 	}
 
 	egressRules := make([]*models.V1FirewallEgressRule, 0, len(r.firewallTemplate.Spec.InitialRuleSet.Egress))
@@ -418,7 +402,7 @@ func (r *firewallDeploymentReconciler) ensureFirewallDeployment() error {
 	fwresp, err := r.metalClient.Firewall().AllocateFirewall(firewall.NewAllocateFirewallParamsWithContext(r.ctx).WithBody(&models.V1FirewallCreateRequest{
 		Hostname:    name,
 		Name:        name,
-		Description: fmt.Sprintf("firewall for cluster %s", r.infraCluster.GetName()),
+		Description: fmt.Sprintf("firewall for cluster %s", r.cluster.GetName()),
 		Partitionid: ptr.To(r.infraCluster.Spec.Partition),
 		Projectid:   &r.infraCluster.Spec.ProjectID,
 		Tags:        tags,
