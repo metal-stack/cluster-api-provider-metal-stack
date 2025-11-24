@@ -11,6 +11,9 @@ Currently, we provide the following custom resources:
 
 - [`MetalStackCluster`](./api/v1alpha1/metalstackcluster_types.go) can be used as [infrastructure cluster](https://cluster-api.sigs.k8s.io/developer/providers/contracts/infra-cluster) and ensures that there is a control plane IP for the cluster.
 - [`MetalStackMachine`](./api/v1alpha1/metalstackmachine_types.go) bridges between [infrastructure machines](https://cluster-api.sigs.k8s.io/developer/providers/contracts/infra-machine) and metal-stack machines.
+- [`MetalStackMachineTemplate`](./api/v1alpha1/metalstackmachinetemplate_types.go) can be used to define reusable machine specifications for `MetalStackMachine` resources.
+- [`MetalStackFirewallDeployment`](./api/v1alpha1/metalstackfirewalldeployment_types.go) can be used to define firewall deployments for a cluster.
+- [`MetalStackFirewallTemplate`](./api/v1alpha1/metalstackfirewalltemplate_types.go) defines the configuration of deployed firewalls.
 
 We plan to cover more resources in the future:
 
