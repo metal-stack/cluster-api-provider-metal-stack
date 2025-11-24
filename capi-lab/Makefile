@@ -77,7 +77,7 @@ apply-sample-cluster:
 		--worker-machine-count 1 \
 		--control-plane-machine-count 1 \
 		--kubernetes-version $(KUBERNETES_VERSION) \
-		--from ../config/clusterctl-templates/cluster-template-calico.yaml \
+		--from ../config/clusterctl-templates/cluster-template-calico-lab.yaml \
 		| kubectl --kubeconfig=$(KUBECONFIG) apply -f -
 
 .PHONY: delete-sample-cluster
@@ -89,7 +89,7 @@ delete-sample-cluster:
 		--worker-machine-count 1 \
 		--control-plane-machine-count 1 \
 		--kubernetes-version $(KUBERNETES_VERSION) \
-		--from ../config/clusterctl-templates/cluster-template-calico.yaml \
+		--from ../config/clusterctl-templates/cluster-template-calico-lab.yaml \
 		| kubectl --kubeconfig=$(KUBECONFIG) delete -f -
 
 .PHONY: mtu-fix

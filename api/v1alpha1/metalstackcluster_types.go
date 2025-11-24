@@ -69,6 +69,8 @@ type MetalStackClusterSpec struct {
 	Partition string `json:"partition"`
 
 	// FirewallDeploymentRef references a MetalStackFirewallDeployment resource which manages the firewall for this cluster.
+	// This feature is currently in public preview.
+	// +optional
 	FirewallDeploymentRef *MetalStackFirewallDeploymentRef `json:"firewallDeploymentRef,omitempty"`
 }
 

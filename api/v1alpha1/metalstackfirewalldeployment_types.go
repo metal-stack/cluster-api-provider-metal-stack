@@ -19,7 +19,8 @@ const (
 type MetalStackFirewallDeploymentSpec struct {
 	// FirewallTemplateRef references the MetalStackFirewallTemplate to use for the firewall deployment.
 	FirewallTemplateRef MetalStackFirewallTemplateRef `json:"firewallTemplateRef"`
-	// ManagedResourceRef references the MetalStackManagedResource that provides the underlying infrastructure for the firewall deployment.
+	// ManagedResourceRef references the resource that represents the firewall deployment. At this moment it is a metal-stack firewall id.
+	// It is planned to reference a FirewallDeployment.
 	// +optional
 	ManagedResourceRef *MetalStackManagedResourceRef `json:"managedResourceRef,omitempty"`
 

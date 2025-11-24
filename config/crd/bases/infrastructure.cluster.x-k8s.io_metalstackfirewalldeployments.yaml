@@ -86,8 +86,9 @@ spec:
                 - name
                 type: object
               managedResourceRef:
-                description: ManagedResourceRef references the MetalStackManagedResource
-                  that provides the underlying infrastructure for the firewall deployment.
+                description: |-
+                  ManagedResourceRef references the resource that represents the firewall deployment. At this moment it is a metal-stack firewall id.
+                  It is planned to reference a FirewallDeployment.
                 properties:
                   name:
                     description: Name of the MetalStackManagedResource.

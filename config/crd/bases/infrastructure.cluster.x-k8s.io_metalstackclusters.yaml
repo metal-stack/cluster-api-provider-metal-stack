@@ -92,8 +92,9 @@ spec:
                   Static ip addresses will not be deleted.
                 type: string
               firewallDeploymentRef:
-                description: FirewallDeploymentRef references a MetalStackFirewallDeployment
-                  resource which manages the firewall for this cluster.
+                description: |-
+                  FirewallDeploymentRef references a MetalStackFirewallDeployment resource which manages the firewall for this cluster.
+                  This feature is currently in public preview.
                 properties:
                   name:
                     description: Name is the name of the MetalStackFirewallDeployment

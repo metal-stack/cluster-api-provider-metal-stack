@@ -45,6 +45,7 @@ import (
 	"github.com/go-logr/logr"
 
 	"github.com/metal-stack/cluster-api-provider-metal-stack/api/v1alpha1"
+	capmsutil "github.com/metal-stack/cluster-api-provider-metal-stack/util"
 	ipmodels "github.com/metal-stack/metal-go/api/client/ip"
 	"github.com/metal-stack/metal-go/api/client/network"
 	"github.com/metal-stack/metal-go/api/models"
@@ -280,7 +281,7 @@ func (r *MetalStackClusterReconciler) metalStackFirewallToMetalStackCluster(log 
 		}
 
 		log := log.WithValues("namespace", fwDeploy.Namespace, "firewallDeployment", fwDeploy.Name)
-		cluster, err := GetOwnerMetalStackCluster(ctx, r.Client, fwDeploy.ObjectMeta)
+		cluster, err := capmsutil.GetOwnerMetalStackCluster(ctx, r.Client, fwDeploy.ObjectMeta)
 		if err != nil {
 			log.Error(err, "failed to get owner cluster")
 			return nil
