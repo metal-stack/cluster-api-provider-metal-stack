@@ -115,8 +115,8 @@ providers:
 - name: metal-stack
   type: InfrastructureProvider
   versions:
-  - name: "{go://github.com/metal-stack/cluster-api-provider-metal-stack@v0.6}"
-    value: "https://github.com/metal-stack/cluster-api-provider-metal-stack/releases/download/{go://github.com/metal-stack/cluster-api-provider-metal-stack@v0.6}/infrastructure-components.yaml"
+  - name: "{go://github.com/metal-stack/cluster-api-provider-metal-stack@v0.7}"
+    value: "https://github.com/metal-stack/cluster-api-provider-metal-stack/releases/download/{go://github.com/metal-stack/cluster-api-provider-metal-stack@v0.7}/infrastructure-components.yaml"
     type: "url"
     contract: v1beta1
     files:
