@@ -194,7 +194,7 @@ func main() {
 	if err = (&controller.MetalStackFirewallDeploymentReconciler{
 		MetalClient: metalClient,
 		Client:      mgr.GetClient(),
-	}).SetupWithManager(mgr); err != nil {
+	}).SetupWithManager(ctx, mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "MetalStackFirewallDeployment")
 		os.Exit(1)
 	}

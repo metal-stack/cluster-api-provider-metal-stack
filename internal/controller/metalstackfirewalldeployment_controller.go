@@ -160,8 +160,8 @@ func (r *MetalStackFirewallDeploymentReconciler) Reconcile(ctx context.Context, 
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *MetalStackFirewallDeploymentReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	err := mgr.GetCache().IndexField(context.TODO(), &v1alpha1.MetalStackFirewallDeployment{}, "spec.firewallTemplateRef.name", func(obj client.Object) []string {
+func (r *MetalStackFirewallDeploymentReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager) error {
+	err := mgr.GetCache().IndexField(ctx, &v1alpha1.MetalStackFirewallDeployment{}, "spec.firewallTemplateRef.name", func(obj client.Object) []string {
 		fwdeploy, ok := obj.(*v1alpha1.MetalStackFirewallDeployment)
 		if !ok {
 			return nil
@@ -169,7 +169,7 @@ func (r *MetalStackFirewallDeploymentReconciler) SetupWithManager(mgr ctrl.Manag
 		return []string{fwdeploy.Spec.FirewallTemplateRef.Name}
 	})
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("failed to index metal-stack firewall deployments by firewall template ref: %w", err)
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -257,14 +257,12 @@ func (r *firewallDeploymentReconciler) reconcile() error {
 		return fmt.Errorf("unable to ensure firewall template owner reference: %w", err)
 	}
 
-	if r.firewallDeployment.Spec.ManagedResourceRef == nil {
-		err = r.ensureFirewallDeployment()
-		if err != nil {
-			conditions.MarkFalse(r.infraCluster, v1alpha1.ClusterFirewallDeploymentEnsured, "InternalError", clusterv1.ConditionSeverityError, "%s", err.Error())
-			return fmt.Errorf("unable to ensure firewall deployment: %w", err)
-		}
-		conditions.MarkTrue(r.infraCluster, v1alpha1.ClusterFirewallDeploymentEnsured)
+	err = r.ensureFirewallDeployment()
+	if err != nil {
+		conditions.MarkFalse(r.infraCluster, v1alpha1.ClusterFirewallDeploymentEnsured, "InternalError", clusterv1.ConditionSeverityError, "%s", err.Error())
+		return fmt.Errorf("unable to ensure firewall deployment: %w", err)
 	}
+	conditions.MarkTrue(r.infraCluster, v1alpha1.ClusterFirewallDeploymentEnsured)
 
 	r.firewallDeployment.Status.Ready = true
 
