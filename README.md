@@ -11,11 +11,14 @@ Currently, we provide the following custom resources:
 
 - [`MetalStackCluster`](./api/v1alpha1/metalstackcluster_types.go) can be used as [infrastructure cluster](https://cluster-api.sigs.k8s.io/developer/providers/contracts/infra-cluster) and ensures that there is a control plane IP for the cluster.
 - [`MetalStackMachine`](./api/v1alpha1/metalstackmachine_types.go) bridges between [infrastructure machines](https://cluster-api.sigs.k8s.io/developer/providers/contracts/infra-machine) and metal-stack machines.
+- [`MetalStackMachineTemplate`](./api/v1alpha1/metalstackmachinetemplate_types.go) can be used to define reusable machine specifications for `MetalStackMachine` resources.
+- [`MetalStackFirewallDeployment`](./api/v1alpha1/metalstackfirewalldeployment_types.go) can be used to define firewall deployments for a cluster.
+- [`MetalStackFirewallTemplate`](./api/v1alpha1/metalstackfirewalltemplate_types.go) defines the configuration of deployed firewalls.
 
 We plan to cover more resources in the future:
 
 - Node Networks
-- Firewall Deployments
+- Complete Firewall Deployments using the [Firewall Controller Manager](https://github.com/metal-stack/firewall-controller-manager)
 - Improved configuration suggestion of CNIs
 
 > [!note]
@@ -76,15 +79,6 @@ Allocate a VIP for the control plane.
 export CONTROL_PLANE_IP=$(metalctl network ip create --network internet --project $METAL_PROJECT_ID --name "$CLUSTER_NAME-vip" --type static -o template --template "{{ .ipaddress }}")
 ```
 
-A firewall needs to be created with appropriate firewall rules. An example can be found at [firewall-rules.yaml](config/target-cluster/firewall-rules.yaml).
-```bash
-# export environment variable for the firewall image and size
-export FIREWALL_MACHINE_IMAGE=<firewall-image>
-export FIREWALL_MACHINE_SIZE=<machine-size>
-
-metalctl firewall create --description "Firewall for $CLUSTER_NAME" --name "$CLUSTER_NAME-fw" --hostname "$CLUSTER_NAME-fw" --project $METAL_PROJECT_ID --partition $METAL_PARTITION --image $FIREWALL_MACHINE_IMAGE  --size $FIREWALL_MACHINE_SIZE --firewall-rules-file=<rules.yaml> --networks internet,$METAL_NODE_NETWORK_ID
-```
-
 For your first cluster, it is advised to start with our generated template. Ensure that the namespaced cluster name is unique within the metal stack project.
 
 ```bash
@@ -96,6 +90,8 @@ export CONTROL_PLANE_MACHINE_IMAGE=<machine-image>
 export CONTROL_PLANE_MACHINE_SIZE=<machine-size>
 export WORKER_MACHINE_IMAGE=<machine-image>
 export WORKER_MACHINE_SIZE=<machine-size>
+export FIREWALL_MACHINE_IMAGE=<machine-image>
+export FIREWALL_MACHINE_SIZE=<machine-size>
 
 # generate manifest
 clusterctl generate cluster $CLUSTER_NAME --kubernetes-version v1.32.9 --infrastructure metal-stack

@@ -38,6 +38,7 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
+	fcmv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 
 	infrastructurev1alpha1 "github.com/metal-stack/cluster-api-provider-metal-stack/api/v1alpha1"
@@ -54,6 +55,7 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(clusterv1.AddToScheme(scheme))
+	utilruntime.Must(fcmv2.AddToScheme(scheme))
 
 	utilruntime.Must(infrastructurev1alpha1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
@@ -187,6 +189,13 @@ func main() {
 		Client:      mgr.GetClient(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "MetalStackMachine")
+		os.Exit(1)
+	}
+	if err = (&controller.MetalStackFirewallDeploymentReconciler{
+		MetalClient: metalClient,
+		Client:      mgr.GetClient(),
+	}).SetupWithManager(ctx, mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "MetalStackFirewallDeployment")
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder
