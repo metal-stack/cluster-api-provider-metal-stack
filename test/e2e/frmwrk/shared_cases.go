@@ -12,7 +12,7 @@ import (
 func createE2ECluster(ctx context.Context, e2eCtx *E2EContext, cfg ClusterConfig) *E2ECluster {
 	ec := e2eCtx.NewE2ECluster(cfg)
 
-	ec.SetupMetalStackPreconditions(ctx)
+	ec.SetupControlPlaneIP(ctx)
 	ec.SetupNamespace(ctx)
 	ec.GenerateAndApplyClusterTemplate(ctx)
 

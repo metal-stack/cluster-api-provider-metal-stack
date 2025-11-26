@@ -43,7 +43,7 @@ var _ = Describe("Upgrade Kubernetes Cluster Version", Ordered, Label("upgrade")
 			WorkerMachineImage:       e2eCtx.envOrVar("E2E_WORKER_MACHINE_IMAGE_PREFIX") + fromKubernetesVersion,
 			WorkerMachineCount:       0,
 		})
-		ec.SetupMetalStackPreconditions(ctx)
+		ec.SetupControlPlaneIP(ctx)
 		ec.SetupNamespace(ctx)
 
 		cfg = e2eCtx.E2EConfig.DeepCopy()
