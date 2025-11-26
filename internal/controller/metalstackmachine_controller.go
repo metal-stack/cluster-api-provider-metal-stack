@@ -328,6 +328,11 @@ func (r *MetalStackMachineReconciler) machineToMetalStackMachine(log logr.Logger
 }
 
 func (r *machineReconciler) reconcile() (ctrl.Result, error) {
+	if r.infraCluster.Spec.NodeNetworkID == nil {
+		// this should not happen because before setting this id the cluster status should not become ready, but we check it anyway
+		return ctrl.Result{}, errors.New("waiting until node network id was set to infrastructure cluster status")
+	}
+
 	if r.infraCluster.Spec.ControlPlaneEndpoint.Host == "" {
 		return ctrl.Result{}, errors.New("waiting until control plane ip was set to infrastructure cluster spec")
 	}
@@ -492,7 +497,7 @@ func (r *machineReconciler) create() (*models.V1MachineResponse, error) {
 		nws = []*models.V1MachineAllocationNetwork{
 			{
 				Autoacquire: ptr.To(true),
-				Networkid:   &r.infraCluster.Spec.NodeNetworkID,
+				Networkid:   r.infraCluster.Spec.NodeNetworkID,
 			},
 		}
 	)
@@ -500,7 +505,7 @@ func (r *machineReconciler) create() (*models.V1MachineResponse, error) {
 	resp, err := r.metalClient.Machine().AllocateMachine(metalmachine.NewAllocateMachineParamsWithContext(r.ctx).WithBody(&models.V1MachineAllocateRequest{
 		Partitionid:   &r.infraCluster.Spec.Partition,
 		Projectid:     &r.infraCluster.Spec.ProjectID,
-		PlacementTags: []string{tag.New(tag.ClusterID, r.infraCluster.GetClusterID())},
+		PlacementTags: []string{tag.New(tag.ClusterID, r.infraCluster.GetClusterName())},
 		Tags:          append(r.machineTags(), r.additionalMachineTags()...),
 		Name:          r.infraMachine.Name,
 		Hostname:      r.infraMachine.Name,
@@ -629,7 +634,7 @@ func (r *machineReconciler) patchMachineLabels(m *models.V1MachineResponse) {
 
 func (r *machineReconciler) machineTags() []string {
 	tags := []string{
-		tag.New(tag.ClusterID, r.infraCluster.Spec.NodeNetworkID),
+		tag.New(tag.ClusterID, *r.infraCluster.Spec.NodeNetworkID),
 		tag.New(v1alpha1.TagInfraClusterResource, fmt.Sprintf("%s.%s", r.infraCluster.Namespace, r.infraCluster.Name)),
 		tag.New(v1alpha1.TagInfraMachineResource, fmt.Sprintf("%s.%s", r.infraMachine.Namespace, r.infraMachine.Name)),
 	}

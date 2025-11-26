@@ -25,7 +25,7 @@ metadata:
 spec:
   projectID: ${METAL_PROJECT_ID}
   partition: ${METAL_PARTITION}
-  nodeNetworkID: ${METAL_NODE_NETWORK_ID}
+  nodeNetworkID: ${METAL_NODE_NETWORK_ID:=null}
   controlPlaneIP: ${CONTROL_PLANE_IP}
   firewallDeploymentRef:
     name: ${CLUSTER_NAME}
