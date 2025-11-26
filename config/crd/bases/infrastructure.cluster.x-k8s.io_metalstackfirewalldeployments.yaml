@@ -70,9 +70,6 @@ spec:
                 description: AutoUpdate defines the behavior for automatic updates.
                 properties:
                   machineImage:
-                    description: |-
-                      MachineImage auto updates the os image of the firewall within the maintenance time window
-                      in case a newer version of the os is available.
                     type: boolean
                 type: object
               firewallTemplateRef:

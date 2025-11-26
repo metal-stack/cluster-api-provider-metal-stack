@@ -28,10 +28,7 @@ type MetalStackFirewallDeploymentSpec struct {
 	AutoUpdate *MetalStackFirewallAutoUpdate `json:"autoUpdate,omitempty"`
 }
 
-// MetalStackFirewallAutoUpdate defines the auto update settings for the firewall deployment.
 type MetalStackFirewallAutoUpdate struct {
-	// MachineImage auto updates the os image of the firewall within the maintenance time window
-	// in case a newer version of the os is available.
 	MachineImage bool `json:"machineImage,omitempty"`
 }
 
