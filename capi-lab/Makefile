@@ -59,17 +59,12 @@ controller:
 	kubectl --kubeconfig=$(KUBECONFIG) patch deployments.apps -n cap-metal-stack metal-stack-controller-manager --patch='{"spec":{"template":{"spec":{"containers":[{"name": "manager","imagePullPolicy":"IfNotPresent","image":"$(IMG)"}]}}}}'
 	kubectl --kubeconfig=$(KUBECONFIG) delete pod -n cap-metal-stack -l control-plane=metal-stack-controller-manager
 
-.PHONY: node-network
-node-network:
-	metalctl network allocate --description "node network for $(CLUSTER_NAME) cluster" --name $(CLUSTER_NAME) --project 00000000-0000-0000-0000-000000000001 --partition mini-lab
-
 .PHONY: control-plane-ip
 control-plane-ip:
 	metalctl network ip create --network internet-mini-lab --project $(METAL_PROJECT_ID) --name "$(CLUSTER_NAME)-vip" --type static -o template --template "{{ .ipaddress }}"
 
 .PHONY: apply-sample-cluster
 apply-sample-cluster:
-	$(eval METAL_NODE_NETWORK_ID = $(shell metalctl network list --name $(CLUSTER_NAME) -o template --template '{{ .id }}'))
 	$(eval CONTROL_PLANE_IP = $(shell metalctl network ip list --name "$(CLUSTER_NAME)-vip" -o template --template '{{ .ipaddress }}'))
 	echo  $(CLUSTER_NAME)
 	clusterctl generate cluster $(CLUSTER_NAME) \
@@ -82,7 +77,6 @@ apply-sample-cluster:
 
 .PHONY: delete-sample-cluster
 delete-sample-cluster:
-	$(eval METAL_NODE_NETWORK_ID = $(shell metalctl network list --name $(CLUSTER_NAME) -o template --template '{{ .id }}'))
 	$(eval CONTROL_PLANE_IP = $(shell metalctl network ip list --name "$(CLUSTER_NAME)-vip" -o template --template '{{ .ipaddress }}'))
 	clusterctl generate cluster $(CLUSTER_NAME) \
 		--kubeconfig=$(KUBECONFIG) \
