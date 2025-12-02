@@ -175,7 +175,7 @@ Unfortunately there is no automated way to update firewall deployments or rules 
 2. Update the `MetalStackFirewallTemplate` as desired.
 3. Remove `MetalStackFirewallDeployment.spec.managedResourceRef`.
 4. Wait for CAPMS to create the new firewall.
-5. Wait for the new firewall to be in `Phone Home` state using `metalctl machine list --id <new-id>`.
+5. Wait for the new firewall to be in `Phoned Home` state using `metalctl machine list --id <new-id>`.
 6. Delete the old firewall machine using `metalctl machine delete <old-id>` as soon as possible.
 
 This leads to a minimized downtime of the cluster as the firewall is not available during the transition.
