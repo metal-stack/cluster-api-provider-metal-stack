@@ -247,7 +247,7 @@ func (r *MetalStackFirewallDeploymentReconciler) metalStackFirewallTemplateToMet
 }
 
 func (r *firewallDeploymentReconciler) reconcile() error {
-	if r.infraCluster.Spec.NodeNetworkID == "" {
+	if r.infraCluster.Spec.NodeNetworkID == nil {
 		conditions.MarkFalse(r.infraCluster, v1alpha1.ClusterFirewallDeploymentEnsured, "MissingNodeNetworkID", clusterv1.ConditionSeverityWarning, "NodeNetworkID is not set on MetalStackCluster")
 		return fmt.Errorf("node network ID is not set on MetalStackCluster %s/%s", r.infraCluster.Namespace, r.infraCluster.Name)
 	}
@@ -347,7 +347,7 @@ func (r *firewallDeploymentReconciler) ensureFirewallDeployment() error {
 	var (
 		name = fmt.Sprintf("%s-firewall", r.infraCluster.GetName())
 		tags = []string{
-			tag.New(tag.ClusterID, r.infraCluster.Spec.NodeNetworkID),
+			tag.New(tag.ClusterID, *r.infraCluster.Spec.NodeNetworkID),
 			tag.New(v1alpha1.TagInfraClusterResource, fmt.Sprintf("%s.%s", r.infraCluster.Namespace, r.infraCluster.Name)),
 			tag.New(fcmv2.FirewallControllerManagedByAnnotation, "cluster-api-provider-metal-stack"),
 			tag.New((v1alpha1.TagFirewallDeploymentResource), fmt.Sprintf("%s.%s", r.firewallDeployment.Namespace, r.firewallDeployment.Name)),
@@ -359,8 +359,8 @@ func (r *firewallDeploymentReconciler) ensureFirewallDeployment() error {
 	}
 
 	networkIDs := r.firewallTemplate.Spec.Networks
-	if !slices.Contains(networkIDs, r.infraCluster.Spec.NodeNetworkID) {
-		networkIDs = append(networkIDs, r.infraCluster.Spec.NodeNetworkID)
+	if !slices.Contains(networkIDs, *r.infraCluster.Spec.NodeNetworkID) {
+		networkIDs = append(networkIDs, *r.infraCluster.Spec.NodeNetworkID)
 	}
 
 	networks := make([]*models.V1MachineAllocationNetwork, 0, len(networkIDs))
@@ -431,7 +431,7 @@ func (r *firewallDeploymentReconciler) deleteFirewallDeployment() error {
 
 	var (
 		tags = []string{
-			tag.New(tag.ClusterID, r.infraCluster.Spec.NodeNetworkID),
+			tag.New(tag.ClusterID, *r.infraCluster.Spec.NodeNetworkID),
 			tag.New(v1alpha1.TagInfraClusterResource, fmt.Sprintf("%s.%s", r.infraCluster.Namespace, r.infraCluster.Name)),
 			tag.New(fcmv2.FirewallControllerManagedByAnnotation, "cluster-api-provider-metal-stack"),
 			tag.New((v1alpha1.TagFirewallDeploymentResource), fmt.Sprintf("%s.%s", r.firewallDeployment.Namespace, r.firewallDeployment.Name)),

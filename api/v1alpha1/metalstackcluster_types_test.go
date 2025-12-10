@@ -17,7 +17,7 @@ var _ = Describe("MetalStackCluster", func() {
 			},
 		}
 
-		clusterID := cluster.GetClusterID()
+		clusterID := cluster.GetClusterName()
 		Expect(utilvalidation.IsValidLabelValue(clusterID)).To(BeEmpty())
 	})
 
@@ -29,7 +29,7 @@ var _ = Describe("MetalStackCluster", func() {
 			},
 		}
 
-		clusterID := cluster.GetClusterID()
+		clusterID := cluster.GetClusterName()
 		Expect(clusterID).To(Equal("some-namespace.my-cluster"))
 	})
 })

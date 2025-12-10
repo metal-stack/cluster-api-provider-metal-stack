@@ -37,6 +37,7 @@ const (
 	ClusterControlPlaneEndpointDefaultPort = 443
 
 	ClusterPaused                clusterv1.ConditionType = clusterv1.PausedV1Beta2Condition
+	ClusterNodeNetworkEnsured    clusterv1.ConditionType = "ClusterNodeNetworkEnsured"
 	ClusterControlPlaneIPEnsured clusterv1.ConditionType = "ClusterControlPlaneIPEnsured"
 )
 
@@ -57,7 +58,9 @@ type MetalStackClusterSpec struct {
 	ProjectID string `json:"projectID"`
 
 	// NodeNetworkID is the network ID in metal-stack in which the worker nodes and the firewall of the cluster are placed.
-	NodeNetworkID string `json:"nodeNetworkID"`
+	// If not provided this will automatically be acquired during reconcile.
+	// +optional
+	NodeNetworkID *string `json:"nodeNetworkID,omitempty"`
 
 	// ControlPlaneIP is the ip address in metal-stack on which the control plane will be exposed.
 	// If this ip and the control plane endpoint are not provided, an ephemeral ip will automatically be acquired during reconcile.
@@ -153,6 +156,6 @@ func (c *MetalStackCluster) SetConditions(conditions clusterv1.Conditions) {
 	c.Status.Conditions = conditions
 }
 
-func (c *MetalStackCluster) GetClusterID() string {
+func (c *MetalStackCluster) GetClusterName() string {
 	return fmt.Sprintf("%s.%s", c.GetNamespace(), c.GetName())
 }
