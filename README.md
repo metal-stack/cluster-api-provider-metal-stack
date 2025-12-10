@@ -167,6 +167,19 @@ When generating your cluster, set `POD_CIDR` to your desired value.
 export POD_CIDR=["10.240.0.0/12"]
 ```
 
+## I'd like to update the firewall and / or its rules. How can I achieve this?
+
+Unfortunately there is no automated way to update firewall deployments or rules yet. You have to manually edit the `MetalStackFirewallDeployment` resource to force it to create a new firewall.
+
+1. Save the firewall machine ID stored in `MetalStackFirewallDeployment.spec.managedResourceRef.name`.
+2. Update the `MetalStackFirewallTemplate` as desired.
+3. Remove `MetalStackFirewallDeployment.spec.managedResourceRef`.
+4. Wait for CAPMS to create the new firewall.
+5. Wait for the new firewall to be in `Phoned Home` state using `metalctl machine list --id <new-id>`.
+6. Delete the old firewall machine using `metalctl machine delete <old-id>` as soon as possible.
+
+This leads to a minimized downtime of the cluster as the firewall is not available during the transition.
+
 ## Flavors
 
 You might choose from different cluster template [flavors](https://cluster-api.sigs.k8s.io/clusterctl/commands/generate-cluster.html?highlight=flavor#flavors) to generate manifests with clusterctl. Here is a table describing the available flavors:

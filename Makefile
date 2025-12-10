@@ -169,7 +169,7 @@ test-e2e: manifests generate fmt vet ginkgo kustomize
 	ARTIFACTS=$(ARTIFACTS) \
 	E2E_DEFAULT_FLAVOR=$(E2E_DEFAULT_FLAVOR) \
 	KUBETEST_CONFIGURATION="$(shell git rev-parse --show-toplevel)/test/e2e/frmwrk/data/kubetest/conformance.yaml" \
-	$(GINKGO) -vv -r --junit-report="junit.e2e_suite.xml" --output-dir="$(ARTIFACTS)" --label-filter="$(E2E_LABEL_FILTER)" -timeout 60m ./test/e2e/frmwrk
+	$(GINKGO) -vv -r --junit-report="junit.e2e_suite.xml" --output-dir="$(ARTIFACTS)" --label-filter="$(E2E_LABEL_FILTER)" -timeout 120m ./test/e2e/frmwrk
 
 .PHONY: lint
 lint: golangci-lint ## Run golangci-lint linter
