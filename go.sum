@@ -198,8 +198,8 @@ github.com/mattn/go-isatty v0.0.20/go.mod h1:W+V8PltTTMOvKvAeJH7IuucS94S2C6jfK/D
 github.com/mattn/go-runewidth v0.0.9/go.mod h1:H031xJmbD/WCDINGzjvQ9THkh0rPKHF+m2gUSrubnMI=
 github.com/mattn/go-runewidth v0.0.16 h1:E5ScNMtiwvlvB5paMFdw9p4kSQzbXFikJ5SQO6TULQc=
 github.com/mattn/go-runewidth v0.0.16/go.mod h1:Jdepj2loyihRzMpdS35Xk/zdY8IAYHsh153qUoGf23w=
-github.com/metal-stack/firewall-controller-manager v0.5.2-0.20251113135313-f52a9d6c782c h1:GR1ra9iAGjM+n0DsRRwEuV/SdwhXf4mZb7AH4SudSS4=
-github.com/metal-stack/firewall-controller-manager v0.5.2-0.20251113135313-f52a9d6c782c/go.mod h1:gXD4ExLo4IdcuiwojauT1NgMGwAGSV6YoS4Fu1ZM9k0=
+github.com/metal-stack/firewall-controller-manager v0.5.2-0.20251211092714-a4e5cb245f46 h1:6xLUd6bKsX4+B6QufGQgPqY+6DjxQ2GsJW9pEn95nUc=
+github.com/metal-stack/firewall-controller-manager v0.5.2-0.20251211092714-a4e5cb245f46/go.mod h1:gXD4ExLo4IdcuiwojauT1NgMGwAGSV6YoS4Fu1ZM9k0=
 github.com/metal-stack/metal-go v0.41.0 h1:A8G/lmglviKObvGIFglV4RzY2u+g/eSCepX+roH68Uk=
 github.com/metal-stack/metal-go v0.41.0/go.mod h1:ltItf/Md/z588c7Dr3X6iemCeOFh3rJ8nDL5Dpb9zFQ=
 github.com/metal-stack/metal-lib v0.21.0 h1:oJSexA0czpS4aAUqCgymESWBsqG7BbjSceogsWowbPg=
