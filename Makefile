@@ -121,6 +121,7 @@ test-e2e-controller: manifests generate update-test-crds fmt vet ## Run the e2e 
 	}
 	go test ./test/e2e/ -v -ginkgo.v
 
+E2E_KUBECONFIG ?= ""
 E2E_METAL_API_URL ?= "$(METALCTL_API_URL)"
 E2E_METAL_API_HMAC ?= "$(METALCTL_HMAC)"
 E2E_METAL_API_HMAC_AUTH_TYPE ?= "$(or $(METALCTL_HMAC_AUTH_TYPE),Metal-Admin)"
@@ -143,13 +144,14 @@ E2E_LABEL_FILTER ?= ""
 
 E2E_TEMPLATES := test/e2e/frmwrk/data/clusterctl-templates
 .PHONY: test-e2e
-test-e2e: manifests generate fmt vet ginkgo
+test-e2e: manifests generate fmt vet ginkgo kustomize
 	rm -rf $(ARTIFACTS)
 
 	$(KUSTOMIZE) build $(E2E_TEMPLATES)/upgrade --load-restrictor LoadRestrictionsNone > $(E2E_TEMPLATES)/cluster-template-upgrade.yaml
 	$(KUSTOMIZE) build $(E2E_TEMPLATES)/upgrade-workerless --load-restrictor LoadRestrictionsNone > $(E2E_TEMPLATES)/cluster-template-upgrade-workerless.yaml
 	
-	@METAL_API_URL=$(E2E_METAL_API_URL) \
+	@KUBECONFIG=$(E2E_KUBECONFIG) \
+	METAL_API_URL=$(E2E_METAL_API_URL) \
 	METAL_API_HMAC=$(E2E_METAL_API_HMAC) \
 	METAL_API_HMAC_AUTH_TYPE=$(E2E_METAL_API_HMAC_AUTH_TYPE) \
 	METAL_PROJECT_ID=$(E2E_METAL_PROJECT_ID) \
@@ -167,7 +169,7 @@ test-e2e: manifests generate fmt vet ginkgo
 	ARTIFACTS=$(ARTIFACTS) \
 	E2E_DEFAULT_FLAVOR=$(E2E_DEFAULT_FLAVOR) \
 	KUBETEST_CONFIGURATION="$(shell git rev-parse --show-toplevel)/test/e2e/frmwrk/data/kubetest/conformance.yaml" \
-	$(GINKGO) -vv -r --junit-report="junit.e2e_suite.xml" --output-dir="$(ARTIFACTS)" --label-filter="$(E2E_LABEL_FILTER)" -timeout 60m ./test/e2e/frmwrk
+	$(GINKGO) -vv -r --junit-report="junit.e2e_suite.xml" --output-dir="$(ARTIFACTS)" --label-filter="$(E2E_LABEL_FILTER)" -timeout 120m ./test/e2e/frmwrk
 
 .PHONY: lint
 lint: golangci-lint ## Run golangci-lint linter

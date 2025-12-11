@@ -45,6 +45,7 @@ import (
 	"github.com/go-logr/logr"
 
 	"github.com/metal-stack/cluster-api-provider-metal-stack/api/v1alpha1"
+	capmsutil "github.com/metal-stack/cluster-api-provider-metal-stack/util"
 	ipmodels "github.com/metal-stack/metal-go/api/client/ip"
 	"github.com/metal-stack/metal-go/api/client/network"
 	"github.com/metal-stack/metal-go/api/models"
@@ -72,6 +73,7 @@ type clusterReconciler struct {
 // +kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=metalstackclusters,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=metalstackclusters/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=metalstackclusters/finalizers,verbs=update
+// +kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=metalstackfirewalldeployments,verbs=get;watch;update;patch;delete
 
 // Reconcile reconciles the reconciled cluster to be reconciled.
 func (r *MetalStackClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -166,6 +168,10 @@ func (r *MetalStackClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			handler.EnqueueRequestsFromMapFunc(r.metalStackMachineToMetalStackCluster(mgr.GetLogger())),
 			builder.WithPredicates(predicates.ResourceNotPaused(mgr.GetScheme(), mgr.GetLogger())),
 		).
+		Watches(&v1alpha1.MetalStackFirewallDeployment{},
+			handler.EnqueueRequestsFromMapFunc(r.metalStackFirewallToMetalStackCluster(mgr.GetLogger())),
+			builder.WithPredicates(predicates.ResourceNotPaused(mgr.GetScheme(), mgr.GetLogger())),
+		).
 		Complete(r)
 }
 
@@ -179,7 +185,7 @@ func (r *MetalStackClusterReconciler) clusterToMetalStackCluster(log logr.Logger
 
 		log := log.WithValues("cluster", cluster.Name, "namespace", cluster.Namespace)
 
-		if cluster.Spec.InfrastructureRef.Kind != "MetalStackCluster" {
+		if cluster.Spec.InfrastructureRef.Kind != v1alpha1.MetalStackClusterKind {
 			return nil
 		}
 
@@ -252,7 +258,7 @@ func (r *MetalStackClusterReconciler) metalStackMachineToMetalStackCluster(log l
 			return nil
 		}
 
-		if cluster.Spec.InfrastructureRef.Kind != "MetalStackCluster" {
+		if cluster.Spec.InfrastructureRef.Kind != v1alpha1.MetalStackClusterKind {
 			log.Info("different infra cluster", "kind", cluster.Spec.InfrastructureRef.Kind)
 			return nil
 		}
@@ -271,7 +277,50 @@ func (r *MetalStackClusterReconciler) metalStackMachineToMetalStackCluster(log l
 	}
 }
 
+func (r *MetalStackClusterReconciler) metalStackFirewallToMetalStackCluster(log logr.Logger) handler.MapFunc {
+	return func(ctx context.Context, o client.Object) []ctrl.Request {
+		fwDeploy, ok := o.(*v1alpha1.MetalStackFirewallDeployment)
+		if !ok {
+			log.Error(fmt.Errorf("expected an infra cluster, got %T", o), "failed to get firewall deployment", "object", o)
+			return nil
+		}
+
+		log := log.WithValues("namespace", fwDeploy.Namespace, "firewallDeployment", fwDeploy.Name)
+		cluster, err := capmsutil.GetOwnerMetalStackCluster(ctx, r.Client, fwDeploy.ObjectMeta)
+		if err != nil {
+			log.Error(err, "failed to get owner cluster")
+			return nil
+		}
+
+		if cluster == nil {
+			return nil
+		}
+
+		return []ctrl.Request{
+			{
+				NamespacedName: types.NamespacedName{
+					Namespace: cluster.Namespace,
+					Name:      cluster.Name,
+				},
+			},
+		}
+	}
+}
+
 func (r *clusterReconciler) reconcile() error {
+	if r.infraCluster.Spec.FirewallDeploymentRef != nil {
+		err := r.ensureFirewallDeployment()
+		if err != nil {
+			conditions.Set(r.infraCluster, metav1.Condition{
+				Status:  metav1.ConditionFalse,
+				Type:    v1alpha1.ClusterFirewallDeploymentEnsured,
+				Reason:  "InternalError",
+				Message: err.Error(),
+			})
+			return fmt.Errorf("unable to ensure firewall deployment: %w", err)
+		}
+	}
+
 	if r.infraCluster.Spec.ControlPlaneEndpoint.Host == "" {
 		ip, err := r.ensureControlPlaneIP()
 		if err != nil {
@@ -321,6 +370,11 @@ func (r *clusterReconciler) delete() error {
 		return err
 	}
 
+	err = r.ensureFirewallDeploymentIsGone()
+	if err != nil {
+		return nil
+	}
+
 	err = r.deleteControlPlaneIP()
 	if err != nil {
 		return fmt.Errorf("unable to delete control plane ip: %w", err)
@@ -331,6 +385,35 @@ func (r *clusterReconciler) delete() error {
 	controllerutil.RemoveFinalizer(r.infraCluster, v1alpha1.ClusterFinalizer)
 
 	return err
+}
+
+func (r *clusterReconciler) ensureFirewallDeployment() error {
+	fwdeploy := &v1alpha1.MetalStackFirewallDeployment{}
+	err := r.client.Get(r.ctx, types.NamespacedName{
+		Namespace: r.cluster.Namespace,
+		Name:      r.infraCluster.Spec.FirewallDeploymentRef.Name,
+	}, fwdeploy)
+	if err != nil {
+		return fmt.Errorf("failed to fetch firewall deployment: %w", err)
+	}
+
+	ownerRef := metav1.NewControllerRef(r.infraCluster, v1alpha1.GroupVersion.WithKind(v1alpha1.MetalStackClusterKind))
+	if util.HasOwnerRef(fwdeploy.OwnerReferences, *ownerRef) {
+		return nil
+	}
+
+	fwdeploy.OwnerReferences = append(fwdeploy.OwnerReferences, *ownerRef)
+	if fwdeploy.Labels == nil {
+		fwdeploy.Labels = map[string]string{}
+	}
+	fwdeploy.Labels[clusterv1.ClusterNameLabel] = r.cluster.Name
+
+	err = r.client.Update(r.ctx, fwdeploy)
+	if err != nil {
+		return fmt.Errorf("failed to set owner reference on firewall deployment: %w", err)
+	}
+
+	return nil
 }
 
 func (r *clusterReconciler) ensureControlPlaneIP() (string, error) {
@@ -390,6 +473,35 @@ func (r *clusterReconciler) ensureAllMetalStackMachinesAreGone() error {
 		return errors.New("waiting for all infra machines to be gone")
 	}
 	return nil
+}
+
+func (r *clusterReconciler) ensureFirewallDeploymentIsGone() error {
+	fwdeploy := &v1alpha1.MetalStackFirewallDeployment{}
+
+	err := r.client.Get(r.ctx, types.NamespacedName{
+		Namespace: r.cluster.Namespace,
+		Name:      r.infraCluster.Spec.FirewallDeploymentRef.Name,
+	}, fwdeploy)
+
+	if apierrors.IsNotFound(err) {
+		return nil
+	}
+
+	if err != nil {
+		return fmt.Errorf("failed to fetch firewall deployment: %w", err)
+	}
+
+	if !fwdeploy.DeletionTimestamp.IsZero() {
+		return errors.New("waiting for firewall deployment to be gone")
+	}
+
+	err = r.client.Delete(r.ctx, fwdeploy)
+	if err != nil {
+		return fmt.Errorf("failed to delete firewall deployment: %w", err)
+	}
+
+	r.log.Info("deleting firewall deployment", "name", fwdeploy.Name)
+	return errors.New("waiting for firewall deployment to be gone")
 }
 
 func (r *clusterReconciler) deleteControlPlaneIP() error {

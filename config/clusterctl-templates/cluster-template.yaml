@@ -27,6 +27,62 @@ spec:
   partition: ${METAL_PARTITION}
   nodeNetworkID: ${METAL_NODE_NETWORK_ID}
   controlPlaneIP: ${CONTROL_PLANE_IP}
+  firewallDeploymentRef:
+    name: ${CLUSTER_NAME}
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+kind: MetalStackFirewallDeployment
+metadata:
+  name: ${CLUSTER_NAME}
+  namespace: ${NAMESPACE}
+spec:
+  autoUpdate:
+    machineImage: true
+  firewallTemplateRef:
+    name: ${CLUSTER_NAME}
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+kind: MetalStackFirewallTemplate
+metadata:
+  name: ${CLUSTER_NAME}
+  namespace: ${NAMESPACE}
+spec:
+  image: ${FIREWALL_MACHINE_IMAGE}
+  size: ${FIREWALL_MACHINE_SIZE}
+  networks: ${FIREWALL_EXTERNAL_NETWORKS:=["internet"]}
+  partition: ${METAL_PARTITION}
+  project: ${METAL_PROJECT_ID}
+  initialRuleSet:
+    egress:
+      - comment: allow outgoing HTTP and HTTPS traffic
+        ports:
+          - 80
+          - 443
+        protocol: TCP
+        to:
+          - 0.0.0.0/0
+      - comment: allow outgoing DNS traffic via TCP
+        ports:
+          - 53
+        protocol: TCP
+        to:
+          - 0.0.0.0/0
+      - comment: allow outgoing DNS and NTP traffic via UDP
+        ports:
+          - 53
+          - 123
+        protocol: UDP
+        to:
+          - 0.0.0.0/0
+
+    ingress:
+      - comment: allow incoming HTTP and HTTPS traffic
+        ports:
+          - 80
+          - 443
+        protocol: TCP
+        from:
+          - 0.0.0.0/0
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
 kind: MetalStackMachineTemplate

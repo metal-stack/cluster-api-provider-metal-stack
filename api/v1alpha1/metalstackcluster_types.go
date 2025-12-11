@@ -27,6 +27,7 @@ import (
 )
 
 const (
+	MetalStackClusterKind = "MetalStackCluster"
 	// ClusterFinalizer allows to clean up resources associated with before removing it from the apiserver.
 	ClusterFinalizer = "metal-stack.infrastructure.cluster.x-k8s.io/cluster"
 
@@ -48,7 +49,7 @@ var (
 type MetalStackClusterSpec struct {
 	// ControlPlaneEndpoint represents the endpoint used to communicate with the control plane.
 	// +optional
-	ControlPlaneEndpoint APIEndpoint `json:"controlPlaneEndpoint,omitempty"`
+	ControlPlaneEndpoint APIEndpoint `json:"controlPlaneEndpoint,omitzero"`
 
 	// ProjectID is the project id of the project in metal-stack in which the associated metal-stack resources are created.
 	ProjectID string `json:"projectID"`
@@ -64,6 +65,17 @@ type MetalStackClusterSpec struct {
 
 	// Partition is the data center partition in which the resources are created.
 	Partition string `json:"partition"`
+
+	// FirewallDeploymentRef references a MetalStackFirewallDeployment resource which manages the firewall for this cluster.
+	// This feature is currently in public preview.
+	// +optional
+	FirewallDeploymentRef *MetalStackFirewallDeploymentRef `json:"firewallDeploymentRef,omitempty"`
+}
+
+// MetalStackFirewallDeploymentRef contains a reference to a MetalStackFirewallDeployment resource.
+type MetalStackFirewallDeploymentRef struct {
+	// Name is the name of the MetalStackFirewallDeployment resource.
+	Name string `json:"name"`
 }
 
 // APIEndpoint represents a reachable Kubernetes API endpoint.

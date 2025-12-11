@@ -1,5 +1,5 @@
 ---
-apiVersion: cluster.x-k8s.io/v1beta2
+apiVersion: cluster.x-k8s.io/v1beta1
 kind: Cluster
 metadata:
   name: ${CLUSTER_NAME}
@@ -13,13 +13,15 @@ spec:
     pods:
       cidrBlocks: ${POD_CIDR:=["10.240.0.0/12"]}
   controlPlaneRef:
-    apiGroup: controlplane.cluster.x-k8s.io
+    apiVersion: controlplane.cluster.x-k8s.io/v1beta1
     kind: KubeadmControlPlane
     name: ${CLUSTER_NAME}-controlplane
+    namespace: ${NAMESPACE}
   infrastructureRef:
-    apiGroup: infrastructure.cluster.x-k8s.io
+    apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
     kind: MetalStackCluster
     name: ${CLUSTER_NAME}
+    namespace: ${NAMESPACE}
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
 kind: MetalStackCluster
@@ -71,6 +73,12 @@ spec:
         protocol: TCP
         to:
           - 0.0.0.0/0
+      - comment: allow outgoing traffic to control plane for ccm
+        ports:
+          - 8080
+        protocol: TCP
+        to:
+          - 0.0.0.0/0
       - comment: allow outgoing DNS and NTP traffic via UDP
         ports:
           - 53
@@ -110,35 +118,33 @@ spec:
       image: ${WORKER_MACHINE_IMAGE}
 ---
 kind: KubeadmControlPlane
-apiVersion: controlplane.cluster.x-k8s.io/v1beta2
+apiVersion: controlplane.cluster.x-k8s.io/v1beta1
 metadata:
   name: ${CLUSTER_NAME}-controlplane
 spec:
   replicas: ${CONTROL_PLANE_MACHINE_COUNT}
   version: ${KUBERNETES_VERSION}
   machineTemplate:
-    spec:
-      infrastructureRef:
-        kind: MetalStackMachineTemplate
-        apiGroup: infrastructure.cluster.x-k8s.io
-        name: ${CLUSTER_NAME}-controlplane
-      deletion:
-        nodeDrainTimeoutSeconds: 600
+    nodeDrainTimeout: 10m
+    infrastructureRef:
+      kind: MetalStackMachineTemplate
+      apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+      name: ${CLUSTER_NAME}-controlplane
   kubeadmConfigSpec:
     format: ignition
     clusterConfiguration:
+      apiServer:
+        extraArgs: {}
       controllerManager:
         extraArgs:
-          - name: cloud-provider
-            value: external
+          cloud-provider: external
     initConfiguration:
       localAPIEndpoint:
         advertiseAddress: 127.0.0.1
         bindPort: 443
       nodeRegistration:
         kubeletExtraArgs:
-          - name: cloud-provider
-            value: external
+          cloud-provider: external
     joinConfiguration:
       controlPlane:
         localAPIEndpoint:
@@ -146,8 +152,7 @@ spec:
           bindPort: 443
       nodeRegistration:
         kubeletExtraArgs:
-          - name: cloud-provider
-            value: external
+          cloud-provider: external
     files:
       - path: /etc/kubernetes/manifests/kubevip.yaml
         owner: root:root
@@ -211,7 +216,7 @@ spec:
               name: kubeconfig
 
 ---
-apiVersion: cluster.x-k8s.io/v1beta2
+apiVersion: cluster.x-k8s.io/v1beta1
 kind: MachineDeployment
 metadata:
   name: ${CLUSTER_NAME}-md-0
@@ -231,21 +236,20 @@ spec:
         cluster.x-k8s.io/cluster-name: ${CLUSTER_NAME}
         nodepool: nodepool-0
     spec:
+      nodeDrainTimeout: 120s
       clusterName: ${CLUSTER_NAME}
       version: "${KUBERNETES_VERSION}"
       bootstrap:
         configRef:
           name: ${CLUSTER_NAME}-md-0
-          apiGroup: bootstrap.cluster.x-k8s.io
+          apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
           kind: KubeadmConfigTemplate
       infrastructureRef:
         name: ${CLUSTER_NAME}-worker
-        apiGroup: infrastructure.cluster.x-k8s.io
+        apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
         kind: MetalStackMachineTemplate
-      deletion:
-        nodeDrainTimeoutSeconds: 120
 ---
-apiVersion: bootstrap.cluster.x-k8s.io/v1beta2
+apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
 kind: KubeadmConfigTemplate
 metadata:
   name: ${CLUSTER_NAME}-md-0
@@ -254,15 +258,15 @@ spec:
     spec:
       format: ignition
       clusterConfiguration:
+        apiServer:
+          extraArgs: {}
         controllerManager:
           extraArgs:
-            - name: cloud-provider
-              value: external
+            cloud-provider: external
       joinConfiguration:
         nodeRegistration:
           kubeletExtraArgs:
-            - name: cloud-provider
-              value: external
+            cloud-provider: external
 
 ---
 apiVersion: addons.cluster.x-k8s.io/v1alpha1
@@ -300,7 +304,7 @@ spec:
     whisker:
       enabled: false
 ---
-apiVersion: addons.cluster.x-k8s.io/v1beta2
+apiVersion: addons.cluster.x-k8s.io/v1beta1
 kind: ClusterResourceSet
 metadata:
   name: ${CLUSTER_NAME}-metal-ccm

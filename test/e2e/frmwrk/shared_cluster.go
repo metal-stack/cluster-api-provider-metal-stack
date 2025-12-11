@@ -12,9 +12,7 @@ import (
 	. "github.com/onsi/ginkgo/v2" //nolint:staticcheck
 	. "github.com/onsi/gomega"    //nolint:staticcheck
 
-	metalfw "github.com/metal-stack/metal-go/api/client/firewall"
 	metalip "github.com/metal-stack/metal-go/api/client/ip"
-	metalmachine "github.com/metal-stack/metal-go/api/client/machine"
 	metalnetwork "github.com/metal-stack/metal-go/api/client/network"
 	metalmodels "github.com/metal-stack/metal-go/api/models"
 
@@ -63,7 +61,6 @@ type E2ECluster struct {
 type E2EClusterRefs struct {
 	Namespace      *corev1.Namespace
 	NodeNetwork    *metalmodels.V1NetworkResponse
-	Firewall       *metalmodels.V1FirewallResponse
 	ControlPlaneIP *metalmodels.V1IPResponse
 
 	Workload framework.ClusterProxy
@@ -130,7 +127,6 @@ func (e2e *E2ECluster) teardownNamespace(ctx context.Context) {
 func (e2e *E2ECluster) SetupMetalStackPreconditions(ctx context.Context) {
 	By("Setup Preconditions")
 	e2e.setupNodeNetwork(ctx)
-	e2e.setupFirewall(ctx)
 	e2e.setupControlPlaneIP(ctx)
 }
 
@@ -138,7 +134,6 @@ func (e2e *E2ECluster) Teardown(ctx context.Context) {
 	e2e.teardownAddons(ctx)
 	e2e.teardownCluster(ctx)
 	e2e.teardownControlPlaneIP(ctx)
-	e2e.teardownFirewall(ctx)
 	e2e.teardownNodeNetwork(ctx)
 	e2e.teardownNamespace(ctx)
 }
@@ -171,94 +166,6 @@ func (e2e *E2ECluster) teardownNodeNetwork(ctx context.Context) {
 	Expect(err).ToNot(HaveOccurred(), "failed to delete node network")
 
 	e2e.Refs.NodeNetwork = nil
-}
-
-func (e2e *E2ECluster) setupFirewall(ctx context.Context) {
-	By("Setup Firewall")
-
-	fcr := &metalmodels.V1FirewallCreateRequest{
-		Name:        e2e.ClusterName + "-fw",
-		Hostname:    e2e.ClusterName + "-fw",
-		Description: "Firewall for " + e2e.ClusterName,
-		Partitionid: &e2e.E2EContext.Environment.partition,
-		Projectid:   &e2e.E2EContext.Environment.projectID,
-		Sizeid:      &e2e.FirewallSize,
-		Imageid:     &e2e.FirewallImage,
-		Tags: []string{
-			fmt.Sprintf("%s=%s.%s", capmsv1alpha1.TagInfraClusterResource, e2e.NamespaceName, e2e.ClusterName),
-			fmt.Sprintf("%s=%s", "e2e-test", e2e.SpecName),
-		},
-		Networks: []*metalmodels.V1MachineAllocationNetwork{
-			{
-				Networkid: ptr.To(e2e.E2EContext.Environment.publicNetwork),
-			},
-			{
-				Networkid: e2e.Refs.NodeNetwork.ID,
-			},
-		},
-		// At the moment we just go with vastly broad firewall rules.
-		// In production this should be limited down.
-		FirewallRules: &metalmodels.V1FirewallRules{
-			Egress: []*metalmodels.V1FirewallEgressRule{
-				{
-					Comment:  "allow outgoing HTTP and HTTPS traffic",
-					Protocol: "TCP",
-					Ports:    []int32{80, 443},
-					To:       []string{"0.0.0.0/0"},
-				},
-				{
-					Comment:  "allow outgoing DNS traffic via TCP",
-					Protocol: "TCP",
-					Ports:    []int32{53},
-					To:       []string{"0.0.0.0/0"},
-				},
-				{
-					Comment:  "allow outgoing traffic to control plane for ccm",
-					Protocol: "TCP",
-					Ports:    []int32{8080},
-					To:       []string{"0.0.0.0/0"},
-				},
-				{
-					Comment:  "allow outgoing DNS and NTP traffic via UDP",
-					Protocol: "UDP",
-					Ports:    []int32{53, 123},
-					To:       []string{"0.0.0.0/0"},
-				},
-			},
-			Ingress: []*metalmodels.V1FirewallIngressRule{
-				{
-					Comment:  "allow incoming HTTPS and HTTPS traffic",
-					Protocol: "TCP",
-					From:     []string{"0.0.0.0/0"},
-					To:       []string{"0.0.0.0/0"},
-					Ports:    []int32{80, 443},
-				},
-			},
-		},
-	}
-
-	Eventually(func() error {
-		fw, err := e2e.E2EContext.Environment.Metal.Firewall().AllocateFirewall(metalfw.NewAllocateFirewallParamsWithContext(ctx).WithBody(fcr), nil)
-		if err != nil {
-			return err
-		}
-
-		e2e.Refs.Firewall = fw.Payload
-		return nil
-	}, e2e.E2EContext.E2EConfig.GetIntervals("metal-stack", "wait-firewall-allocate")...).ShouldNot(HaveOccurred(), "firewall not available")
-
-	GinkgoWriter.Printf("Firewall allocated with ID: %s\n", *e2e.Refs.Firewall.ID)
-}
-
-func (e2e *E2ECluster) teardownFirewall(ctx context.Context) {
-	if e2e.Refs.Firewall == nil || e2e.Refs.Firewall.ID == nil {
-		return
-	}
-
-	_, err := e2e.E2EContext.Environment.Metal.Machine().FreeMachine(metalmachine.NewFreeMachineParamsWithContext(ctx).WithID(*e2e.Refs.Firewall.ID), nil)
-	Expect(err).ToNot(HaveOccurred(), "failed to free firewall machine")
-
-	e2e.Refs.Firewall = nil
 }
 
 func (e2e *E2ECluster) setupControlPlaneIP(ctx context.Context) {
@@ -306,7 +213,6 @@ func (e2e *E2ECluster) GenerateAndApplyClusterTemplate(ctx context.Context) {
 
 	Expect(e2e.Refs.Namespace).NotTo(BeNil(), "namespace not created yet")
 	Expect(e2e.Refs.NodeNetwork).NotTo(BeNil(), "node network not created yet")
-	Expect(e2e.Refs.Firewall).NotTo(BeNil(), "firewall not created yet")
 
 	workloadTempl := clusterctl.ConfigCluster(ctx, clusterctl.ConfigClusterInput{
 		Namespace:                e2e.NamespaceName,
@@ -318,6 +224,7 @@ func (e2e *E2ECluster) GenerateAndApplyClusterTemplate(ctx context.Context) {
 		Flavor:                   e2e.E2EContext.Environment.Flavor,
 		LogFolder:                path.Join(e2e.E2EContext.Environment.artifactsPath, "clusters", e2e.ClusterName),
 		ClusterctlVariables:      e2e.Variables(),
+		KubeconfigPath:           e2e.E2EContext.Environment.Bootstrap.GetKubeconfigPath(),
 	})
 
 	By("Apply cluster template")
@@ -428,7 +335,7 @@ func (ec *E2ECluster) Dump(ctx context.Context) {
 				Namespace: ec.Refs.Cluster.Namespace,
 			},
 			{
-				GVK:       capmsv1alpha1.GroupVersion.WithKind("MetalStackCluster"),
+				GVK:       capmsv1alpha1.GroupVersion.WithKind(capmsv1alpha1.MetalStackClusterKind),
 				Namespace: ec.Refs.Cluster.Namespace,
 			},
 			{
@@ -444,7 +351,15 @@ func (ec *E2ECluster) Dump(ctx context.Context) {
 				Namespace: ec.Refs.Cluster.Namespace,
 			},
 			{
-				GVK:       capmsv1alpha1.GroupVersion.WithKind("MetalStackMachine"),
+				GVK:       capmsv1alpha1.GroupVersion.WithKind(capmsv1alpha1.MetalStackMachineKind),
+				Namespace: ec.Refs.Cluster.Namespace,
+			},
+			{
+				GVK:       capmsv1alpha1.GroupVersion.WithKind(capmsv1alpha1.MetalStackFirewallDeploymentKind),
+				Namespace: ec.Refs.Cluster.Namespace,
+			},
+			{
+				GVK:       capmsv1alpha1.GroupVersion.WithKind(capmsv1alpha1.MetalStackFirewallTemplateKind),
 				Namespace: ec.Refs.Cluster.Namespace,
 			},
 		},
