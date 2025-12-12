@@ -35,7 +35,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/annotations"
 	"sigs.k8s.io/cluster-api/util/conditions"
@@ -116,9 +116,19 @@ func (r *MetalStackClusterReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	}
 
 	if annotations.IsPaused(cluster, infraCluster) {
-		conditions.MarkTrue(infraCluster, v1alpha1.ClusterPaused)
+		conditions.Set(infraCluster, metav1.Condition{
+			Status:  metav1.ConditionTrue,
+			Type:    clusterv1.PausedCondition,
+			Reason:  clusterv1.PausedReason,
+			Message: "Reconciliation is paused",
+		})
 	} else {
-		conditions.MarkFalse(infraCluster, v1alpha1.ClusterPaused, clusterv1.PausedV1Beta2Reason, clusterv1.ConditionSeverityInfo, "")
+		conditions.Set(infraCluster, metav1.Condition{
+			Status:  metav1.ConditionFalse,
+			Type:    clusterv1.PausedCondition,
+			Reason:  clusterv1.NotPausedReason,
+			Message: "Reconciliation is not paused",
+		})
 	}
 
 	switch {
@@ -175,17 +185,13 @@ func (r *MetalStackClusterReconciler) clusterToMetalStackCluster(log logr.Logger
 
 		log := log.WithValues("cluster", cluster.Name, "namespace", cluster.Namespace)
 
-		if cluster.Spec.InfrastructureRef == nil {
-			return nil
-		}
-		if cluster.Spec.InfrastructureRef.GroupVersionKind().Kind != v1alpha1.MetalStackClusterKind {
+		if cluster.Spec.InfrastructureRef.Kind != v1alpha1.MetalStackClusterKind {
 			return nil
 		}
 
 		infraCluster := &v1alpha1.MetalStackCluster{}
 		infraName := types.NamespacedName{
-			Namespace: cluster.Spec.InfrastructureRef.Namespace,
-			Name:      cluster.Spec.InfrastructureRef.Name,
+			Name: cluster.Spec.InfrastructureRef.Name,
 		}
 
 		if err := r.Client.Get(ctx, infraName, infraCluster); err != nil {
@@ -239,13 +245,13 @@ func (r *MetalStackClusterReconciler) metalStackMachineToMetalStackCluster(log l
 
 		infraCluster := &v1alpha1.MetalStackCluster{
 			ObjectMeta: metav1.ObjectMeta{
-				Namespace: cluster.Spec.InfrastructureRef.Namespace,
 				Name:      cluster.Spec.InfrastructureRef.Name,
+				Namespace: cluster.Namespace,
 			},
 		}
 		err = r.Client.Get(ctx, client.ObjectKeyFromObject(infraCluster), infraCluster)
 		if apierrors.IsNotFound(err) {
-			log.Info("infrastructure cluster no longer exists")
+			log.Info("infrastructure cluster no longer exists", "infraCluster", infraCluster.Name)
 			return nil
 		}
 		if err != nil {
@@ -253,8 +259,8 @@ func (r *MetalStackClusterReconciler) metalStackMachineToMetalStackCluster(log l
 			return nil
 		}
 
-		if cluster.Spec.InfrastructureRef.GroupVersionKind().Kind != v1alpha1.MetalStackClusterKind {
-			log.Info("different infra cluster", "kind", cluster.Spec.InfrastructureRef.GroupVersionKind().Kind)
+		if cluster.Spec.InfrastructureRef.Kind != v1alpha1.MetalStackClusterKind {
+			log.Info("different infra cluster", "kind", cluster.Spec.InfrastructureRef.Kind)
 			return nil
 		}
 
@@ -306,18 +312,41 @@ func (r *clusterReconciler) reconcile() error {
 	if r.infraCluster.Spec.FirewallDeploymentRef != nil {
 		err := r.ensureFirewallDeployment()
 		if err != nil {
-			conditions.MarkFalse(r.infraCluster, v1alpha1.ClusterFirewallDeploymentEnsured, "InternalError", clusterv1.ConditionSeverityError, "%s", err.Error())
+			conditions.Set(r.infraCluster, metav1.Condition{
+				Status:  metav1.ConditionFalse,
+				Type:    v1alpha1.ClusterFirewallDeploymentEnsured,
+				Reason:  "InternalError",
+				Message: err.Error(),
+			})
 			return fmt.Errorf("unable to ensure firewall deployment: %w", err)
 		}
+
+		conditions.Set(r.infraCluster, metav1.Condition{
+			Status:  metav1.ConditionTrue,
+			Type:    v1alpha1.ClusterFirewallDeploymentEnsured,
+			Reason:  "FirewallDeploymentEnsured",
+			Message: "Firewall deployment ensured",
+		})
+
 	}
 
 	if r.infraCluster.Spec.ControlPlaneEndpoint.Host == "" {
 		ip, err := r.ensureControlPlaneIP()
 		if err != nil {
-			conditions.MarkFalse(r.infraCluster, v1alpha1.ClusterControlPlaneIPEnsured, "InternalError", clusterv1.ConditionSeverityError, "%s", err.Error())
+			conditions.Set(r.infraCluster, metav1.Condition{
+				Status:  metav1.ConditionFalse,
+				Type:    v1alpha1.ClusterControlPlaneIPEnsured,
+				Reason:  "InternalError",
+				Message: err.Error(),
+			})
 			return fmt.Errorf("unable to ensure control plane ip: %w", err)
 		}
-		conditions.MarkTrue(r.infraCluster, v1alpha1.ClusterControlPlaneIPEnsured)
+		conditions.Set(r.infraCluster, metav1.Condition{
+			Status:  metav1.ConditionTrue,
+			Type:    v1alpha1.ClusterControlPlaneIPEnsured,
+			Reason:  "ControlPlaneIPEnsured",
+			Message: fmt.Sprintf("Control plane IP %s ensured", ip),
+		})
 
 		r.log.Info("reconciled control plane ip", "ip", ip)
 
@@ -331,6 +360,7 @@ func (r *clusterReconciler) reconcile() error {
 	}
 
 	r.infraCluster.Status.Ready = true
+	r.infraCluster.Status.Initialization.Provisioned = ptr.To(true)
 
 	return nil
 }

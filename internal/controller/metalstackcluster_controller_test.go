@@ -27,7 +27,6 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/metal-stack/cluster-api-provider-metal-stack/api/v1alpha1"
@@ -37,7 +36,7 @@ import (
 	metalgoclient "github.com/metal-stack/metal-go/test/client"
 	"github.com/metal-stack/metal-lib/pkg/testcommon"
 
-	clusterv1beta1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterv1beta2 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 )
 
 var _ = Describe("MetalStackCluster Controller", func() {
@@ -117,19 +116,19 @@ var _ = Describe("MetalStackCluster Controller", func() {
 			Expect(k8sClient.Create(ctx, resource)).To(Succeed())
 
 			By("creating the cluster resource and setting the owner reference")
-			owner := &clusterv1beta1.Cluster{
+			owner := &clusterv1beta2.Cluster{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "owner-",
 					Namespace:    "default",
 				},
-				Spec: clusterv1beta1.ClusterSpec{
-					Paused: true,
+				Spec: clusterv1beta2.ClusterSpec{
+					Paused: ptr.To(true),
 				},
 			}
 			Expect(k8sClient.Create(ctx, owner)).To(Succeed())
 
 			resource.OwnerReferences = []metav1.OwnerReference{
-				*metav1.NewControllerRef(owner, clusterv1beta1.GroupVersion.WithKind("Cluster")),
+				*metav1.NewControllerRef(owner, clusterv1beta2.GroupVersion.WithKind("Cluster")),
 			}
 			Expect(k8sClient.Update(ctx, resource)).To(Succeed())
 
@@ -148,8 +147,8 @@ var _ = Describe("MetalStackCluster Controller", func() {
 			Expect(resource.Generation).To(Equal(firstGen))
 
 			Expect(resource.Status.Conditions).To(ContainElement(MatchFields(IgnoreExtras, Fields{
-				"Type":   Equal(v1alpha1.ClusterPaused),
-				"Status": Equal(corev1.ConditionTrue),
+				"Type":   Equal(clusterv1beta2.PausedCondition),
+				"Status": Equal(metav1.ConditionTrue),
 			})))
 
 			By("idempotence", func() {
@@ -162,29 +161,24 @@ var _ = Describe("MetalStackCluster Controller", func() {
 				Expect(resource.Generation).To(Equal(firstGen))
 
 				Expect(resource.Status.Conditions).To(ContainElement(MatchFields(IgnoreExtras, Fields{
-					"Type":   Equal(v1alpha1.ClusterPaused),
-					"Status": Equal(corev1.ConditionTrue),
+					"Type":   Equal(clusterv1beta2.PausedCondition),
+					"Status": Equal(metav1.ConditionTrue),
 				})))
 			})
 		})
 
 		It("should skip reconciles due to infra pause annotation", func() {
 			resource.Annotations = map[string]string{
-				clusterv1beta1.PausedAnnotation: "true",
+				clusterv1beta2.PausedAnnotation: "true",
 			}
 			Expect(k8sClient.Create(ctx, resource)).To(Succeed())
 
 			By("creating the cluster resource and setting the owner reference")
-			owner := &clusterv1beta1.Cluster{
-				ObjectMeta: metav1.ObjectMeta{
-					GenerateName: "owner-",
-					Namespace:    "default",
-				},
-			}
+			owner := newCluster()
 			Expect(k8sClient.Create(ctx, owner)).To(Succeed())
 
 			resource.OwnerReferences = []metav1.OwnerReference{
-				*metav1.NewControllerRef(owner, clusterv1beta1.GroupVersion.WithKind("Cluster")),
+				*metav1.NewControllerRef(owner, clusterv1beta2.GroupVersion.WithKind("Cluster")),
 			}
 			Expect(k8sClient.Update(ctx, resource)).To(Succeed())
 
@@ -203,8 +197,8 @@ var _ = Describe("MetalStackCluster Controller", func() {
 			Expect(resource.Generation).To(Equal(firstGen))
 
 			Expect(resource.Status.Conditions).To(ContainElement(MatchFields(IgnoreExtras, Fields{
-				"Type":   Equal(v1alpha1.ClusterPaused),
-				"Status": Equal(corev1.ConditionTrue),
+				"Type":   Equal(clusterv1beta2.PausedCondition),
+				"Status": Equal(metav1.ConditionTrue),
 			})))
 
 			By("idempotence", func() {
@@ -217,8 +211,8 @@ var _ = Describe("MetalStackCluster Controller", func() {
 				Expect(resource.Generation).To(Equal(firstGen))
 
 				Expect(resource.Status.Conditions).To(ContainElement(MatchFields(IgnoreExtras, Fields{
-					"Type":   Equal(v1alpha1.ClusterPaused),
-					"Status": Equal(corev1.ConditionTrue),
+					"Type":   Equal(clusterv1beta2.PausedCondition),
+					"Status": Equal(metav1.ConditionTrue),
 				})))
 			})
 		})
@@ -237,9 +231,9 @@ var _ = Describe("MetalStackCluster Controller", func() {
 
 		AfterEach(func() {
 			Expect(resource.Status.Conditions).To(ContainElement(MatchFields(IgnoreExtras, Fields{
-				"Type":   Equal(v1alpha1.ClusterPaused),
-				"Status": Equal(corev1.ConditionFalse),
-				"Reason": Equal(clusterv1beta1.PausedV1Beta2Reason),
+				"Type":   Equal(clusterv1beta2.PausedCondition),
+				"Status": Equal(metav1.ConditionFalse),
+				"Reason": Equal(clusterv1beta2.NotPausedReason),
 			})))
 		})
 
@@ -247,16 +241,11 @@ var _ = Describe("MetalStackCluster Controller", func() {
 			Expect(k8sClient.Create(ctx, resource)).To(Succeed())
 
 			By("creating the cluster resource and setting the owner reference")
-			owner := &clusterv1beta1.Cluster{
-				ObjectMeta: metav1.ObjectMeta{
-					GenerateName: "owner-",
-					Namespace:    "default",
-				},
-			}
+			owner := newCluster()
 			Expect(k8sClient.Create(ctx, owner)).To(Succeed())
 
 			resource.OwnerReferences = []metav1.OwnerReference{
-				*metav1.NewControllerRef(owner, clusterv1beta1.GroupVersion.WithKind("Cluster")),
+				*metav1.NewControllerRef(owner, clusterv1beta2.GroupVersion.WithKind("Cluster")),
 			}
 			Expect(k8sClient.Update(ctx, resource)).To(Succeed())
 
@@ -327,7 +316,7 @@ var _ = Describe("MetalStackCluster Controller", func() {
 
 			Expect(resource.Status.Conditions).To(ContainElement(MatchFields(IgnoreExtras, Fields{
 				"Type":   Equal(v1alpha1.ClusterControlPlaneIPEnsured),
-				"Status": Equal(corev1.ConditionTrue),
+				"Status": Equal(metav1.ConditionTrue),
 			})))
 			Expect(resource.Status.Ready).To(BeTrue())
 			Expect(resource.Spec.ControlPlaneEndpoint).To(Equal(v1alpha1.APIEndpoint{
@@ -359,9 +348,9 @@ var _ = Describe("MetalStackCluster Controller", func() {
 
 		AfterEach(func() {
 			Expect(resource.Status.Conditions).To(ContainElement(MatchFields(IgnoreExtras, Fields{
-				"Type":   Equal(v1alpha1.ClusterPaused),
-				"Status": Equal(corev1.ConditionFalse),
-				"Reason": Equal(clusterv1beta1.PausedV1Beta2Reason),
+				"Type":   Equal(clusterv1beta2.PausedCondition),
+				"Status": Equal(metav1.ConditionFalse),
+				"Reason": Equal(clusterv1beta2.NotPausedReason),
 			})))
 		})
 
@@ -370,16 +359,12 @@ var _ = Describe("MetalStackCluster Controller", func() {
 				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
 
 				By("creating the cluster resource and setting the owner reference")
-				owner := &clusterv1beta1.Cluster{
-					ObjectMeta: metav1.ObjectMeta{
-						GenerateName: "owner-",
-						Namespace:    "default",
-					},
-				}
+				owner := newCluster()
+
 				Expect(k8sClient.Create(ctx, owner)).To(Succeed())
 
 				resource.OwnerReferences = []metav1.OwnerReference{
-					*metav1.NewControllerRef(owner, clusterv1beta1.GroupVersion.WithKind("Cluster")),
+					*metav1.NewControllerRef(owner, clusterv1beta2.GroupVersion.WithKind("Cluster")),
 				}
 				Expect(k8sClient.Update(ctx, resource)).To(Succeed())
 
@@ -392,7 +377,7 @@ var _ = Describe("MetalStackCluster Controller", func() {
 
 				controllerReconciler.MetalClient, _ = metalgoclient.NewMetalMockClient(testingT, &metalgoclient.MetalMockFns{})
 
-				Eventually(func() clusterv1beta1.Conditions {
+				Eventually(func() []metav1.Condition {
 					_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
 						NamespacedName: typeNamespacedName,
 					})
@@ -404,7 +389,7 @@ var _ = Describe("MetalStackCluster Controller", func() {
 				}, "20s").Should(ContainElements(
 					MatchFields(IgnoreExtras, Fields{
 						"Type":   Equal(v1alpha1.ClusterControlPlaneIPEnsured),
-						"Status": Equal(corev1.ConditionTrue),
+						"Status": Equal(metav1.ConditionTrue),
 					}),
 				))
 
@@ -417,16 +402,12 @@ var _ = Describe("MetalStackCluster Controller", func() {
 				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
 
 				By("creating the cluster resource and setting the owner reference")
-				owner := &clusterv1beta1.Cluster{
-					ObjectMeta: metav1.ObjectMeta{
-						GenerateName: "owner-",
-						Namespace:    "default",
-					},
-				}
+				owner := newCluster()
+
 				Expect(k8sClient.Create(ctx, owner)).To(Succeed())
 
 				resource.OwnerReferences = []metav1.OwnerReference{
-					*metav1.NewControllerRef(owner, clusterv1beta1.GroupVersion.WithKind("Cluster")),
+					*metav1.NewControllerRef(owner, clusterv1beta2.GroupVersion.WithKind("Cluster")),
 				}
 				Expect(k8sClient.Update(ctx, resource)).To(Succeed())
 
@@ -437,7 +418,7 @@ var _ = Describe("MetalStackCluster Controller", func() {
 					Namespace: "default",
 				}
 
-				Eventually(func() clusterv1beta1.Conditions {
+				Eventually(func() []metav1.Condition {
 					_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
 						NamespacedName: typeNamespacedName,
 					})
@@ -449,7 +430,7 @@ var _ = Describe("MetalStackCluster Controller", func() {
 				}, "20s").Should(ContainElements(
 					MatchFields(IgnoreExtras, Fields{
 						"Type":   Equal(v1alpha1.ClusterControlPlaneIPEnsured),
-						"Status": Equal(corev1.ConditionTrue),
+						"Status": Equal(metav1.ConditionTrue),
 					}),
 				))
 
@@ -458,3 +439,19 @@ var _ = Describe("MetalStackCluster Controller", func() {
 		})
 	})
 })
+
+func newCluster() *clusterv1beta2.Cluster {
+	return &clusterv1beta2.Cluster{
+		ObjectMeta: metav1.ObjectMeta{
+			GenerateName: "test-cluster",
+			Namespace:    "default",
+		},
+		Spec: clusterv1beta2.ClusterSpec{
+			InfrastructureRef: clusterv1beta2.ContractVersionedObjectReference{
+				Kind:     "MetalStackCluster",
+				Name:     "test-cluster",
+				APIGroup: v1alpha1.GroupVersion.Group,
+			},
+		},
+	}
+}

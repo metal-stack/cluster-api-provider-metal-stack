@@ -18,13 +18,17 @@ package controller
 
 import (
 	"context"
+	"log/slog"
 
+	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/stretchr/testify/mock"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
+	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -37,7 +41,7 @@ import (
 )
 
 var _ = Describe("MetalStackFirewall Controller", func() {
-	const resourcePrefix = "test-resource-"
+	const resourceName = "test-cluster"
 
 	var (
 		ctx                  context.Context
@@ -47,25 +51,52 @@ var _ = Describe("MetalStackFirewall Controller", func() {
 		fwDeploy             *v1alpha1.MetalStackFirewallDeployment
 		fwTemplate           *v1alpha1.MetalStackFirewallTemplate
 		controllerReconciler *MetalStackFirewallDeploymentReconciler
+		teardown             = func() {
+			if fwDeploy == nil || fwTemplate == nil || cluster == nil || infraCluster == nil {
+				return
+			}
+			err := k8sClient.Delete(ctx, cluster)
+			Expect(err).To(Or(
+				Not(HaveOccurred()),
+				Satisfy(apierrors.IsNotFound)))
+
+			err = k8sClient.Delete(ctx, infraCluster)
+			Expect(err).To(Or(
+				Not(HaveOccurred()),
+				Satisfy(apierrors.IsNotFound)))
+
+			err = k8sClient.Delete(ctx, fwDeploy)
+			Expect(err).To(Or(
+				Not(HaveOccurred()),
+				Satisfy(apierrors.IsNotFound)))
+
+			err = k8sClient.Delete(ctx, fwTemplate)
+			Expect(err).To(Or(
+				Not(HaveOccurred()),
+				Satisfy(apierrors.IsNotFound)))
+		}
 	)
 
 	BeforeEach(func() {
 		ctx, cancel = context.WithCancel(suiteCtx)
 		fwDeploy = &v1alpha1.MetalStackFirewallDeployment{
 			ObjectMeta: metav1.ObjectMeta{
-				Namespace:    "default",
-				GenerateName: resourcePrefix,
+				Namespace: "default",
+				Name:      resourceName,
 			},
 			Spec: v1alpha1.MetalStackFirewallDeploymentSpec{
 				AutoUpdate: &v1alpha1.MetalStackFirewallAutoUpdate{
 					MachineImage: false,
 				},
+				FirewallTemplateRef: v1alpha1.MetalStackFirewallTemplateRef{
+					Name: resourceName,
+				},
 			},
 		}
 		fwTemplate = &v1alpha1.MetalStackFirewallTemplate{
 			ObjectMeta: metav1.ObjectMeta{
-				Namespace:    "default",
-				GenerateName: resourcePrefix,
+				Namespace: "default",
+				Name:      resourceName,
 			},
 			Spec: fwv2.FirewallSpec{
 				Size:           "some-size",
@@ -78,23 +109,32 @@ var _ = Describe("MetalStackFirewall Controller", func() {
 		}
 		cluster = &clusterv1.Cluster{
 			ObjectMeta: metav1.ObjectMeta{
-				Namespace:    "default",
-				GenerateName: resourcePrefix,
+				Namespace: "default",
+				Name:      resourceName,
+			},
+			Spec: clusterv1.ClusterSpec{
+				InfrastructureRef: clusterv1.ContractVersionedObjectReference{
+					Kind:     v1alpha1.MetalStackClusterKind,
+					Name:     resourceName,
+					APIGroup: v1alpha1.GroupVersion.Group,
+				},
 			},
 		}
 		infraCluster = &v1alpha1.MetalStackCluster{
 			ObjectMeta: metav1.ObjectMeta{
-				Namespace:    "default",
-				GenerateName: resourcePrefix,
+				Namespace: "default",
+				Name:      resourceName,
 			},
 			Spec: v1alpha1.MetalStackClusterSpec{
 				FirewallDeploymentRef: &v1alpha1.MetalStackFirewallDeploymentRef{
-					// Name set later
+					Name: resourceName,
 				},
 				NodeNetworkID: "some-network-id",
 				Partition:     "some-partition",
 			},
 		}
+
+		ctx = ctrllog.IntoContext(ctx, logr.FromSlogHandler(slog.NewTextHandler(GinkgoWriter, nil)))
 
 		controllerReconciler = &MetalStackFirewallDeploymentReconciler{
 			Client: k8sClient,
@@ -102,13 +142,14 @@ var _ = Describe("MetalStackFirewall Controller", func() {
 	})
 
 	BeforeEach(func() {
+		teardown()
 		Expect(k8sClient.Create(ctx, fwTemplate)).To(Succeed())
 		Expect(fwDeploy).ToNot(BeNil())
 		Expect(fwTemplate).ToNot(BeNil())
-		fwDeploy.Spec.FirewallTemplateRef.Name = fwTemplate.Name
 	})
 
 	AfterEach(func() {
+		teardown()
 		cancel()
 	})
 
@@ -234,7 +275,7 @@ var _ = Describe("MetalStackFirewall Controller", func() {
 			Expect(k8sClient.Create(ctx, fwDeploy)).To(Succeed())
 
 			By("creating the cluster and infra cluster resources")
-			cluster.Spec.Paused = true
+			cluster.Spec.Paused = ptr.To(true)
 			Expect(k8sClient.Create(ctx, cluster)).To(Succeed())
 
 			infraCluster.Spec.FirewallDeploymentRef.Name = fwDeploy.Name
@@ -257,7 +298,7 @@ var _ = Describe("MetalStackFirewall Controller", func() {
 			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
 				NamespacedName: typeNamespacedName,
 			})
-			Expect(err).NotTo(HaveOccurred())
+			Expect(err).NotTo(HaveOccurred(), "reconcile should not error even if paused")
 
 			Expect(k8sClient.Get(ctx, typeNamespacedName, fwDeploy)).To(Succeed())
 			Expect(fwDeploy.Generation).To(Equal(firstGen))

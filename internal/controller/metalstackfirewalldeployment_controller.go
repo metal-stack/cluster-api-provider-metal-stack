@@ -20,7 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/annotations"
 	"sigs.k8s.io/cluster-api/util/conditions"
@@ -95,6 +95,7 @@ func (r *MetalStackFirewallDeploymentReconciler) Reconcile(ctx context.Context, 
 	log = log.WithValues("metalStackCluster", fmt.Sprintf("%s/%s", infraCluster.Namespace, infraCluster.Name))
 	cluster, err := util.GetOwnerCluster(ctx, r.Client, infraCluster.ObjectMeta)
 	if err != nil {
+		log.Error(err, "failed to get owner cluster")
 		return ctrl.Result{}, err
 	}
 
@@ -133,9 +134,19 @@ func (r *MetalStackFirewallDeploymentReconciler) Reconcile(ctx context.Context, 
 
 	isPaused := annotations.IsPaused(cluster, fwdeploy) || annotations.IsPaused(cluster, infraCluster)
 	if isPaused {
-		conditions.MarkTrue(fwdeploy, v1alpha1.ClusterPaused)
+		conditions.Set(fwdeploy, metav1.Condition{
+			Status:  metav1.ConditionTrue,
+			Type:    clusterv1.PausedCondition,
+			Reason:  clusterv1.PausedReason,
+			Message: "Reconciliation is paused",
+		})
 	} else {
-		conditions.MarkFalse(fwdeploy, v1alpha1.ClusterPaused, clusterv1.PausedV1Beta2Condition, clusterv1.ConditionSeverityInfo, "")
+		conditions.Set(fwdeploy, metav1.Condition{
+			Status:  metav1.ConditionFalse,
+			Type:    clusterv1.PausedCondition,
+			Reason:  clusterv1.PausedReason,
+			Message: "Reconciliation is not paused",
+		})
 	}
 
 	switch {
@@ -248,7 +259,12 @@ func (r *MetalStackFirewallDeploymentReconciler) metalStackFirewallTemplateToMet
 
 func (r *firewallDeploymentReconciler) reconcile() error {
 	if r.infraCluster.Spec.NodeNetworkID == "" {
-		conditions.MarkFalse(r.infraCluster, v1alpha1.ClusterFirewallDeploymentEnsured, "MissingNodeNetworkID", clusterv1.ConditionSeverityWarning, "NodeNetworkID is not set on MetalStackCluster")
+		conditions.Set(r.infraCluster, metav1.Condition{
+			Type:    v1alpha1.ClusterFirewallDeploymentEnsured,
+			Status:  metav1.ConditionFalse,
+			Reason:  "MissingNodeNetworkID",
+			Message: "Node network ID is not set on MetalStackCluster",
+		})
 		return fmt.Errorf("node network ID is not set on MetalStackCluster %s/%s", r.infraCluster.Namespace, r.infraCluster.Name)
 	}
 
@@ -259,10 +275,20 @@ func (r *firewallDeploymentReconciler) reconcile() error {
 
 	err = r.ensureFirewallDeployment()
 	if err != nil {
-		conditions.MarkFalse(r.infraCluster, v1alpha1.ClusterFirewallDeploymentEnsured, "InternalError", clusterv1.ConditionSeverityError, "%s", err.Error())
+		conditions.Set(r.infraCluster, metav1.Condition{
+			Type:    v1alpha1.ClusterFirewallDeploymentEnsured,
+			Status:  metav1.ConditionFalse,
+			Reason:  "InternalError",
+			Message: err.Error(),
+		})
 		return fmt.Errorf("unable to ensure firewall deployment: %w", err)
 	}
-	conditions.MarkTrue(r.infraCluster, v1alpha1.ClusterFirewallDeploymentEnsured)
+	conditions.Set(r.infraCluster, metav1.Condition{
+		Type:    v1alpha1.ClusterFirewallDeploymentEnsured,
+		Status:  metav1.ConditionTrue,
+		Reason:  "FirewallDeploymentReady",
+		Message: "Firewall deployment is ready",
+	})
 
 	r.firewallDeployment.Status.Ready = true
 

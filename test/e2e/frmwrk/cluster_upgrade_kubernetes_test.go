@@ -209,7 +209,7 @@ func capi_e2e_ClusterUpgradeConformanceSpec(ctx context.Context, inputGetter fun
 			WaitForMachinePools:       input.E2EConfig.GetIntervals(specName, "wait-machine-pool-nodes"),
 		}, clusterResources)
 
-		if clusterResources.Cluster.Spec.Topology != nil {
+		if !clusterResources.Cluster.Spec.Topology.IsDefined() {
 			// Cluster is using ClusterClass, upgrade via topology.
 			By("Upgrading the Cluster topology")
 			framework.UpgradeClusterTopologyAndWaitForUpgrade(ctx, framework.UpgradeClusterTopologyAndWaitForUpgradeInput{

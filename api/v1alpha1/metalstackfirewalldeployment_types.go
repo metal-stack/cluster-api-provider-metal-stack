@@ -2,7 +2,6 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 )
 
 const (
@@ -12,7 +11,7 @@ const (
 
 	TagFirewallDeploymentResource = "metal-stack.infrastructure.cluster.x-k8s.io/firewall-deployment-resource"
 
-	ClusterFirewallDeploymentEnsured clusterv1.ConditionType = "ClusterFirewallDeploymentEnsured"
+	ClusterFirewallDeploymentEnsured = "ClusterFirewallDeploymentEnsured"
 )
 
 // MetalStackFirewallDeploymentSpec defines the desired state of MetalStackFirewallDeployment
@@ -46,12 +45,26 @@ type MetalStackFirewallTemplateRef struct {
 
 // MetalStackFirewallDeploymentStatus defines the observed state of MetalStackFirewallDeployment
 type MetalStackFirewallDeploymentStatus struct {
+	// NOTE: this field is part of the Cluster API v1beta1 contract.
 	// +kubebuilder:default=false
 	Ready bool `json:"ready"`
 
+	// Initialization provides information about the initialization status of the MetalStackCluster.
+	// +optional
+	Initialization MetalStackClusterInitializationStatus `json:"initialization,omitzero"`
+
 	// Conditions defines current service state of the MetalStackCluster.
 	// +optional
-	Conditions clusterv1.Conditions `json:"conditions,omitempty"`
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
+}
+
+// MetalStackFirewallDeploymentInitializationStatus defines the observed initialization status of the MetalStackFirewallDeployment.
+// +kubebuilder:validation:MinProperties=1
+type MetalStackFirewallDeploymentInitializationStatus struct {
+	// Provisioned indicates that the initial provisioning has been completed.
+	// NOTE: this field is part of the FirewallDeployment API v1beta2 contract, and it is used to orchestrate initial FirewallDeployment provisioning.
+	// +optional
+	Provisioned *bool `json:"provisioned,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -60,7 +73,7 @@ type MetalStackFirewallDeploymentStatus struct {
 // +kubebuilder:printcolumn:name="Cluster",type="string",JSONPath=".metadata.labels.cluster\\.x-k8s\\.io/cluster-name",description="Cluster to which this MetalStackCluster belongs"
 // +kubebuilder:printcolumn:name="Template",type="string",JSONPath=".spec.firewallTemplateRef.name",description="Name of the MetalStackFirewallTemplate used"
 // +kubebuilder:printcolumn:name="Deployment",type="string",JSONPath=".spec.managedResourceRef.name",description="Name of the managed FirewallDeployment"
-// +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.ready",description="Indicates if the MetalStackFirewallDeployment is ready"
+// +kubebuilder:printcolumn:name="Provisioned",type="string",JSONPath=".status.initialization.provisioned",description="Indicates if the MetalStackFirewallDeployment has been initialized"
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp",description="Age of the MetalStackFirewallDeployment"
 
 // MetalStackFirewallDeployment is the Schema for the MetalStackFirewallDeployments API
@@ -84,10 +97,10 @@ func init() {
 	SchemeBuilder.Register(&MetalStackFirewallDeployment{}, &MetalStackFirewallDeploymentList{})
 }
 
-func (c *MetalStackFirewallDeployment) GetConditions() clusterv1.Conditions {
+func (c *MetalStackFirewallDeployment) GetConditions() []metav1.Condition {
 	return c.Status.Conditions
 }
 
-func (c *MetalStackFirewallDeployment) SetConditions(conditions clusterv1.Conditions) {
+func (c *MetalStackFirewallDeployment) SetConditions(conditions []metav1.Condition) {
 	c.Status.Conditions = conditions
 }

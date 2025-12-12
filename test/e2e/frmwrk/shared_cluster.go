@@ -22,8 +22,8 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/utils/ptr"
 
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
-	kubeadmvbootstrap1 "sigs.k8s.io/cluster-api/bootstrap/kubeadm/api/v1beta1"
+	kubeadmbootstrapv1 "sigs.k8s.io/cluster-api/api/bootstrap/kubeadm/v1beta2"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/cluster-api/test/framework"
 	"sigs.k8s.io/cluster-api/test/framework/clusterctl"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -262,11 +262,11 @@ func (e2e *E2ECluster) teardownAddons(ctx context.Context) {
 		},
 		{
 			Kind:       "ClusterResourceSet",
-			APIVersion: "addons.cluster.x-k8s.io/v1beta1",
+			APIVersion: "addons.cluster.x-k8s.io/v1beta2",
 		},
 		{
 			Kind:       "ClusterResourceSetBinding",
-			APIVersion: "addons.cluster.x-k8s.io/v1beta1",
+			APIVersion: "addons.cluster.x-k8s.io/v1beta2",
 		},
 	}
 
@@ -339,7 +339,7 @@ func (ec *E2ECluster) Dump(ctx context.Context) {
 				Namespace: ec.Refs.Cluster.Namespace,
 			},
 			{
-				GVK:       kubeadmvbootstrap1.GroupVersion.WithKind("KubeadmConfig"),
+				GVK:       kubeadmbootstrapv1.GroupVersion.WithKind("KubeadmConfig"),
 				Namespace: ec.Refs.Cluster.Namespace,
 			},
 			{
