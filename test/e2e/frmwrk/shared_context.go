@@ -21,6 +21,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	clusterctlconfig "sigs.k8s.io/cluster-api/cmd/clusterctl/client/config"
 	"sigs.k8s.io/cluster-api/test/framework"
 	"sigs.k8s.io/cluster-api/test/framework/bootstrap"
 	"sigs.k8s.io/cluster-api/test/framework/clusterctl"
@@ -205,11 +206,15 @@ func (ee *E2EContext) InitManagementCluster(ctx context.Context) {
 	Expect(ee.Environment.ClusterctlConfigPath).To(BeAnExistingFile(), "clusterctl config file doesn't exist")
 
 	clusterctl.InitManagementClusterAndWatchControllerLogs(ctx, clusterctl.InitManagementClusterAndWatchControllerLogsInput{
-		ClusterProxy:            ee.Environment.Bootstrap,
-		ClusterctlConfigPath:    ee.Environment.ClusterctlConfigPath,
-		InfrastructureProviders: ee.E2EConfig.InfrastructureProviders(),
-		AddonProviders:          ee.E2EConfig.AddonProviders(),
-		LogFolder:               path.Join(ee.Environment.artifactsPath, "clusters", "bootstrap"),
+		ClusterProxy:             ee.Environment.Bootstrap,
+		ClusterctlConfigPath:     ee.Environment.ClusterctlConfigPath,
+		LogFolder:                path.Join(ee.Environment.artifactsPath, "clusters", "bootstrap"),
+		InfrastructureProviders:  ee.E2EConfig.GetProviderLatestVersionsByContract("v1beta2", "metal-stack"),
+		AddonProviders:           ee.E2EConfig.GetProviderLatestVersionsByContract("v1beta2", clusterctlconfig.HelmAddonProviderName),
+		BootstrapProviders:       ee.E2EConfig.GetProviderLatestVersionsByContract("v1beta2", clusterctlconfig.KubeadmBootstrapProviderName),
+		ControlPlaneProviders:    ee.E2EConfig.GetProviderLatestVersionsByContract("v1beta2", clusterctlconfig.KubeadmControlPlaneProviderName),
+		DisableMetricsCollection: false,
+		ClusterctlBinaryPath:     "",
 	})
 }
 

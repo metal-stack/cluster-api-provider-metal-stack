@@ -118,12 +118,13 @@ func (r *MetalStackMachineReconciler) Reconcile(ctx context.Context, req ctrl.Re
 
 	infraCluster := &v1alpha1.MetalStackCluster{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: cluster.Spec.InfrastructureRef.Name,
+			Name:      cluster.Spec.InfrastructureRef.Name,
+			Namespace: cluster.Namespace,
 		},
 	}
 	err = r.Client.Get(ctx, client.ObjectKeyFromObject(infraCluster), infraCluster)
 	if apierrors.IsNotFound(err) {
-		log.Info("infrastructure cluster no longer exists")
+		log.Info("infrastructure cluster no longer exists", "infraCluster", infraCluster.Name)
 		return ctrl.Result{}, nil
 	}
 	if err != nil {

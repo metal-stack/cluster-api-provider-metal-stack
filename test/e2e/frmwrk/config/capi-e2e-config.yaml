@@ -1,21 +1,12 @@
 ---
 images:
-  # TODO
+- name: ghcr.io/metal-stack/cluster-api-metal-stack-controller:latest
+  loadBehavior: tryLoad
 
 providers:
 - name: cluster-api
   type: CoreProvider
   versions:
-  - name: "{go://sigs.k8s.io/cluster-api@v1.9}"
-    value: "https://github.com/kubernetes-sigs/cluster-api/releases/download/{go://sigs.k8s.io/cluster-api@v1.9}/core-components.yaml"
-    type: "url"
-    contract: v1beta1
-    files:
-      - sourcePath: "../data/cluster-api/metadata.yaml"
-    replacements:
-      - old: --metrics-addr=127.0.0.1:8080
-        new: --metrics-addr=:8080
-        
   - name: "{go://sigs.k8s.io/cluster-api@v1.10}"
     value: "https://github.com/kubernetes-sigs/cluster-api/releases/download/{go://sigs.k8s.io/cluster-api@v1.10}/core-components.yaml"
     type: "url"
@@ -39,16 +30,6 @@ providers:
 - name: kubeadm
   type: BootstrapProvider
   versions:
-  - name: "{go://sigs.k8s.io/cluster-api@v1.9}"
-    value: "https://github.com/kubernetes-sigs/cluster-api/releases/download/{go://sigs.k8s.io/cluster-api@v1.9}/bootstrap-components.yaml"
-    type: "url"
-    contract: v1beta1
-    files:
-      - sourcePath: "../data/cluster-api/metadata.yaml"
-    replacements:
-      - old: --metrics-addr=127.0.0.1:8080
-        new: --metrics-addr=:8080
-
   - name: "{go://sigs.k8s.io/cluster-api@v1.10}"
     value: "https://github.com/kubernetes-sigs/cluster-api/releases/download/{go://sigs.k8s.io/cluster-api@v1.10}/bootstrap-components.yaml"
     type: "url"
@@ -72,16 +53,6 @@ providers:
 - name: kubeadm
   type: ControlPlaneProvider
   versions:
-  - name: "{go://sigs.k8s.io/cluster-api@v1.9}"
-    value: "https://github.com/kubernetes-sigs/cluster-api/releases/download/{go://sigs.k8s.io/cluster-api@v1.9}/control-plane-components.yaml"
-    type: "url"
-    contract: v1beta1
-    files:
-      - sourcePath: "../data/cluster-api/metadata.yaml"
-    replacements:
-      - old: --metrics-addr=127.0.0.1:8080
-        new: --metrics-addr=:8080
-        
   - name: "{go://sigs.k8s.io/cluster-api@v1.10}"
     value: "https://github.com/kubernetes-sigs/cluster-api/releases/download/{go://sigs.k8s.io/cluster-api@v1.10}/control-plane-components.yaml"
     type: "url"
@@ -115,6 +86,16 @@ providers:
         - old: --metrics-addr=127.0.0.1:8080
           new: --metrics-addr=:8080
 
+    - name: "{go://github.com/kubernetes-sigs/cluster-api-addon-provider-helm@v0.5}"
+      value: "https://github.com/kubernetes-sigs/cluster-api-addon-provider-helm/releases/download/{go://github.com/kubernetes-sigs/cluster-api-addon-provider-helm@v0.5}/addon-components.yaml"
+      type: "url"
+      contract: v1beta2
+      files:
+        - sourcePath: "../data/addon-helm/metadata.yaml"
+      replacements:
+        - old: --metrics-addr=127.0.0.1:8080
+          new: --metrics-addr=:8080
+
 - name: metal-stack
   type: InfrastructureProvider
   versions:
@@ -133,7 +114,7 @@ providers:
       - old: --metrics-addr=127.0.0.1:8080
         new: --metrics-addr=:8080
 
-  - name: "v0.7.99"
+  - name: "v0.8.99"
     value: "../../../../config/default"
     contract: v1beta2
     files:

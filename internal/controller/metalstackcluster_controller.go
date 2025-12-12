@@ -245,12 +245,13 @@ func (r *MetalStackClusterReconciler) metalStackMachineToMetalStackCluster(log l
 
 		infraCluster := &v1alpha1.MetalStackCluster{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: cluster.Spec.InfrastructureRef.Name,
+				Name:      cluster.Spec.InfrastructureRef.Name,
+				Namespace: cluster.Namespace,
 			},
 		}
 		err = r.Client.Get(ctx, client.ObjectKeyFromObject(infraCluster), infraCluster)
 		if apierrors.IsNotFound(err) {
-			log.Info("infrastructure cluster no longer exists")
+			log.Info("infrastructure cluster no longer exists", "infraCluster", infraCluster.Name)
 			return nil
 		}
 		if err != nil {
@@ -319,6 +320,14 @@ func (r *clusterReconciler) reconcile() error {
 			})
 			return fmt.Errorf("unable to ensure firewall deployment: %w", err)
 		}
+
+		conditions.Set(r.infraCluster, metav1.Condition{
+			Status:  metav1.ConditionTrue,
+			Type:    v1alpha1.ClusterFirewallDeploymentEnsured,
+			Reason:  "FirewallDeploymentEnsured",
+			Message: "Firewall deployment ensured",
+		})
+
 	}
 
 	if r.infraCluster.Spec.ControlPlaneEndpoint.Host == "" {

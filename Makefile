@@ -144,7 +144,7 @@ E2E_LABEL_FILTER ?= ""
 
 E2E_TEMPLATES := test/e2e/frmwrk/data/clusterctl-templates
 .PHONY: test-e2e
-test-e2e: manifests generate fmt vet ginkgo kustomize
+test-e2e: manifests generate fmt vet build ginkgo kustomize
 	rm -rf $(ARTIFACTS)
 
 	$(KUSTOMIZE) build $(E2E_TEMPLATES)/upgrade --load-restrictor LoadRestrictionsNone > $(E2E_TEMPLATES)/cluster-template-upgrade.yaml
