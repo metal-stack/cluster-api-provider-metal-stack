@@ -1,7 +1,9 @@
 # Image URL to use all building/pushing image targets
 IMG_NAME ?= ghcr.io/metal-stack/cluster-api-metal-stack-controller
 IMG_TAG ?= latest
+IMG_TAG_E2E ?= e2e
 IMG ?= ${IMG_NAME}:${IMG_TAG}
+IMG_E2E ?= ${IMG_NAME}:${IMG_TAG_E2E}
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.31.0
 RELEASE_DIR ?= .release
@@ -204,6 +206,10 @@ docker-build: ## Build docker image with the manager.
 docker-push: ## Push docker image with the manager.
 	$(CONTAINER_TOOL) push ${IMG}
 
+.PHONY: docker-build-e2e
+docker-build-e2e:
+	$(CONTAINER_TOOL) build -t ${IMG_E2E} .
+
 # PLATFORMS defines the target platforms for the manager image be built to provide support to multiple
 # architectures. (i.e. make docker-buildx IMG=myregistry/mypoperator:0.0.1). To use this option you need to:
 # - be able to use docker buildx. More info: https://docs.docker.com/build/buildx/
@@ -225,6 +231,12 @@ docker-buildx: ## Build and push docker image for the manager for cross-platform
 build-installer: manifests generate kustomize ## Generate a consolidated YAML with CRDs and deployment.
 	mkdir -p $(RELEASE_DIR)
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG_NAME}:${IMG_TAG}
+	$(KUSTOMIZE) build config/default > $(RELEASE_DIR)/install.yaml
+
+.PHONY: build-installer-e2e
+build-installer-e2e: manifests generate kustomize ## Generate a consolidated YAML with CRDs and deployment.
+	mkdir -p $(RELEASE_DIR)
+	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG_NAME}:${IMG_TAG_E2E}
 	$(KUSTOMIZE) build config/default > $(RELEASE_DIR)/install.yaml
 
 ##@ Deployment
