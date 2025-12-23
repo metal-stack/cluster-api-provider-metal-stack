@@ -154,6 +154,8 @@ variables:
   # TODO: remove once merged into upstream
   # https://github.com/kubernetes-sigs/cluster-api/pull/12948
   KUBETEST_CONFIGURATION: "test/e2e/frmwrk/data/kubetest/conformance.yaml" # must be absolute, actual path provided by Makefile
+  INFRASTRUCTURE_PROVIDER: "metal-stack"
+  INFRASTRUCTURE_PROVIDER_CONTRACT: "v1beta2"
 
 intervals:
   default/wait-controllers: ["4m", "10s"]
