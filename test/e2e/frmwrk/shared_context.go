@@ -112,6 +112,11 @@ func withDefaultEnvironment() Option {
 		e2e.Environment.Flavor = e2e.envOrVar("E2E_DEFAULT_FLAVOR")
 		e2e.Environment.providerContract = e2e.envOrVar("PROVIDER_CONTRACT")
 
+		e2e.Environment.providerVersion = os.Getenv("PROVIDER_VERSION")
+		if e2e.Environment.providerVersion != "" {
+			e2e.Environment.providerVersion = e2e.E2EConfig.GetVariableOrEmpty("PROVIDER_VERSION")
+		}
+
 		_ = e2e.envOrVar("CONTROL_PLANE_MACHINE_SIZE")
 		_ = e2e.envOrVar("WORKER_MACHINE_SIZE")
 		_ = e2e.envOrVar("FIREWALL_IMAGE")
@@ -144,6 +149,7 @@ type Environment struct {
 	kubeconfigPath                 string
 	artifactsPath                  string
 	providerContract               string
+	providerVersion                string
 }
 
 func (ee *E2EContext) ProvideBootstrapCluster() {
@@ -211,11 +217,19 @@ func (ee *E2EContext) InitManagementCluster(ctx context.Context) {
 	Expect(ee.Environment.Bootstrap).NotTo(BeNil(), "bootstrap cluster must be provided first")
 	Expect(ee.Environment.ClusterctlConfigPath).To(BeAnExistingFile(), "clusterctl config file doesn't exist")
 
+	var infraProviders []string
+
+	if ee.Environment.providerVersion != "" {
+		infraProviders = []string{fmt.Sprintf("%s:%s", clusterctlconfigMetalStackProviderName, ee.Environment.providerVersion)}
+	} else {
+		infraProviders = ee.E2EConfig.GetProviderLatestVersionsByContract(ee.Environment.providerContract, clusterctlconfigMetalStackProviderName)
+	}
+
 	clusterctl.InitManagementClusterAndWatchControllerLogs(ctx, clusterctl.InitManagementClusterAndWatchControllerLogsInput{
 		ClusterProxy:             ee.Environment.Bootstrap,
 		ClusterctlConfigPath:     ee.Environment.ClusterctlConfigPath,
 		LogFolder:                path.Join(ee.Environment.artifactsPath, "clusters", "bootstrap"),
-		InfrastructureProviders:  ee.E2EConfig.GetProviderLatestVersionsByContract(ee.Environment.providerContract, clusterctlconfigMetalStackProviderName),
+		InfrastructureProviders:  infraProviders,
 		AddonProviders:           ee.E2EConfig.GetProviderLatestVersionsByContract(ee.Environment.providerContract, clusterctlconfig.HelmAddonProviderName),
 		BootstrapProviders:       ee.E2EConfig.GetProviderLatestVersionsByContract(ee.Environment.providerContract, clusterctlconfig.KubeadmBootstrapProviderName),
 		ControlPlaneProviders:    ee.E2EConfig.GetProviderLatestVersionsByContract(ee.Environment.providerContract, clusterctlconfig.KubeadmControlPlaneProviderName),

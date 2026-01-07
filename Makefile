@@ -142,6 +142,7 @@ E2E_FIREWALL_NETWORKS ?= "internet-mini-lab"
 ARTIFACTS ?= "$(PWD)/_artifacts"
 E2E_DEFAULT_FLAVOR ?= "calico"
 E2E_PROVIDER_CONTRACT ?= "v1beta2"
+E2E_PROVIDER_VERSION ?= ""
 # Can be something like: basic && !move
 E2E_LABEL_FILTER ?= ""
 
@@ -172,6 +173,7 @@ test-e2e: manifests generate fmt vet ginkgo kustomize
 	ARTIFACTS=$(ARTIFACTS) \
 	E2E_DEFAULT_FLAVOR=$(E2E_DEFAULT_FLAVOR) \
 	PROVIDER_CONTRACT=$(E2E_PROVIDER_CONTRACT) \
+	PROVIDER_VERSION=$(E2E_PROVIDER_VERSION) \
 	KUBETEST_CONFIGURATION="$(shell git rev-parse --show-toplevel)/test/e2e/frmwrk/data/kubetest/conformance.yaml" \
 	$(GINKGO) -vv -r --junit-report="junit.e2e_suite.xml" --output-dir="$(ARTIFACTS)" --label-filter="$(E2E_LABEL_FILTER)" -timeout 120m ./test/e2e/frmwrk
 

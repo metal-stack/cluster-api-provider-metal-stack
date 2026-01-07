@@ -55,6 +55,48 @@ kubectl --kubeconfig capi-lab/.capms-cluster-kubeconfig.yaml apply --kustomize c
 
 That's it!
 
+## Running E2E Tests
+
+Before being able to run the E2E or integration tests, make sure to set the following variables to the correct values:
+
+```bash
+export E2E_METAL_API_URL=
+export E2E_METAL_API_HMAC=
+export E2E_METAL_API_HMAC_AUTH_TYPE=
+export E2E_METAL_PROJECT_ID=
+export E2E_METAL_PROJECT_NAME=
+export E2E_METAL_PARTITION=
+export E2E_METAL_PUBLIC_NETWORK=
+export E2E_CONTROL_PLANE_MACHINE_SIZE=
+export E2E_CONTROL_PLANE_MACHINE_IMAGE_PREFIX=
+export E2E_WORKER_MACHINE_SIZE=
+export E2E_WORKER_MACHINE_IMAGE_PREFIX=
+export E2E_FIREWALL_SIZE=
+export E2E_FIREWALL_MACHINE_IMAGE=
+export E2E_FIREWALL_NETWORKS=
+export KUBERNETES_VERSION_UPGRADE_FROM=
+export KUBERNETES_VERSION_UPGRADE_TO=
+export KUBERNETES_IMAGE_UPGRADE_TO=
+export E2E_KUBERNETES_VERSIONS=
+```
+
+If you want to test the local changes you made to the provider, run:
+
+```bash
+unset E2E_KUBECONFIG # ensure a new kind cluster is created
+make docker-build-e2e test-e2e
+```
+
+This will automatically build and load your image.
+
+To run the tests with a specific version, run:
+
+```bash
+export E2E_PROVIDER_VERSION=v0.7.0
+export E2E_PROVIDER_CONTRACT=v1beta1
+make test-e2e
+```
+
 ### To Deploy on the cluster
 **Build and push your image to the location specified by `IMG`:**
 
