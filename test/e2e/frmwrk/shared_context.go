@@ -30,7 +30,11 @@ import (
 	capmsv1alpha1 "github.com/metal-stack/cluster-api-provider-metal-stack/api/v1alpha1"
 )
 
-const e2eMetalStackProjectIDLabel = "e2e-metal-stack-project-id"
+const (
+	e2eMetalStackProjectIDLabel = "e2e-metal-stack-project-id"
+	// TODO: CAPI v1.12 migration remove this constant and use clusterctlconfig.MetalStackProviderName
+	clusterctlconfigMetalStackProviderName = "metal-stack"
+)
 
 type Option func(*E2EContext)
 
@@ -106,8 +110,7 @@ func withDefaultEnvironment() Option {
 		e2e.Environment.controlPlaneMachineImagePrefix = e2e.envOrVar("E2E_CONTROL_PLANE_MACHINE_IMAGE_PREFIX")
 		e2e.Environment.workerMachineImagePrefix = e2e.envOrVar("E2E_WORKER_MACHINE_IMAGE_PREFIX")
 		e2e.Environment.Flavor = e2e.envOrVar("E2E_DEFAULT_FLAVOR")
-		e2e.Environment.infrastructureProvider = e2e.envOrVar("INFRASTRUCTURE_PROVIDER")
-		e2e.Environment.infrastructureProviderContract = e2e.envOrVar("INFRASTRUCTURE_PROVIDER_CONTRACT")
+		e2e.Environment.providerContract = e2e.envOrVar("PROVIDER_CONTRACT")
 
 		_ = e2e.envOrVar("CONTROL_PLANE_MACHINE_SIZE")
 		_ = e2e.envOrVar("WORKER_MACHINE_SIZE")
@@ -140,8 +143,7 @@ type Environment struct {
 	publicNetwork                  string
 	kubeconfigPath                 string
 	artifactsPath                  string
-	infrastructureProvider         string
-	infrastructureProviderContract string
+	providerContract               string
 }
 
 func (ee *E2EContext) ProvideBootstrapCluster() {
@@ -213,10 +215,10 @@ func (ee *E2EContext) InitManagementCluster(ctx context.Context) {
 		ClusterProxy:             ee.Environment.Bootstrap,
 		ClusterctlConfigPath:     ee.Environment.ClusterctlConfigPath,
 		LogFolder:                path.Join(ee.Environment.artifactsPath, "clusters", "bootstrap"),
-		InfrastructureProviders:  ee.E2EConfig.GetProviderLatestVersionsByContract(ee.Environment.infrastructureProviderContract, ee.Environment.infrastructureProvider),
-		AddonProviders:           ee.E2EConfig.GetProviderLatestVersionsByContract("v1beta2", clusterctlconfig.HelmAddonProviderName),
-		BootstrapProviders:       ee.E2EConfig.GetProviderLatestVersionsByContract("v1beta2", clusterctlconfig.KubeadmBootstrapProviderName),
-		ControlPlaneProviders:    ee.E2EConfig.GetProviderLatestVersionsByContract("v1beta2", clusterctlconfig.KubeadmControlPlaneProviderName),
+		InfrastructureProviders:  ee.E2EConfig.GetProviderLatestVersionsByContract(ee.Environment.providerContract, clusterctlconfigMetalStackProviderName),
+		AddonProviders:           ee.E2EConfig.GetProviderLatestVersionsByContract(ee.Environment.providerContract, clusterctlconfig.HelmAddonProviderName),
+		BootstrapProviders:       ee.E2EConfig.GetProviderLatestVersionsByContract(ee.Environment.providerContract, clusterctlconfig.KubeadmBootstrapProviderName),
+		ControlPlaneProviders:    ee.E2EConfig.GetProviderLatestVersionsByContract(ee.Environment.providerContract, clusterctlconfig.KubeadmControlPlaneProviderName),
 		DisableMetricsCollection: false,
 		ClusterctlBinaryPath:     "",
 	})

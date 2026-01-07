@@ -1,7 +1,7 @@
 ---
 images:
-- name: ghcr.io/metal-stack/cluster-api-metal-stack-controller:latest
-  loadBehavior: tryLoad
+- name: ghcr.io/metal-stack/cluster-api-metal-stack-controller:e2e
+  loadBehavior: mustLoad
 
 providers:
 - name: cluster-api
@@ -114,6 +114,22 @@ providers:
       - old: --metrics-addr=127.0.0.1:8080
         new: --metrics-addr=:8080
 
+  # TODO: enable with v0.8.0 release
+  # - name: "{go://github.com/metal-stack/cluster-api-provider-metal-stack@v0.8}"
+  #   value: "https://github.com/metal-stack/cluster-api-provider-metal-stack/releases/download/{go://github.com/metal-stack/cluster-api-provider-metal-stack@v0.8}/infrastructure-components.yaml"
+  #   type: "url"
+  #   contract: v1beta2
+  #   files:
+  #     - sourcePath: "../../../../metadata.yaml"
+  #     - sourcePath: "../../../../config/clusterctl-templates/cluster-template.yaml"
+  #     - sourcePath: "../../../../config/clusterctl-templates/cluster-template-calico.yaml"
+  #     - sourcePath: "../../../../config/clusterctl-templates/cluster-template-pre-v1.33.yaml"
+  #     - sourcePath: "../data/clusterctl-templates/cluster-template-upgrade.yaml"
+  #     - sourcePath: "../data/clusterctl-templates/cluster-template-upgrade-workerless.yaml"
+  #   replacements:
+  #     - old: --metrics-addr=127.0.0.1:8080
+  #       new: --metrics-addr=:8080
+
   - name: "v0.8.99"
     value: "../../../../config/default"
     contract: v1beta2
@@ -127,6 +143,8 @@ providers:
     replacements:
       - old: --metrics-addr=127.0.0.1:8080
         new: --metrics-addr=:8080
+      - old: ghcr.io/metal-stack/cluster-api-metal-stack-controller:latest
+        new: ghcr.io/metal-stack/cluster-api-metal-stack-controller:e2e
 
 variables:
   # CLUSTER_NAME:
@@ -154,8 +172,7 @@ variables:
   # TODO: remove once merged into upstream
   # https://github.com/kubernetes-sigs/cluster-api/pull/12948
   KUBETEST_CONFIGURATION: "test/e2e/frmwrk/data/kubetest/conformance.yaml" # must be absolute, actual path provided by Makefile
-  INFRASTRUCTURE_PROVIDER: "metal-stack"
-  INFRASTRUCTURE_PROVIDER_CONTRACT: "v1beta2"
+  PROVIDER_CONTRACT: "v1beta2"
 
 intervals:
   default/wait-controllers: ["4m", "10s"]
