@@ -84,7 +84,8 @@ If you want to test the local changes you made to the provider, run:
 
 ```bash
 unset E2E_KUBECONFIG # ensure a new kind cluster is created
-make docker-build-e2e test-e2e
+# skip move tests as they won't have access to the docker image on your local machine
+make docker-build-e2e test-e2e E2E_LABEL_FILTER="\!move"
 ```
 
 This will automatically build and load your image.
