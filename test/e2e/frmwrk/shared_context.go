@@ -21,6 +21,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	clusterctlconfig "sigs.k8s.io/cluster-api/cmd/clusterctl/client/config"
 	"sigs.k8s.io/cluster-api/test/framework"
 	"sigs.k8s.io/cluster-api/test/framework/bootstrap"
 	"sigs.k8s.io/cluster-api/test/framework/clusterctl"
@@ -29,7 +30,11 @@ import (
 	capmsv1alpha1 "github.com/metal-stack/cluster-api-provider-metal-stack/api/v1alpha1"
 )
 
-const e2eMetalStackProjectIDLabel = "e2e-metal-stack-project-id"
+const (
+	e2eMetalStackProjectIDLabel = "e2e-metal-stack-project-id"
+	// TODO: CAPI v1.12 migration remove this constant and use clusterctlconfig.MetalStackProviderName
+	clusterctlconfigMetalStackProviderName = "metal-stack"
+)
 
 type Option func(*E2EContext)
 
@@ -105,6 +110,12 @@ func withDefaultEnvironment() Option {
 		e2e.Environment.controlPlaneMachineImagePrefix = e2e.envOrVar("E2E_CONTROL_PLANE_MACHINE_IMAGE_PREFIX")
 		e2e.Environment.workerMachineImagePrefix = e2e.envOrVar("E2E_WORKER_MACHINE_IMAGE_PREFIX")
 		e2e.Environment.Flavor = e2e.envOrVar("E2E_DEFAULT_FLAVOR")
+		e2e.Environment.providerContract = e2e.envOrVar("PROVIDER_CONTRACT")
+
+		e2e.Environment.providerVersion = os.Getenv("PROVIDER_VERSION")
+		if e2e.Environment.providerVersion != "" {
+			e2e.Environment.providerVersion = e2e.E2EConfig.GetVariableOrEmpty("PROVIDER_VERSION")
+		}
 
 		_ = e2e.envOrVar("CONTROL_PLANE_MACHINE_SIZE")
 		_ = e2e.envOrVar("WORKER_MACHINE_SIZE")
@@ -137,6 +148,8 @@ type Environment struct {
 	publicNetwork                  string
 	kubeconfigPath                 string
 	artifactsPath                  string
+	providerContract               string
+	providerVersion                string
 }
 
 func (ee *E2EContext) ProvideBootstrapCluster() {
@@ -204,12 +217,24 @@ func (ee *E2EContext) InitManagementCluster(ctx context.Context) {
 	Expect(ee.Environment.Bootstrap).NotTo(BeNil(), "bootstrap cluster must be provided first")
 	Expect(ee.Environment.ClusterctlConfigPath).To(BeAnExistingFile(), "clusterctl config file doesn't exist")
 
+	var infraProviders []string
+
+	if ee.Environment.providerVersion != "" {
+		infraProviders = []string{fmt.Sprintf("%s:%s", clusterctlconfigMetalStackProviderName, ee.Environment.providerVersion)}
+	} else {
+		infraProviders = ee.E2EConfig.GetProviderLatestVersionsByContract(ee.Environment.providerContract, clusterctlconfigMetalStackProviderName)
+	}
+
 	clusterctl.InitManagementClusterAndWatchControllerLogs(ctx, clusterctl.InitManagementClusterAndWatchControllerLogsInput{
-		ClusterProxy:            ee.Environment.Bootstrap,
-		ClusterctlConfigPath:    ee.Environment.ClusterctlConfigPath,
-		InfrastructureProviders: ee.E2EConfig.InfrastructureProviders(),
-		AddonProviders:          ee.E2EConfig.AddonProviders(),
-		LogFolder:               path.Join(ee.Environment.artifactsPath, "clusters", "bootstrap"),
+		ClusterProxy:             ee.Environment.Bootstrap,
+		ClusterctlConfigPath:     ee.Environment.ClusterctlConfigPath,
+		LogFolder:                path.Join(ee.Environment.artifactsPath, "clusters", "bootstrap"),
+		InfrastructureProviders:  infraProviders,
+		AddonProviders:           ee.E2EConfig.GetProviderLatestVersionsByContract(ee.Environment.providerContract, clusterctlconfig.HelmAddonProviderName),
+		BootstrapProviders:       ee.E2EConfig.GetProviderLatestVersionsByContract(ee.Environment.providerContract, clusterctlconfig.KubeadmBootstrapProviderName),
+		ControlPlaneProviders:    ee.E2EConfig.GetProviderLatestVersionsByContract(ee.Environment.providerContract, clusterctlconfig.KubeadmControlPlaneProviderName),
+		DisableMetricsCollection: false,
+		ClusterctlBinaryPath:     "",
 	})
 }
 
@@ -266,11 +291,11 @@ func (ee *E2EContext) TeardownMetalStackProject(ctx context.Context) {
 					},
 					{
 						Kind:       "ClusterResourceSetBinding",
-						APIVersion: "addons.cluster.x-k8s.io/v1beta1",
+						APIVersion: "addons.cluster.x-k8s.io/v1beta2",
 					},
 					{
 						Kind:       "ClusterResourceSet",
-						APIVersion: "addons.cluster.x-k8s.io/v1beta1",
+						APIVersion: "addons.cluster.x-k8s.io/v1beta2",
 					},
 				},
 			})

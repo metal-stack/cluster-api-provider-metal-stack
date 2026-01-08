@@ -8,7 +8,7 @@
 # - METAL_PARTITION
 # - METAL_NODE_NETWORK_ID
 ---
-apiVersion: addons.cluster.x-k8s.io/v1beta1
+apiVersion: addons.cluster.x-k8s.io/v1beta2
 kind: ClusterResourceSet
 metadata:
   name: metal-ccm

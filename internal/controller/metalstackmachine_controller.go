@@ -29,7 +29,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/utils/ptr"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	capierrors "sigs.k8s.io/cluster-api/errors" //nolint:staticcheck
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/annotations"
@@ -118,13 +118,13 @@ func (r *MetalStackMachineReconciler) Reconcile(ctx context.Context, req ctrl.Re
 
 	infraCluster := &v1alpha1.MetalStackCluster{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: cluster.Spec.InfrastructureRef.Namespace,
 			Name:      cluster.Spec.InfrastructureRef.Name,
+			Namespace: cluster.Namespace,
 		},
 	}
 	err = r.Client.Get(ctx, client.ObjectKeyFromObject(infraCluster), infraCluster)
 	if apierrors.IsNotFound(err) {
-		log.Info("infrastructure cluster no longer exists")
+		log.Info("infrastructure cluster no longer exists", "infraCluster", infraCluster.Name)
 		return ctrl.Result{}, nil
 	}
 	if err != nil {
@@ -148,9 +148,19 @@ func (r *MetalStackMachineReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	var result ctrl.Result
 
 	if annotations.IsPaused(cluster, infraMachine) {
-		conditions.MarkTrue(infraMachine, v1alpha1.ProviderMachinePaused)
+		conditions.Set(infraMachine, metav1.Condition{
+			Status:  metav1.ConditionTrue,
+			Type:    clusterv1.PausedCondition,
+			Reason:  clusterv1.PausedReason,
+			Message: "Reconciliation is paused",
+		})
 	} else {
-		conditions.MarkFalse(infraMachine, v1alpha1.ProviderMachinePaused, clusterv1.PausedV1Beta2Reason, clusterv1.ConditionSeverityInfo, "")
+		conditions.Set(infraMachine, metav1.Condition{
+			Status:  metav1.ConditionFalse,
+			Type:    clusterv1.PausedCondition,
+			Reason:  clusterv1.NotPausedReason,
+			Message: "Reconciliation is not paused",
+		})
 	}
 
 	switch {
@@ -341,18 +351,33 @@ func (r *machineReconciler) reconcile() (ctrl.Result, error) {
 			return ctrl.Result{}, errors.New("machine has been deleted externally")
 		}
 		if err != nil {
-			conditions.MarkFalse(r.infraMachine, v1alpha1.ProviderMachineCreated, "InternalError", clusterv1.ConditionSeverityError, "%s", err.Error())
+			conditions.Set(r.infraMachine, metav1.Condition{
+				Status:  metav1.ConditionFalse,
+				Type:    v1alpha1.ProviderMachineCreated,
+				Reason:  "InternalError",
+				Message: err.Error(),
+			})
 			return ctrl.Result{}, err
 		}
 	} else {
 		m, err = r.create()
 		if err != nil {
-			conditions.MarkFalse(r.infraMachine, v1alpha1.ProviderMachineCreated, "InternalError", clusterv1.ConditionSeverityError, "%s", err.Error())
+			conditions.Set(r.infraMachine, metav1.Condition{
+				Status:  metav1.ConditionFalse,
+				Type:    v1alpha1.ProviderMachineCreated,
+				Reason:  "InternalError",
+				Message: err.Error(),
+			})
 			return ctrl.Result{}, fmt.Errorf("unable to create machine at provider: %w", err)
 		}
 	}
 
-	conditions.MarkTrue(r.infraMachine, v1alpha1.ProviderMachineCreated)
+	conditions.Set(r.infraMachine, metav1.Condition{
+		Status:  metav1.ConditionTrue,
+		Type:    v1alpha1.ProviderMachineCreated,
+		Reason:  "MachineCreated",
+		Message: "machine successfully created at provider",
+	})
 
 	if m.ID == nil {
 		return ctrl.Result{}, errors.New("machine allocated but got no provider ID")
@@ -365,17 +390,38 @@ func (r *machineReconciler) reconcile() (ctrl.Result, error) {
 
 	isReady, err := r.getMachineStatus(m)
 	if err != nil {
-		conditions.MarkFalse(r.infraMachine, v1alpha1.ProviderMachineHealthy, "NotHealthy", clusterv1.ConditionSeverityWarning, "%s", err)
+		conditions.Set(r.infraMachine, metav1.Condition{
+			Status:  metav1.ConditionFalse,
+			Type:    v1alpha1.ProviderMachineHealthy,
+			Reason:  "NotHealthy",
+			Message: err.Error(),
+		})
 		result.RequeueAfter = defaultProviderMachineRequeueTime
 	} else {
-		conditions.MarkTrue(r.infraMachine, v1alpha1.ProviderMachineHealthy)
+		conditions.Set(r.infraMachine, metav1.Condition{
+			Status:  metav1.ConditionTrue,
+			Type:    v1alpha1.ProviderMachineHealthy,
+			Reason:  "Healthy",
+			Message: "machine is healthy at provider",
+		})
 	}
 
 	if isReady {
-		conditions.MarkTrue(r.infraMachine, v1alpha1.ProviderMachineReady)
+		conditions.Set(r.infraMachine, metav1.Condition{
+			Status:  metav1.ConditionTrue,
+			Type:    v1alpha1.ProviderMachineReady,
+			Reason:  "Ready",
+			Message: "machine is in phoned home state",
+		})
 		r.infraMachine.Status.Ready = isReady
+		r.infraMachine.Status.Initialization.Provisioned = &isReady
 	} else {
-		conditions.MarkFalse(r.infraMachine, v1alpha1.ProviderMachineReady, "NotReady", clusterv1.ConditionSeverityWarning, "machine is not in phoned home state")
+		conditions.Set(r.infraMachine, metav1.Condition{
+			Status:  metav1.ConditionFalse,
+			Type:    v1alpha1.ProviderMachineReady,
+			Reason:  "NotReady",
+			Message: "machine is not in phoned home state",
+		})
 		result.RequeueAfter = defaultProviderMachineRequeueTime
 	}
 
@@ -540,7 +586,12 @@ func (r *machineReconciler) findProviderMachine() (*models.V1MachineResponse, er
 		return nil, errProviderMachineNotFound
 	}
 	if err != nil {
-		conditions.MarkFalse(r.infraMachine, v1alpha1.ProviderMachineCreated, "InternalError", clusterv1.ConditionSeverityError, "%s", err.Error())
+		conditions.Set(r.infraMachine, metav1.Condition{
+			Status:  metav1.ConditionFalse,
+			Type:    v1alpha1.ProviderMachineCreated,
+			Reason:  "InternalError",
+			Message: err.Error(),
+		})
 		return nil, err
 	}
 

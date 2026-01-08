@@ -1,7 +1,9 @@
 # Image URL to use all building/pushing image targets
 IMG_NAME ?= ghcr.io/metal-stack/cluster-api-metal-stack-controller
 IMG_TAG ?= latest
+IMG_TAG_E2E ?= e2e
 IMG ?= ${IMG_NAME}:${IMG_TAG}
+IMG_E2E ?= ${IMG_NAME}:${IMG_TAG_E2E}
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.31.0
 RELEASE_DIR ?= .release
@@ -139,6 +141,8 @@ E2E_FIREWALL_SIZE ?= "v1-small-x86"
 E2E_FIREWALL_NETWORKS ?= "internet-mini-lab"
 ARTIFACTS ?= "$(PWD)/_artifacts"
 E2E_DEFAULT_FLAVOR ?= "calico"
+E2E_PROVIDER_CONTRACT ?= "v1beta2"
+E2E_PROVIDER_VERSION ?= ""
 # Can be something like: basic && !move
 E2E_LABEL_FILTER ?= ""
 
@@ -168,6 +172,8 @@ test-e2e: manifests generate fmt vet ginkgo kustomize
 	FIREWALL_NETWORKS=$(E2E_FIREWALL_NETWORKS) \
 	ARTIFACTS=$(ARTIFACTS) \
 	E2E_DEFAULT_FLAVOR=$(E2E_DEFAULT_FLAVOR) \
+	PROVIDER_CONTRACT=$(E2E_PROVIDER_CONTRACT) \
+	PROVIDER_VERSION=$(E2E_PROVIDER_VERSION) \
 	KUBETEST_CONFIGURATION="$(shell git rev-parse --show-toplevel)/test/e2e/frmwrk/data/kubetest/conformance.yaml" \
 	$(GINKGO) -vv -r --junit-report="junit.e2e_suite.xml" --output-dir="$(ARTIFACTS)" --label-filter="$(E2E_LABEL_FILTER)" -timeout 120m ./test/e2e/frmwrk
 
@@ -200,6 +206,10 @@ docker-build: ## Build docker image with the manager.
 docker-push: ## Push docker image with the manager.
 	$(CONTAINER_TOOL) push ${IMG}
 
+.PHONY: docker-build-e2e
+docker-build-e2e:
+	$(CONTAINER_TOOL) build -t ${IMG_E2E} .
+
 # PLATFORMS defines the target platforms for the manager image be built to provide support to multiple
 # architectures. (i.e. make docker-buildx IMG=myregistry/mypoperator:0.0.1). To use this option you need to:
 # - be able to use docker buildx. More info: https://docs.docker.com/build/buildx/
@@ -221,6 +231,12 @@ docker-buildx: ## Build and push docker image for the manager for cross-platform
 build-installer: manifests generate kustomize ## Generate a consolidated YAML with CRDs and deployment.
 	mkdir -p $(RELEASE_DIR)
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG_NAME}:${IMG_TAG}
+	$(KUSTOMIZE) build config/default > $(RELEASE_DIR)/install.yaml
+
+.PHONY: build-installer-e2e
+build-installer-e2e: manifests generate kustomize ## Generate a consolidated YAML with CRDs and deployment.
+	mkdir -p $(RELEASE_DIR)
+	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG_NAME}:${IMG_TAG_E2E}
 	$(KUSTOMIZE) build config/default > $(RELEASE_DIR)/install.yaml
 
 ##@ Deployment
@@ -270,7 +286,7 @@ GOLANGCI_LINT = $(LOCALBIN)/golangci-lint
 KUSTOMIZE_VERSION ?= v5.4.3
 CONTROLLER_TOOLS_VERSION ?= v0.16.4
 ENVTEST_VERSION ?= release-0.19
-GOLANGCI_LINT_VERSION ?= v1.61.0
+GOLANGCI_LINT_VERSION ?= v2.5.0
 GINKGO_VERSION ?= v2.23.4
 
 .PHONY: kustomize
@@ -291,7 +307,7 @@ $(ENVTEST): $(LOCALBIN)
 .PHONY: golangci-lint
 golangci-lint: $(GOLANGCI_LINT) ## Download golangci-lint locally if necessary.
 $(GOLANGCI_LINT): $(LOCALBIN)
-	$(call go-install-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/cmd/golangci-lint,$(GOLANGCI_LINT_VERSION))
+	$(call go-install-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/v2/cmd/golangci-lint,$(GOLANGCI_LINT_VERSION))
 
 .PHONY: ginkgo
 ginkgo: $(GINKGO) ## Download setup-envtest locally if necessary.
