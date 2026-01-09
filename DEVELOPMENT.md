@@ -18,13 +18,13 @@ Next install our CAPMS provider into the cluster.
 make push-to-capi-lab
 ```
 
-Before creating a cluster some manual steps are required beforehand: you need to allocate a node network.
+Before creating a cluster the control plane IP needs to be created first:
 
 ```bash
-make -C capi-lab node-network control-plane-ip
+make -C capi-lab control-plane-ip
 ```
 
-A basic cluster configuration that relies on `config/clusterctl-templates/cluster-template.yaml` and uses the aforementioned node network can be generated and applied to the management cluster using a make target.
+A basic cluster configuration that relies on `config/clusterctl-templates/cluster-template-calico.yaml` and uses the aforementioned IP can be generated and applied to the management cluster using a make target.
 
 ```bash
 make -C capi-lab apply-sample-cluster
@@ -84,7 +84,8 @@ If you want to test the local changes you made to the provider, run:
 
 ```bash
 unset E2E_KUBECONFIG # ensure a new kind cluster is created
-make docker-build-e2e test-e2e
+# skip move tests as they won't have access to the docker image on your local machine
+make docker-build-e2e test-e2e E2E_LABEL_FILTER="\!move"
 ```
 
 This will automatically build and load your image.
@@ -201,7 +202,6 @@ export METAL_API_URL=
 
 export METAL_PARTITION=
 export METAL_PROJECT_ID=
-export METAL_NODE_NETWORK_ID=
 export CONTROL_PLANE_IP=
 
 export FIREWALL_MACHINE_IMAGE=
@@ -225,11 +225,10 @@ export project_name=
 export tenant_name=
 ```
 
-Create project, node network and control plane ip if needed:
+Create project and control plane ip if needed:
 
 ```bash
 metalctl project create --name $project_name --tenant $tenant_name --description "Cluster API test project"
-metalctl network allocate --description "Node network for $CLUSTER_NAME" --name $CLUSTER_NAME --project $METAL_PROJECT_ID --partition $METAL_PARTITION
 metalctl network ip create --network internet --project $METAL_PROJECT_ID --name "$CLUSTER_NAME-vip" --type static -o template --template "{{ .ipaddress }}"
 ```
 

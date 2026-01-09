@@ -125,6 +125,11 @@ func (in *MetalStackClusterList) DeepCopyObject() runtime.Object {
 func (in *MetalStackClusterSpec) DeepCopyInto(out *MetalStackClusterSpec) {
 	*out = *in
 	out.ControlPlaneEndpoint = in.ControlPlaneEndpoint
+	if in.NodeNetworkID != nil {
+		in, out := &in.NodeNetworkID, &out.NodeNetworkID
+		*out = new(string)
+		**out = **in
+	}
 	if in.ControlPlaneIP != nil {
 		in, out := &in.ControlPlaneIP, &out.ControlPlaneIP
 		*out = new(string)

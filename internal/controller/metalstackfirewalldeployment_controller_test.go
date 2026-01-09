@@ -129,7 +129,7 @@ var _ = Describe("MetalStackFirewall Controller", func() {
 				FirewallDeploymentRef: &v1alpha1.MetalStackFirewallDeploymentRef{
 					Name: resourceName,
 				},
-				NodeNetworkID: "some-network-id",
+				NodeNetworkID: ptr.To("some-network-id"),
 				Partition:     "some-partition",
 			},
 		}

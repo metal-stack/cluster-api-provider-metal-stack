@@ -309,6 +309,26 @@ func (r *MetalStackClusterReconciler) metalStackFirewallToMetalStackCluster(log 
 }
 
 func (r *clusterReconciler) reconcile() error {
+	nodeNetworkID, err := r.ensureNodeNetwork()
+	if err != nil {
+		conditions.Set(r.infraCluster, metav1.Condition{
+			Type:    v1alpha1.ClusterNodeNetworkEnsured,
+			Status:  metav1.ConditionFalse,
+			Reason:  "InternalError",
+			Message: err.Error(),
+		})
+		return fmt.Errorf("unable to ensure node network: %w", err)
+	}
+	conditions.Set(r.infraCluster, metav1.Condition{
+		Type:    v1alpha1.ClusterNodeNetworkEnsured,
+		Status:  metav1.ConditionTrue,
+		Reason:  "ClusterNodeNetworkEnsured",
+		Message: "Node network ensured",
+	})
+	r.infraCluster.Spec.NodeNetworkID = &nodeNetworkID
+
+	r.log.Info("reconciled node network", "network-id", nodeNetworkID)
+
 	if r.infraCluster.Spec.FirewallDeploymentRef != nil {
 		err := r.ensureFirewallDeployment()
 		if err != nil {
@@ -390,10 +410,51 @@ func (r *clusterReconciler) delete() error {
 	}
 	r.infraCluster.Spec.ControlPlaneIP = nil
 
+	err = r.deleteNodeNetwork()
+	if err != nil {
+		return fmt.Errorf("unable to delete node network: %w", err)
+	}
+	r.infraCluster.Spec.NodeNetworkID = nil
+
 	r.log.Info("deletion finished, removing finalizer")
 	controllerutil.RemoveFinalizer(r.infraCluster, v1alpha1.ClusterFinalizer)
 
 	return err
+}
+
+func (r *clusterReconciler) ensureNodeNetwork() (string, error) {
+	if r.infraCluster.Spec.NodeNetworkID != nil {
+		return *r.infraCluster.Spec.NodeNetworkID, nil
+	}
+
+	resp, err := r.metalClient.Network().AllocateNetwork(network.NewAllocateNetworkParams().WithBody(&models.V1NetworkAllocateRequest{
+		Projectid:   r.infraCluster.Spec.ProjectID,
+		Partitionid: r.infraCluster.Spec.Partition,
+		Name:        r.infraCluster.GetName(),
+		Description: fmt.Sprintf("%s/%s", r.infraCluster.GetNamespace(), r.infraCluster.GetName()),
+		Labels: map[string]string{
+			tag.ClusterID: r.infraCluster.GetClusterName(),
+		},
+	}).WithContext(r.ctx), nil)
+	if err != nil {
+		return "", fmt.Errorf("error creating node network: %w", err)
+	}
+
+	return *resp.Payload.ID, nil
+}
+
+func (r *clusterReconciler) deleteNodeNetwork() error {
+	if r.infraCluster.Spec.NodeNetworkID == nil {
+		return nil
+	}
+
+	_, err := r.metalClient.Network().FreeNetwork(network.NewFreeNetworkParams().WithID(*r.infraCluster.Spec.NodeNetworkID).WithContext(r.ctx), nil)
+	if err != nil {
+		return err
+	}
+	r.log.Info("deleted node network")
+
+	return nil
 }
 
 func (r *clusterReconciler) ensureFirewallDeployment() error {
@@ -445,12 +506,12 @@ func (r *clusterReconciler) ensureControlPlaneIP() (string, error) {
 
 	defaultNetwork := nwResp.Payload[0]
 	resp, err := r.metalClient.IP().AllocateIP(ipmodels.NewAllocateIPParams().WithBody(&models.V1IPAllocateRequest{
-		Description: fmt.Sprintf("%s control plane ip", r.infraCluster.GetClusterID()),
+		Description: fmt.Sprintf("%s control plane ip", r.infraCluster.GetClusterName()),
 		Name:        r.infraCluster.GetName() + "-control-plane",
 		Networkid:   defaultNetwork.ID,
 		Projectid:   &r.infraCluster.Spec.ProjectID,
 		Tags: []string{
-			tag.New(tag.ClusterID, r.infraCluster.GetClusterID()),
+			tag.New(tag.ClusterID, r.infraCluster.GetClusterName()),
 			v1alpha1.TagControlPlanePurpose,
 		},
 		Type: ptr.To(models.V1IPBaseTypeEphemeral),

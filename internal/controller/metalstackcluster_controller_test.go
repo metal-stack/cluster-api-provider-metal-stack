@@ -106,7 +106,7 @@ var _ = Describe("MetalStackCluster Controller", func() {
 			resource.Spec = v1alpha1.MetalStackClusterSpec{
 				ControlPlaneEndpoint: v1alpha1.APIEndpoint{},
 				ProjectID:            "test-project",
-				NodeNetworkID:        "node-network-id",
+				NodeNetworkID:        nil,
 				ControlPlaneIP:       nil,
 				Partition:            "test-partition",
 			}
@@ -223,7 +223,7 @@ var _ = Describe("MetalStackCluster Controller", func() {
 			resource.Spec = v1alpha1.MetalStackClusterSpec{
 				ControlPlaneEndpoint: v1alpha1.APIEndpoint{},
 				ProjectID:            "test-project",
-				NodeNetworkID:        "node-network-id",
+				NodeNetworkID:        nil,
 				ControlPlaneIP:       nil,
 				Partition:            "test-partition",
 			}
@@ -260,11 +260,11 @@ var _ = Describe("MetalStackCluster Controller", func() {
 				IP: func(m *mock.Mock) {
 					m.On("AllocateIP", testcommon.MatchIgnoreContext(testingT, metalip.NewAllocateIPParams().WithBody(&models.V1IPAllocateRequest{
 						Tags: []string{
-							"cluster.metal-stack.io/id=" + resource.GetClusterID(),
+							"cluster.metal-stack.io/id=" + resource.GetClusterName(),
 							"metal-stack.infrastructure.cluster.x-k8s.io/purpose=control-plane",
 						},
 						Name:        resource.Name + "-control-plane",
-						Description: resource.GetClusterID() + " control plane ip",
+						Description: resource.GetClusterName() + " control plane ip",
 						Networkid:   ptr.To("internet"),
 						Projectid:   ptr.To("test-project"),
 						Type:        ptr.To("ephemeral"),
@@ -275,6 +275,26 @@ var _ = Describe("MetalStackCluster Controller", func() {
 					}, nil)
 				},
 				Network: func(m *mock.Mock) {
+					m.On("AllocateNetwork", testcommon.MatchIgnoreContext(testingT, metalnetwork.NewAllocateNetworkParams().WithBody(&models.V1NetworkAllocateRequest{
+						Name:        resource.Name,
+						Description: resource.Namespace + "/" + resource.Name,
+						Labels: map[string]string{
+							"cluster.metal-stack.io/id": resource.GetClusterName(),
+						},
+						Partitionid: "test-partition",
+						Projectid:   "test-project",
+					})), nil).Return(&metalnetwork.AllocateNetworkCreated{
+						Payload: &models.V1NetworkResponse{
+							Labels: map[string]string{
+								"cluster.metal-stack.io/id": resource.GetClusterName(),
+							},
+							Partitionid: "test-partition",
+							Projectid:   "test-project",
+							ID:          ptr.To("test-network"),
+							Prefixes:    []string{"192.168.42.0/24"},
+						},
+					}, nil)
+
 					m.On("FindNetworks", testcommon.MatchIgnoreContext(testingT, metalnetwork.NewFindNetworksParams().WithBody(&models.V1NetworkFindRequest{
 						Labels: map[string]string{
 							"network.metal-stack.io/default": "",
@@ -315,6 +335,10 @@ var _ = Describe("MetalStackCluster Controller", func() {
 			Expect(k8sClient.Get(ctx, typeNamespacedName, resource)).To(Succeed())
 
 			Expect(resource.Status.Conditions).To(ContainElement(MatchFields(IgnoreExtras, Fields{
+				"Type":   Equal(v1alpha1.ClusterNodeNetworkEnsured),
+				"Status": Equal(metav1.ConditionTrue),
+			})))
+			Expect(resource.Status.Conditions).To(ContainElement(MatchFields(IgnoreExtras, Fields{
 				"Type":   Equal(v1alpha1.ClusterControlPlaneIPEnsured),
 				"Status": Equal(metav1.ConditionTrue),
 			})))
@@ -340,7 +364,7 @@ var _ = Describe("MetalStackCluster Controller", func() {
 			resource.Spec = v1alpha1.MetalStackClusterSpec{
 				ControlPlaneEndpoint: v1alpha1.APIEndpoint{},
 				ProjectID:            "test-project",
-				NodeNetworkID:        nodeNetworkID,
+				NodeNetworkID:        &nodeNetworkID,
 				ControlPlaneIP:       &controlPlaneIP,
 				Partition:            "test-partition",
 			}
@@ -388,6 +412,10 @@ var _ = Describe("MetalStackCluster Controller", func() {
 					return resource.Status.Conditions
 				}, "20s").Should(ContainElements(
 					MatchFields(IgnoreExtras, Fields{
+						"Type":   Equal(v1alpha1.ClusterNodeNetworkEnsured),
+						"Status": Equal(metav1.ConditionTrue),
+					}),
+					MatchFields(IgnoreExtras, Fields{
 						"Type":   Equal(v1alpha1.ClusterControlPlaneIPEnsured),
 						"Status": Equal(metav1.ConditionTrue),
 					}),
@@ -428,6 +456,10 @@ var _ = Describe("MetalStackCluster Controller", func() {
 
 					return resource.Status.Conditions
 				}, "20s").Should(ContainElements(
+					MatchFields(IgnoreExtras, Fields{
+						"Type":   Equal(v1alpha1.ClusterNodeNetworkEnsured),
+						"Status": Equal(metav1.ConditionTrue),
+					}),
 					MatchFields(IgnoreExtras, Fields{
 						"Type":   Equal(v1alpha1.ClusterControlPlaneIPEnsured),
 						"Status": Equal(metav1.ConditionTrue),

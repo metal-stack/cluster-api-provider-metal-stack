@@ -17,7 +17,6 @@ Currently, we provide the following custom resources:
 
 We plan to cover more resources in the future:
 
-- Node Networks
 - Complete Firewall Deployments using the [Firewall Controller Manager](https://github.com/metal-stack/firewall-controller-manager)
 - Improved configuration suggestion of CNIs
 
@@ -62,20 +61,13 @@ clusterctl init --infrastructure metal-stack
 > **Manual steps needed:**
 > Due to the early development stage, manual actions are needed for the cluster to operate. Some metal-stack resources need to be created manually.
 
-A node network needs to be created.
+Allocate a VIP for the control plane.
+
 ```bash
 export CLUSTER_NAME=<cluster-name>
 export METAL_PARTITION=<partition>
 export METAL_PROJECT_ID=<project-id>
-metalctl network allocate --description "Node network for $CLUSTER_NAME" --name $CLUSTER_NAME --project $METAL_PROJECT_ID --partition $METAL_PARTITION
 
-# export environment variable for use in the next steps
-export METAL_NODE_NETWORK_ID=$(metalctl network list --name $CLUSTER_NAME -o template --template '{{ .id }}')
-```
-
-Allocate a VIP for the control plane.
-
-```bash
 export CONTROL_PLANE_IP=$(metalctl network ip create --network internet --project $METAL_PROJECT_ID --name "$CLUSTER_NAME-vip" --type static -o template --template "{{ .ipaddress }}")
 ```
 
@@ -83,7 +75,7 @@ For your first cluster, it is advised to start with our generated template. Ensu
 
 ```bash
 # display required environment variables
-clusterctl generate cluster $CLUSTER_NAME --infrastructure metal-stack --list-variables
+clusterctl generate cluster $CLUSTER_NAME --infrastructure metal-stack --list-variables --flavor calico
 
 # set additional environment variables
 export CONTROL_PLANE_MACHINE_IMAGE=<machine-image>
@@ -94,7 +86,7 @@ export FIREWALL_MACHINE_IMAGE=<machine-image>
 export FIREWALL_MACHINE_SIZE=<machine-size>
 
 # generate manifest
-clusterctl generate cluster $CLUSTER_NAME --kubernetes-version v1.32.9 --infrastructure metal-stack
+clusterctl generate cluster $CLUSTER_NAME --kubernetes-version v1.32.9 --infrastructure metal-stack --flavor calico
 ```
 
 Apply the generated manifest from the `clusterctl` output.
@@ -103,51 +95,7 @@ Apply the generated manifest from the `clusterctl` output.
 kubectl apply -f <manifest>
 ```
 
-Once your control plane and worker machines have been provisioned, you need to install your CNI of choice into your created cluster. This is required due to CAPI. An example is provided below:
-
-```bash
-# get the kubeconfig
-clusterctl get kubeconfig metal-test > capms-cluster.kubeconfig
-
-# install the calico operator
-kubectl --kubeconfig=capms-cluster.kubeconfig create -f https://raw.githubusercontent.com/projectcalico/calico/v3.28.2/manifests/tigera-operator.yaml
-
-# install the calico CNI
-cat <<EOF | kubectl --kubeconfig=capms-cluster.kubeconfig create -f -
-apiVersion: operator.tigera.io/v1
-kind: Installation
-metadata:
-  name: default
-spec:
-  # Configures Calico networking.
-  calicoNetwork:
-    bgp: Disabled
-    ipPools:
-    - name: default-ipv4-ippool
-      blockSize: 26
-      cidr: 10.240.0.0/12
-      encapsulation: None
-    mtu: 1440
-  cni:
-    ipam:
-      type: HostLocal
-    type: Calico
-EOF
-```
-
-Meanwhile, the `metal-ccm` has to be deployed for the machines to reach `Running` phase. For this use the [`config/target-cluster/metal-ccm.yaml` template](config/target-cluster/metal-ccm.yaml) and fill in the required variables.
-
-```bash
-export NAMESPACE=<namespace>
-export CLUSTER_NAME=<cluster name>
-cat config/target-cluster/metal-ccm.yaml | envsubst | kubectl --kubeconfig capms-cluster.kubeconfig apply -f -
-```
-
-If you want to provide service's of type `LoadBalancer` through MetalLB by the `metal-ccm`, you need to deploy MetalLB:
-
-```bash
-kubectl --kubeconfig capms-cluster.kubeconfig apply --kustomize capi-lab/metallb
-```
+That's it!
 
 ## Frequently Asked Questions
 

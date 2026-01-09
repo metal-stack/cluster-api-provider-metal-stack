@@ -13,7 +13,6 @@ import (
 	. "github.com/onsi/gomega"    //nolint:staticcheck
 
 	metalip "github.com/metal-stack/metal-go/api/client/ip"
-	metalnetwork "github.com/metal-stack/metal-go/api/client/network"
 	metalmodels "github.com/metal-stack/metal-go/api/models"
 
 	corev1 "k8s.io/api/core/v1"
@@ -81,7 +80,6 @@ func (e2e *E2ECluster) Variables() map[string]string {
 	vars["NAMESPACE"] = e2e.NamespaceName
 	vars["METAL_PROJECT_ID"] = e2e.E2EContext.Environment.projectID
 	vars["METAL_PARTITION"] = e2e.E2EContext.Environment.partition
-	vars["METAL_NODE_NETWORK_ID"] = *e2e.Refs.NodeNetwork.ID
 	vars["FIREWALL_MACHINE_SIZE"] = e2e.FirewallSize
 	vars["FIREWALL_MACHINE_IMAGE"] = e2e.FirewallImage
 	vars["FIREWALL_MACHINE_NETWORKS"] = "[" + strings.Join(e2e.FirewallNetworks, ",") + "]"
@@ -90,6 +88,10 @@ func (e2e *E2ECluster) Variables() map[string]string {
 	vars["CONTROL_PLANE_MACHINE_IMAGE"] = e2e.ControlPlaneMachineImage
 	vars["WORKER_MACHINE_SIZE"] = e2e.WorkerMachineSize
 	vars["WORKER_MACHINE_IMAGE"] = e2e.WorkerMachineImage
+
+	if e2e.Refs.NodeNetwork != nil {
+		vars["METAL_NODE_NETWORK_ID"] = *e2e.Refs.NodeNetwork.ID
+	}
 
 	return vars
 }
@@ -124,51 +126,14 @@ func (e2e *E2ECluster) teardownNamespace(ctx context.Context) {
 	e2e.Refs.Namespace = nil
 }
 
-func (e2e *E2ECluster) SetupMetalStackPreconditions(ctx context.Context) {
-	By("Setup Preconditions")
-	e2e.setupNodeNetwork(ctx)
-	e2e.setupControlPlaneIP(ctx)
-}
-
 func (e2e *E2ECluster) Teardown(ctx context.Context) {
 	e2e.teardownAddons(ctx)
 	e2e.teardownCluster(ctx)
 	e2e.teardownControlPlaneIP(ctx)
-	e2e.teardownNodeNetwork(ctx)
 	e2e.teardownNamespace(ctx)
 }
 
-func (e2e *E2ECluster) setupNodeNetwork(ctx context.Context) {
-	By("Setup Node Network")
-
-	nar := &metalmodels.V1NetworkAllocateRequest{
-		Partitionid: e2e.E2EContext.Environment.partition,
-		Projectid:   e2e.E2EContext.Environment.projectID,
-		Name:        e2e.ClusterName + "-node",
-		Description: fmt.Sprintf("Node network for %s", e2e.ClusterName),
-		Labels: map[string]string{
-			"e2e-test":                            e2e.SpecName,
-			capmsv1alpha1.TagInfraClusterResource: e2e.NamespaceName + "." + e2e.ClusterName,
-		},
-	}
-	net, err := e2e.E2EContext.Environment.Metal.Network().AllocateNetwork(metalnetwork.NewAllocateNetworkParamsWithContext(ctx).WithBody(nar), nil)
-	Expect(err).ToNot(HaveOccurred(), "failed to allocate node network")
-
-	e2e.Refs.NodeNetwork = net.Payload
-}
-
-func (e2e *E2ECluster) teardownNodeNetwork(ctx context.Context) {
-	if e2e.Refs.NodeNetwork == nil || e2e.Refs.NodeNetwork.ID == nil {
-		return
-	}
-
-	_, err := e2e.E2EContext.Environment.Metal.Network().FreeNetwork(metalnetwork.NewFreeNetworkParamsWithContext(ctx).WithID(*e2e.Refs.NodeNetwork.ID), nil)
-	Expect(err).ToNot(HaveOccurred(), "failed to delete node network")
-
-	e2e.Refs.NodeNetwork = nil
-}
-
-func (e2e *E2ECluster) setupControlPlaneIP(ctx context.Context) {
+func (e2e *E2ECluster) SetupControlPlaneIP(ctx context.Context) {
 	if e2e.ControlPlaneIP != "" {
 		return
 	}
@@ -212,7 +177,6 @@ func (e2e *E2ECluster) GenerateAndApplyClusterTemplate(ctx context.Context) {
 	By("Generate cluster template")
 
 	Expect(e2e.Refs.Namespace).NotTo(BeNil(), "namespace not created yet")
-	Expect(e2e.Refs.NodeNetwork).NotTo(BeNil(), "node network not created yet")
 
 	workloadTempl := clusterctl.ConfigCluster(ctx, clusterctl.ConfigClusterInput{
 		Namespace:                e2e.NamespaceName,
