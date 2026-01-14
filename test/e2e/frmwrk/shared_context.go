@@ -111,6 +111,7 @@ func withDefaultEnvironment() Option {
 		e2e.Environment.workerMachineImagePrefix = e2e.envOrVar("E2E_WORKER_MACHINE_IMAGE_PREFIX")
 		e2e.Environment.Flavor = e2e.envOrVar("E2E_DEFAULT_FLAVOR")
 		e2e.Environment.providerContract = e2e.envOrVar("PROVIDER_CONTRACT")
+		e2e.Environment.providerContractUpgradeFrom = e2e.envOrVar("PROVIDER_CONTRACT_UPGRADE_FROM")
 
 		e2e.Environment.providerVersion = os.Getenv("PROVIDER_VERSION")
 		if e2e.Environment.providerVersion != "" {
@@ -149,6 +150,7 @@ type Environment struct {
 	kubeconfigPath                 string
 	artifactsPath                  string
 	providerContract               string
+	providerContractUpgradeFrom    string
 	providerVersion                string
 }
 
@@ -219,7 +221,6 @@ func (ee *E2EContext) InitManagementCluster(ctx context.Context) {
 
 	var (
 		infraProviders     []string
-		initContract       = ee.Environment.providerContract
 		initInfraProviders []string
 	)
 
@@ -229,22 +230,17 @@ func (ee *E2EContext) InitManagementCluster(ctx context.Context) {
 		infraProviders = ee.E2EConfig.GetProviderLatestVersionsByContract(ee.Environment.providerContract, clusterctlconfigMetalStackProviderName)
 	}
 
-	initInfraProviders = infraProviders
-	if ee.Environment.providerContract == "v1beta2" {
-		initContract = "v1beta1"
-		initInfraProviders = ee.E2EConfig.GetProviderLatestVersionsByContract(initContract, clusterctlconfigMetalStackProviderName)
+	initInfraProviders = ee.E2EConfig.GetProviderLatestVersionsByContract(ee.Environment.providerContractUpgradeFrom, clusterctlconfigMetalStackProviderName)
 
-		By("Init Management Cluster with v1beta1")
-	}
-
+	By("Init Management Cluster with " + ee.Environment.providerContractUpgradeFrom)
 	clusterctl.InitManagementClusterAndWatchControllerLogs(ctx, clusterctl.InitManagementClusterAndWatchControllerLogsInput{
 		ClusterProxy:             ee.Environment.Bootstrap,
 		ClusterctlConfigPath:     ee.Environment.ClusterctlConfigPath,
 		LogFolder:                path.Join(ee.Environment.artifactsPath, "clusters", "bootstrap"),
 		InfrastructureProviders:  initInfraProviders,
-		AddonProviders:           ee.E2EConfig.GetProviderLatestVersionsByContract(initContract, clusterctlconfig.HelmAddonProviderName),
-		BootstrapProviders:       ee.E2EConfig.GetProviderLatestVersionsByContract(initContract, clusterctlconfig.KubeadmBootstrapProviderName),
-		ControlPlaneProviders:    ee.E2EConfig.GetProviderLatestVersionsByContract(initContract, clusterctlconfig.KubeadmControlPlaneProviderName),
+		AddonProviders:           ee.E2EConfig.GetProviderLatestVersionsByContract(ee.Environment.providerContractUpgradeFrom, clusterctlconfig.HelmAddonProviderName),
+		BootstrapProviders:       ee.E2EConfig.GetProviderLatestVersionsByContract(ee.Environment.providerContractUpgradeFrom, clusterctlconfig.KubeadmBootstrapProviderName),
+		ControlPlaneProviders:    ee.E2EConfig.GetProviderLatestVersionsByContract(ee.Environment.providerContractUpgradeFrom, clusterctlconfig.KubeadmControlPlaneProviderName),
 		DisableMetricsCollection: false,
 	})
 
