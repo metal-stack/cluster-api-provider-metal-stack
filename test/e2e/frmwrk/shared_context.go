@@ -111,6 +111,7 @@ func withDefaultEnvironment() Option {
 		e2e.Environment.workerMachineImagePrefix = e2e.envOrVar("E2E_WORKER_MACHINE_IMAGE_PREFIX")
 		e2e.Environment.Flavor = e2e.envOrVar("E2E_DEFAULT_FLAVOR")
 		e2e.Environment.providerContract = e2e.envOrVar("PROVIDER_CONTRACT")
+		e2e.Environment.providerContractUpgradeFrom = e2e.envOrVar("PROVIDER_CONTRACT_UPGRADE_FROM")
 
 		e2e.Environment.providerVersion = os.Getenv("PROVIDER_VERSION")
 		if e2e.Environment.providerVersion != "" {
@@ -149,6 +150,7 @@ type Environment struct {
 	kubeconfigPath                 string
 	artifactsPath                  string
 	providerContract               string
+	providerContractUpgradeFrom    string
 	providerVersion                string
 }
 
@@ -217,7 +219,10 @@ func (ee *E2EContext) InitManagementCluster(ctx context.Context) {
 	Expect(ee.Environment.Bootstrap).NotTo(BeNil(), "bootstrap cluster must be provided first")
 	Expect(ee.Environment.ClusterctlConfigPath).To(BeAnExistingFile(), "clusterctl config file doesn't exist")
 
-	var infraProviders []string
+	var (
+		infraProviders     []string
+		initInfraProviders []string
+	)
 
 	if ee.Environment.providerVersion != "" {
 		infraProviders = []string{fmt.Sprintf("%s:%s", clusterctlconfigMetalStackProviderName, ee.Environment.providerVersion)}
@@ -225,17 +230,30 @@ func (ee *E2EContext) InitManagementCluster(ctx context.Context) {
 		infraProviders = ee.E2EConfig.GetProviderLatestVersionsByContract(ee.Environment.providerContract, clusterctlconfigMetalStackProviderName)
 	}
 
+	initInfraProviders = ee.E2EConfig.GetProviderLatestVersionsByContract(ee.Environment.providerContractUpgradeFrom, clusterctlconfigMetalStackProviderName)
+
+	By("Init Management Cluster with " + ee.Environment.providerContractUpgradeFrom)
 	clusterctl.InitManagementClusterAndWatchControllerLogs(ctx, clusterctl.InitManagementClusterAndWatchControllerLogsInput{
 		ClusterProxy:             ee.Environment.Bootstrap,
 		ClusterctlConfigPath:     ee.Environment.ClusterctlConfigPath,
 		LogFolder:                path.Join(ee.Environment.artifactsPath, "clusters", "bootstrap"),
-		InfrastructureProviders:  infraProviders,
-		AddonProviders:           ee.E2EConfig.GetProviderLatestVersionsByContract(ee.Environment.providerContract, clusterctlconfig.HelmAddonProviderName),
-		BootstrapProviders:       ee.E2EConfig.GetProviderLatestVersionsByContract(ee.Environment.providerContract, clusterctlconfig.KubeadmBootstrapProviderName),
-		ControlPlaneProviders:    ee.E2EConfig.GetProviderLatestVersionsByContract(ee.Environment.providerContract, clusterctlconfig.KubeadmControlPlaneProviderName),
+		InfrastructureProviders:  initInfraProviders,
+		AddonProviders:           ee.E2EConfig.GetProviderLatestVersionsByContract(ee.Environment.providerContractUpgradeFrom, clusterctlconfig.HelmAddonProviderName),
+		BootstrapProviders:       ee.E2EConfig.GetProviderLatestVersionsByContract(ee.Environment.providerContractUpgradeFrom, clusterctlconfig.KubeadmBootstrapProviderName),
+		ControlPlaneProviders:    ee.E2EConfig.GetProviderLatestVersionsByContract(ee.Environment.providerContractUpgradeFrom, clusterctlconfig.KubeadmControlPlaneProviderName),
 		DisableMetricsCollection: false,
-		ClusterctlBinaryPath:     "",
 	})
+
+	By("Upgrade Management Cluster to " + ee.Environment.providerContract)
+	clusterctl.UpgradeManagementClusterAndWait(ctx, clusterctl.UpgradeManagementClusterAndWaitInput{
+		ClusterProxy:            ee.Environment.Bootstrap,
+		ClusterctlConfigPath:    ee.Environment.ClusterctlConfigPath,
+		LogFolder:               path.Join(ee.Environment.artifactsPath, "clusters", "bootstrap"),
+		InfrastructureProviders: infraProviders,
+		AddonProviders:          ee.E2EConfig.GetProviderLatestVersionsByContract(ee.Environment.providerContract, clusterctlconfig.HelmAddonProviderName),
+		BootstrapProviders:      ee.E2EConfig.GetProviderLatestVersionsByContract(ee.Environment.providerContract, clusterctlconfig.KubeadmBootstrapProviderName),
+		ControlPlaneProviders:   ee.E2EConfig.GetProviderLatestVersionsByContract(ee.Environment.providerContract, clusterctlconfig.KubeadmControlPlaneProviderName),
+	}, ee.E2EConfig.GetIntervals("default", "wait-control-plane")...)
 }
 
 func (ee *E2EContext) Teardown(ctx context.Context) {
