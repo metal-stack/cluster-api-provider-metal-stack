@@ -523,7 +523,7 @@ data:
                 - name: METAL_DEFAULT_EXTERNAL_NETWORK_ID
                   value: internet
                 - name: METAL_ADDITIONAL_NETWORKS
-                  value: internet,${METAL_NODE_NETWORK_ID}
+                  value: internet,${METAL_NODE_NETWORK_ID:=null}
                 - name: METAL_SSH_PUBLICKEY
                   value: ""
               image: ghcr.io/metal-stack/metal-ccm:v0.9.7

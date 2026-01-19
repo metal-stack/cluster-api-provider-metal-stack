@@ -59,7 +59,6 @@ type E2ECluster struct {
 
 type E2EClusterRefs struct {
 	Namespace      *corev1.Namespace
-	NodeNetwork    *metalmodels.V1NetworkResponse
 	ControlPlaneIP *metalmodels.V1IPResponse
 
 	Workload framework.ClusterProxy
@@ -88,10 +87,6 @@ func (e2e *E2ECluster) Variables() map[string]string {
 	vars["CONTROL_PLANE_MACHINE_IMAGE"] = e2e.ControlPlaneMachineImage
 	vars["WORKER_MACHINE_SIZE"] = e2e.WorkerMachineSize
 	vars["WORKER_MACHINE_IMAGE"] = e2e.WorkerMachineImage
-
-	if e2e.Refs.NodeNetwork != nil {
-		vars["METAL_NODE_NETWORK_ID"] = *e2e.Refs.NodeNetwork.ID
-	}
 
 	return vars
 }
