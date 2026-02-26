@@ -4,7 +4,17 @@
 ANSIBLE_EXTRA_VARS_FILE=$(shell pwd)/mini-lab-overrides/extra-vars.yaml
 KIND_EXPERIMENTAL_DOCKER_NETWORK=mini_lab_ext
 KUBECONFIG := $(shell pwd)/mini-lab/.kubeconfig
-MINI_LAB_FLAVOR=capms
+
+MINI_LAB_FLAVOR := $(or $(MINI_LAB_FLAVOR),capms)
+
+ifeq ($(MINI_LAB_FLAVOR),capms)
+DEPLOY_TARGET=deploy-capi
+else ifeq ($(MINI_LAB_FLAVOR),kamaji)
+DEPLOY_TARGET=deploy-kamaji
+else
+$(error Unknown flavor $(MINI_LAB_FLAVOR))
+endif
+
 
 CLUSTER_NAME ?= metal-test
 KUBERNETES_VERSION ?= 1.33.5
@@ -30,7 +40,7 @@ FIREWALL_EXTERNAL_NETWORKS ?= ["internet-mini-lab"]
 IMG ?= ghcr.io/metal-stack/cluster-api-metal-stack-controller:latest
 
 .PHONY: up
-up: bake deploy-capi
+up: bake $(DEPLOY_TARGET)
 
 .PHONY: bake
 bake:
@@ -39,6 +49,10 @@ bake:
 .PHONY: deploy-capi
 deploy-capi:
 	docker compose run --rm clusterctl init --addon helm
+
+.PHONY: deploy-kamaji
+deploy-kamaji:
+	docker compose -f compose.yaml -f compose.kamaji.yaml run --rm clusterctl init --addon helm --infrastructure metal-stack
 
 .PHONY: cleanup
 cleanup:
@@ -63,6 +77,7 @@ controller:
 control-plane-ip:
 	metalctl network ip create --network internet-mini-lab --project $(METAL_PROJECT_ID) --name "$(CLUSTER_NAME)-vip" --type static -o template --template "{{ .ipaddress }}"
 
+
 .PHONY: apply-sample-cluster
 apply-sample-cluster:
 	$(eval CONTROL_PLANE_IP = $(shell metalctl network ip list --name "$(CLUSTER_NAME)-vip" -o template --template '{{ .ipaddress }}'))
@@ -74,6 +89,18 @@ apply-sample-cluster:
 		--kubernetes-version $(KUBERNETES_VERSION) \
 		--from ../config/clusterctl-templates/cluster-template-calico-lab.yaml \
 		| kubectl --kubeconfig=$(KUBECONFIG) apply -f -
+
+# Is now only a tenant-custer of kamaji
+.PHONY: create-kamaji-tenant
+create-kamaji-tenant:
+	echo  $(CLUSTER_NAME)
+	clusterctl generate cluster $(CLUSTER_NAME) \
+		--kubeconfig=$(KUBECONFIG) \
+		--worker-machine-count 1 \
+		--control-plane-machine-count 1 \
+		--kubernetes-version $(KUBERNETES_VERSION) \
+		--from ../config/clusterctl-templates/cluster-template-kamaji-tenant.yaml \
+		| kubectl --kubeconfig=$(KUBECONFIG) apply -f -	
 
 .PHONY: delete-sample-cluster
 delete-sample-cluster:
