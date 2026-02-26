@@ -1,0 +1,5 @@
+---
+services:
+  clusterctl:
+    volumes:
+      - ./clusterctl-kamaji.yaml:~/.config/cluster-api/clusterctl.yaml:ro
