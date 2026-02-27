@@ -94,13 +94,13 @@ apply-sample-cluster:
 .PHONY: create-kamaji-tenant
 create-kamaji-tenant:
 	echo  $(CLUSTER_NAME)
-	clusterctl generate cluster $(CLUSTER_NAME) \
-		--kubeconfig=$(KUBECONFIG) \
+	docker compose -f compose.yaml -f compose.kamaji.yaml run --rm \
+		clusterctl generate cluster $(CLUSTER_NAME) \
 		--worker-machine-count 1 \
 		--control-plane-machine-count 1 \
 		--kubernetes-version $(KUBERNETES_VERSION) \
-		--from ../config/clusterctl-templates/cluster-template-kamaji-tenant.yaml \
-		| kubectl --kubeconfig=$(KUBECONFIG) apply -f -	
+		--from /templates/cluster-template-kamaji-tenant.yaml \
+		| kubectl --kubeconfig=$(KUBECONFIG) apply -f -
 
 .PHONY: delete-sample-cluster
 delete-sample-cluster:

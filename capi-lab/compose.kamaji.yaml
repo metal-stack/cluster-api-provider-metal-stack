@@ -7,3 +7,4 @@ services:
       - METAL_API_HMAC_AUTH_TYPE=${METAL_API_HMAC_AUTH_TYPE}
     volumes:
       - ./clusterctl-kamaji.yaml:/root/.config/cluster-api/clusterctl.yaml:ro
+      - ../config/clusterctl-templates:/templates:ro
