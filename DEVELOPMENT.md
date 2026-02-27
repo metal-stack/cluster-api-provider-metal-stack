@@ -55,6 +55,23 @@ kubectl --kubeconfig capi-lab/.capms-cluster-kubeconfig.yaml apply --kustomize c
 
 That's it!
 
+## Running the Kamaji flavor of the capi-lab
+The steps to run the Kamaji flavor of the capi-lab are similar to the capms flavor.
+
+To run the Kamaji flavor, set the `MINI_LAB_FLAVOR` environment variable to `kamaji` and then run the `make up` command to start the mini-lab:
+The make dev-env command will set up the environment variables needed to access the mini-lab using metalctl and kubectl.
+
+```bash
+export MINI_LAB_FLAVOR=kamaji
+make up
+
+# allows access using metalctl and kubectl
+eval $(make dev-env)
+
+# create a kamaji tenant cluster
+make -C create-kamaji-tenant
+```
+
 ## Running E2E Tests
 
 Before being able to run the E2E or integration tests, make sure to set the following variables to the correct values:
