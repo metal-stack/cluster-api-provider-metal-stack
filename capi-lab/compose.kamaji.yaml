@@ -2,4 +2,4 @@
 services:
   clusterctl:
     volumes:
-      - ./clusterctl-kamaji.yaml:~/.config/cluster-api/clusterctl.yaml:ro
+      - ./clusterctl-kamaji.yaml:/root/.config/cluster-api/clusterctl.yaml:ro
