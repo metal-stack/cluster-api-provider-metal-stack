@@ -19,6 +19,7 @@ services:
       - WORKER_MACHINE_SIZE=${WORKER_MACHINE_SIZE}
       - FIREWALL_MACHINE_IMAGE=${FIREWALL_MACHINE_IMAGE}
       - FIREWALL_MACHINE_SIZE=${FIREWALL_MACHINE_SIZE}
+      - METAL_NODE_NETWORK_ID=${METAL_NODE_NETWORK_ID}
       # - FIREWALL_EXTERNAL_NETWORKS=${FIREWALL_EXTERNAL_NETWORKS}
     volumes:
       - ./clusterctl-kamaji.yaml:/root/.config/cluster-api/clusterctl.yaml:ro
