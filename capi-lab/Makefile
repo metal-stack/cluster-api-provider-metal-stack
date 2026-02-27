@@ -19,6 +19,12 @@ endif
 CLUSTER_NAME ?= metal-test
 KUBERNETES_VERSION ?= 1.33.5
 
+# Kamaji tenant cluster settings
+CLUSTER_NAMESPACE ?= default
+CONTROL_PLANE_IP ?=
+PODS_CIDR ?= 192.168.0.0/16
+SERVICES_CIDR ?= 10.96.0.0/12
+
 METAL_API_URL=http://metal.203.0.113.1.nip.io:8080
 METAL_API_HMAC=metal-edit
 METAL_API_HMAC_AUTH_TYPE=Metal-Edit
@@ -52,7 +58,7 @@ deploy-capi:
 
 .PHONY: deploy-kamaji
 deploy-kamaji:
-	docker compose -f compose.yaml -f compose.kamaji.yaml run --rm clusterctl init --addon helm --infrastructure metal-stack
+	docker compose -f compose.yaml -f compose.kamaji.yaml run --rm clusterctl init --addon helm --infrastructure metal-stack --control-plane kamaji
 
 .PHONY: cleanup
 cleanup:
