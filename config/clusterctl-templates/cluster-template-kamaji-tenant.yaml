@@ -58,7 +58,6 @@ metadata:
 spec:
   projectID: ${METAL_PROJECT_ID}
   partition: ${METAL_PARTITION}
-  nodeNetworkID: ${METAL_NODE_NETWORK_ID:=null}
   controlPlaneIP: ${CONTROL_PLANE_IP}
   firewallDeploymentRef:
     name: ${CLUSTER_NAME}
@@ -153,11 +152,11 @@ spec:
       bootstrap:
         configRef:
           name: ${CLUSTER_NAME}-md-0
-          apiGroup: bootstrap.cluster.x-k8s.io
+          apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
           kind: KubeadmConfigTemplate
       infrastructureRef:
         name: ${CLUSTER_NAME}-worker
-        apiGroup: infrastructure.cluster.x-k8s.io
+        apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
         kind: MetalStackMachineTemplate
       nodeDrainTimeout: 2m0s
 ---
@@ -172,10 +171,8 @@ spec:
       clusterConfiguration:
         controllerManager:
           extraArgs:
-            - name: cloud-provider
-              value: external
+            cloud-provider: external
       joinConfiguration:
         nodeRegistration:
           kubeletExtraArgs:
-            - name: cloud-provider
-              value: external
+            cloud-provider: external

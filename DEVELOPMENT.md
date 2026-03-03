@@ -63,13 +63,38 @@ The make dev-env command will set up the environment variables needed to access 
 
 ```bash
 export MINI_LAB_FLAVOR=kamaji
-make up
+make -C capi-lab
 
 # allows access using metalctl and kubectl
-eval $(make dev-env)
+eval $(make -C capi-lab --silent dev-env)
+```
 
+Next install our CAPMS provider into the cluster.
+This can also be done with the `--infrastructure metal-stack` flag of clusterctl init, but we provide a make target to use the locally built version of the provider, which is useful for development.
+
+```bash
+make push-to-capi-lab
+```
+
+Now you can create the cluster using the generated cluster template for Kamaji tenant clusters:
+
+```bash
 # create a kamaji tenant cluster
-make -C create-kamaji-tenant
+make -C capi-lab create-kamaji-tenant
+```
+
+Evaluate the resulting kubeconfig and check if the tenant cluster is up and running:
+
+```bash
+# TODO how do we get the kubeconfig for the tenant cluster?
+
+
+```
+
+Use cleanup to delete the cluster and all related resources, in case you want to start over:
+
+```bash
+make -C capi-lab cleanup
 ```
 
 ## Running E2E Tests

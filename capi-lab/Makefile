@@ -58,7 +58,9 @@ deploy-capi:
 
 .PHONY: deploy-kamaji
 deploy-kamaji:
-	docker compose -f compose.yaml -f compose.kamaji.yaml run --rm clusterctl init --addon helm --infrastructure metal-stack --control-plane kamaji
+# "--infrastructure metal-stack" can be used to install latest CAPMS provider
+# but we use `make push-to-capi-lab`, as we want to test with the locally built one
+	docker compose -f compose.yaml -f compose.kamaji.yaml run --rm clusterctl init --addon helm --control-plane kamaji
 
 .PHONY: cleanup
 cleanup:
