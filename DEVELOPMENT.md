@@ -76,10 +76,19 @@ This can also be done with the `--infrastructure metal-stack` flag of clusterctl
 make push-to-capi-lab
 ```
 
+Create the control plane IP if it does not exist yet:
+
+```bash
+make -C capi-lab control-plane-ip
+```
+
+
 Now you can create the cluster using the generated cluster template for Kamaji tenant clusters:
 
 ```bash
+export CLUSTER_NAME=kamaji-tenant-test
 # create a kamaji tenant cluster
+# this ensures a ${CLUSTER_NAME}-vip exists and uses it as control plane endpoint
 make -C capi-lab create-kamaji-tenant
 ```
 

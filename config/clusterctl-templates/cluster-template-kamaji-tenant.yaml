@@ -1,7 +1,7 @@
 ---
 # Source https://kamaji.clastix.io/cluster-api/control-plane-provider/
 kind: Cluster
-apiVersion: cluster.x-k8s.io/v1beta1
+apiVersion: cluster.x-k8s.io/v1beta2
 metadata:
   labels:
     cluster.x-k8s.io/cluster-name: '${CLUSTER_NAME}'
@@ -9,7 +9,7 @@ metadata:
   namespace: '${NAMESPACE}'
 spec:
   controlPlaneRef:
-    apiVersion: controlplane.cluster.x-k8s.io/v1alpha1
+    apiGroup: controlplane.cluster.x-k8s.io
     kind: KamajiControlPlane
     name: '${CLUSTER_NAME}'
   clusterNetwork:
@@ -20,20 +20,19 @@ spec:
       cidrBlocks:
         - '${SERVICES_CIDR}'
   infrastructureRef:
-    apiVersion: infrastructure.cluster.x-k8s.io
+    apiGroup: infrastructure.cluster.x-k8s.io
     kind: MetalStackCluster
     name: ${CLUSTER_NAME}
 ---
 # Source https://kamaji.clastix.io/cluster-api/control-plane-provider/
+# Defines the control plane of a Tenant Cluster.
 kind: KamajiControlPlane
 apiVersion: controlplane.cluster.x-k8s.io/v1alpha1
 metadata:
   name: '${CLUSTER_NAME}'
   namespace: '${CLUSTER_NAMESPACE}'
 spec:
-  apiServer:
-    extraArgs:
-      - --cloud-provider=external
+  apiServer: {}
   controllerManager:
     extraArgs:
       - --cloud-provider=external
@@ -127,7 +126,7 @@ spec:
       size: ${WORKER_MACHINE_SIZE}
       image: ${WORKER_MACHINE_IMAGE}
 ---
-apiVersion: cluster.x-k8s.io/v1beta1
+apiVersion: cluster.x-k8s.io/v1beta2
 kind: MachineDeployment
 metadata:
   name: ${CLUSTER_NAME}-md-0
@@ -152,15 +151,16 @@ spec:
       bootstrap:
         configRef:
           name: ${CLUSTER_NAME}-md-0
-          apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+          apiGroup: bootstrap.cluster.x-k8s.io
           kind: KubeadmConfigTemplate
       infrastructureRef:
         name: ${CLUSTER_NAME}-worker
-        apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+        apiGroup: infrastructure.cluster.x-k8s.io
         kind: MetalStackMachineTemplate
-      nodeDrainTimeout: 2m0s
+      deletion:
+        nodeDrainTimeoutSeconds: 120
 ---
-apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+apiVersion: bootstrap.cluster.x-k8s.io/v1beta2
 kind: KubeadmConfigTemplate
 metadata:
   name: ${CLUSTER_NAME}-md-0
@@ -171,8 +171,10 @@ spec:
       clusterConfiguration:
         controllerManager:
           extraArgs:
-            cloud-provider: external
+            - name: cloud-provider
+              value: external
       joinConfiguration:
         nodeRegistration:
           kubeletExtraArgs:
-            cloud-provider: external
+            - name: cloud-provider
+              value: external

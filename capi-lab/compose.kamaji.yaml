@@ -1,6 +1,7 @@
 ---
 services:
   clusterctl:
+    image: registry.k8s.io/cluster-api/clusterctl:v1.12.3
     environment:
       - METAL_API_HMAC=${METAL_API_HMAC}
       - METAL_API_URL=${METAL_API_URL}

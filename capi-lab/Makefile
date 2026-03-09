@@ -7,23 +7,8 @@ KUBECONFIG := $(shell pwd)/mini-lab/.kubeconfig
 
 MINI_LAB_FLAVOR := $(or $(MINI_LAB_FLAVOR),capms)
 
-ifeq ($(MINI_LAB_FLAVOR),capms)
-DEPLOY_TARGET=deploy-capi
-else ifeq ($(MINI_LAB_FLAVOR),kamaji)
-DEPLOY_TARGET=deploy-kamaji
-else
-$(error Unknown flavor $(MINI_LAB_FLAVOR))
-endif
-
-
 CLUSTER_NAME ?= metal-test
 KUBERNETES_VERSION ?= 1.33.5
-
-# Kamaji tenant cluster settings
-CLUSTER_NAMESPACE ?= default
-CONTROL_PLANE_IP ?=
-PODS_CIDR ?= 192.168.0.0/16
-SERVICES_CIDR ?= 10.96.0.0/12
 
 METAL_API_URL=http://metal.203.0.113.1.nip.io:8080
 METAL_API_HMAC=metal-edit
@@ -44,6 +29,22 @@ FIREWALL_MACHINE_SIZE ?= v1-small-x86
 FIREWALL_EXTERNAL_NETWORKS ?= ["internet-mini-lab"]
 
 IMG ?= ghcr.io/metal-stack/cluster-api-metal-stack-controller:latest
+
+ifeq ($(MINI_LAB_FLAVOR),capms)
+DEPLOY_TARGET=deploy-capi
+else ifeq ($(MINI_LAB_FLAVOR),kamaji)
+DEPLOY_TARGET=deploy-kamaji
+WORKER_MACHINE_IMAGE ?= debian-12
+ANSIBLE_EXTRA_VARS_FILE=$(shell pwd)/mini-lab-overrides/extra-vars-kamaji.yaml
+
+# Kamaji tenant cluster settings
+CLUSTER_NAMESPACE ?= default
+CONTROL_PLANE_IP ?=
+PODS_CIDR ?= 192.168.0.0/16
+SERVICES_CIDR ?= 10.96.0.0/12
+else
+$(error Unknown flavor $(MINI_LAB_FLAVOR))
+endif
 
 .PHONY: up
 up: bake $(DEPLOY_TARGET)
@@ -101,6 +102,7 @@ apply-sample-cluster:
 # Is now only a tenant-custer of kamaji
 .PHONY: create-kamaji-tenant
 create-kamaji-tenant:
+	$(eval CONTROL_PLANE_IP = $(shell metalctl network ip list --name "$(CLUSTER_NAME)-vip" -o template --template '{{ .ipaddress }}'))
 	echo  $(CLUSTER_NAME)
 	docker compose -f compose.yaml -f compose.kamaji.yaml run --rm \
 		clusterctl generate cluster $(CLUSTER_NAME) \
