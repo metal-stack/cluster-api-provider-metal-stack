@@ -108,7 +108,7 @@ apply-sample-cluster:
 		--from ../config/clusterctl-templates/cluster-template-calico-lab.yaml \
 		| kubectl --kubeconfig=$(KUBECONFIG) apply -f -
 
-# Is now only a tenant-custer of kamaji
+# Is now only a tenant-cluster of kamaji
 .PHONY: create-kamaji-tenant
 create-kamaji-tenant:
 	$(eval CONTROL_PLANE_IP = $(shell metalctl network ip list --name "$(CLUSTER_NAME)-vip" -o template --template '{{ .ipaddress }}'))
