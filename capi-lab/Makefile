@@ -34,14 +34,16 @@ ifeq ($(MINI_LAB_FLAVOR),capms)
 DEPLOY_TARGET=deploy-capi
 else ifeq ($(MINI_LAB_FLAVOR),kamaji)
 DEPLOY_TARGET=deploy-kamaji
-WORKER_MACHINE_IMAGE ?= debian-12
 ANSIBLE_EXTRA_VARS_FILE=$(shell pwd)/mini-lab-overrides/extra-vars-kamaji.yaml
+KUBERNETES_VERSION = 1.33.5
+# image needs to support ignition
+WORKER_MACHINE_IMAGE ?= capms-ubuntu-$(KUBERNETES_VERSION)
 
 # Kamaji tenant cluster settings
-CLUSTER_NAMESPACE ?= default
+CLUSTER_NAMESPACE = kamaji-tenants
 CONTROL_PLANE_IP ?=
-PODS_CIDR ?= 192.168.0.0/16
-SERVICES_CIDR ?= 10.96.0.0/12
+PODS_CIDR = 192.168.0.0/16
+SERVICES_CIDR = 10.96.0.0/12
 else
 $(error Unknown flavor $(MINI_LAB_FLAVOR))
 endif
@@ -62,6 +64,13 @@ deploy-kamaji:
 # "--infrastructure metal-stack" can be used to install latest CAPMS provider
 # but we use `make push-to-capi-lab`, as we want to test with the locally built one
 	docker compose -f compose.yaml -f compose.kamaji.yaml run --rm clusterctl init --addon helm --control-plane kamaji
+# Grant the Kamaji controller manager access to MetalStackCluster resources
+	kubectl --kubeconfig=$(KUBECONFIG) apply -f kamaji-rbac.yaml
+# Register MetalStackCluster as a supported dynamic infrastructure cluster in the Kamaji controller manager
+# The following approach is quite dirty as we double the args, 
+# but the last value wins, so we don't need to care about the existing args
+	kubectl --kubeconfig=$(KUBECONFIG) patch deployments.apps -n kamaji-system capi-kamaji-controller-manager --type=json -p='[{"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--feature-gates=DynamicInfrastructureClusterPatch=true,ExternalClusterReference=false,ExternalClusterReferenceCrossNamespace=false,SkipInfraClusterPatch=false"},{"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--dynamic-infrastructure-clusters=MetalStackCluster"}]'
+	kubectl --kubeconfig=$(KUBECONFIG) rollout status deployment -n kamaji-system capi-kamaji-controller-manager
 
 .PHONY: cleanup
 cleanup:

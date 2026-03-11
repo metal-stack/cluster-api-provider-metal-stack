@@ -3,6 +3,7 @@ services:
   clusterctl:
     image: registry.k8s.io/cluster-api/clusterctl:v1.12.3
     environment:
+      - EXP_KUBEADM_BOOTSTRAP_FORMAT_IGNITION=true
       - METAL_API_HMAC=${METAL_API_HMAC}
       - METAL_API_URL=${METAL_API_URL}
       - METAL_API_HMAC_AUTH_TYPE=${METAL_API_HMAC_AUTH_TYPE}
