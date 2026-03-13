@@ -69,38 +69,47 @@ make -C capi-lab
 eval $(make -C capi-lab --silent dev-env)
 ```
 
-Next install our CAPMS provider into the cluster.
-This can also be done with the `--infrastructure metal-stack` flag of clusterctl init, but we provide a make target to use the locally built version of the provider, which is useful for development.
+Install the CAPMS provider using the locally built image (useful for development):
+The alternative is to use `--infrastructure metal-stack` flag with `clusterctl init`.
 
 ```bash
 make push-to-capi-lab
 ```
 
-Create the control plane IP if it does not exist yet:
-
-```bash
-make -C capi-lab control-plane-ip
-```
-
-
-Now you can create the cluster using the generated cluster template for Kamaji tenant clusters:
+Allocate a VIP for the tenant cluster's API server from the `internet-mini-lab` network:
 
 ```bash
 export CLUSTER_NAME=kamaji-tenant-test
-# create a kamaji tenant cluster
-# this ensures a ${CLUSTER_NAME}-vip exists and uses it as control plane endpoint
+make -C capi-lab control-plane-ip
+```
+
+Create the tenant cluster. This registers the VIP in MetalLB, then applies the cluster template:
+
+```bash
 make -C capi-lab create-kamaji-tenant
 ```
 
-Evaluate the resulting kubeconfig and check if the tenant cluster is up and running:
+Retrieve the tenant cluster kubeconfig:
 
 ```bash
-# TODO how do we get the kubeconfig for the tenant cluster?
-
-
+make -C capi-lab tenant-kubeconfig
 ```
 
-Use cleanup to delete the cluster and all related resources, in case you want to start over:
+The API server in the kubeconfig points to the VIP (`203.0.113.x`), which is routable from your host via the `mini_lab_ext` bridge:
+
+```bash
+kubectl --kubeconfig capi-lab/.kamaji-tenant-kubeconfig.yaml get nodes
+```
+
+To recreate the tenant cluster without restarting the whole mini-lab, delete only the cluster resources:
+
+```bash
+kubectl delete cluster -n default $CLUSTER_NAME
+# wait until all machines are gone, then recreate:
+make -C capi-lab create-kamaji-tenant
+```
+
+Use `cleanup` to tear down everything including the mini-lab:
 
 ```bash
 make -C capi-lab cleanup

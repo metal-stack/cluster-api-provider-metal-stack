@@ -136,3 +136,9 @@ delete-sample-cluster:
 mtu-fix:
 	cd mini-lab && ssh -F files/ssh/config leaf01 'ip link set dev vtep-1001 mtu 9100 && echo done'
 	cd mini-lab && ssh -F files/ssh/config leaf02 'ip link set dev vtep-1001 mtu 9100 && echo done'
+
+# Extracts the tenant cluster kubeconfig from the Kamaji-generated secret.
+.PHONY: tenant-kubeconfig
+tenant-kubeconfig:
+	kubectl --kubeconfig=$(KUBECONFIG) get secret $(CLUSTER_NAME)-kubeconfig -o jsonpath='{.data.value}' | base64 -d > .kamaji-tenant-kubeconfig.yaml
+	@echo "Tenant kubeconfig written to .kamaji-tenant-kubeconfig.yaml"

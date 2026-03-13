@@ -34,3 +34,4 @@ go.work
 *.swp
 *.swo
 *~
+capi-lab/.kamaji-tenant-kubeconfig.yaml
