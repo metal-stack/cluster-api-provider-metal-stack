@@ -203,6 +203,7 @@ spec:
           extraArgs:
             - name: cloud-provider
               value: external
+        controlPlaneEndpoint: ${CONTROL_PLANE_IP}
       joinConfiguration:
         nodeRegistration:
           kubeletExtraArgs:
