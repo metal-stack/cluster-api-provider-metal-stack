@@ -112,7 +112,10 @@ apply-sample-cluster:
 .PHONY: create-kamaji-tenant
 create-kamaji-tenant:
 	$(eval CONTROL_PLANE_IP = $(shell metalctl network ip list --name "$(CLUSTER_NAME)-vip" -o template --template '{{ .ipaddress }}'))
-	echo  $(CLUSTER_NAME)
+	# Register the metal-stack VIP in MetalLB so it can be assigned to the tenant API server
+	# LoadBalancer service. The VIP is on the mini_lab_ext subnet (203.0.113.0/24), so MetalLB's
+	# L2 speaker can announce it and make it reachable from Kind pods, the host, and bare-metal workers.
+	envsubst < metallb-tenant-pool.yaml | kubectl --kubeconfig=$(KUBECONFIG) apply -f -
 	docker compose -f compose.yaml -f compose.kamaji.yaml run --rm \
 		clusterctl generate cluster $(CLUSTER_NAME) \
 		--worker-machine-count 1 \

@@ -47,6 +47,9 @@ spec:
       - InternalIP
   network:
     serviceType: LoadBalancer
+    serviceAddress: ${CONTROL_PLANE_IP}
+    serviceAnnotations:
+      metallb.io/address-pool: ${CLUSTER_NAME}-vip
   version: ${KUBERNETES_VERSION}
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
@@ -58,6 +61,9 @@ spec:
   projectID: ${METAL_PROJECT_ID}
   partition: ${METAL_PARTITION}
   controlPlaneIP: ${CONTROL_PLANE_IP}
+  controlPlaneEndpoint:
+    host: ${CONTROL_PLANE_IP}
+    port: 6443
   firewallDeploymentRef:
     name: ${CLUSTER_NAME}
 ---
@@ -98,6 +104,24 @@ spec:
         protocol: TCP
         to:
           - 0.0.0.0/0
+      - comment: allow outgoing traffic to Kamaji tenant API server for kubeadm join and kubelet
+        ports:
+          - 6443
+        protocol: TCP
+        to:
+          - 0.0.0.0/0
+      - comment: allow outgoing traffic to Konnectivity server for control-plane-to-worker tunnels
+        ports:
+          - 8132
+        protocol: TCP
+        to:
+          - 0.0.0.0/0
+      - comment: allow outgoing traffic to metal-api for CCM and CSI
+        ports:
+          - 8080
+        protocol: TCP
+        to:
+          - 0.0.0.0/0
       - comment: allow outgoing DNS and NTP traffic via UDP
         ports:
           - 53
@@ -111,6 +135,12 @@ spec:
         ports:
           - 80
           - 443
+        protocol: TCP
+        from:
+          - 0.0.0.0/0
+      - comment: allow incoming kubelet API traffic from Kamaji control plane
+        ports:
+          - 10250
         protocol: TCP
         from:
           - 0.0.0.0/0

@@ -1,8 +1,4 @@
 ---
-# TODO go back to using the latest pixiecore image once the issues are resolved
-# temporarily move to working pixiecore image
-pixiecore_image_tag: v0.3.6
-
 metal_control_plane_ingress_dns: 203.0.113.1.nip.io
 metal_check_api_health_endpoint: http://metal.{{ metal_control_plane_ingress_dns }}:8080/v1/health
 
