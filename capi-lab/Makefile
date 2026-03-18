@@ -119,7 +119,6 @@ create-kamaji-tenant:
 	docker compose -f compose.yaml -f compose.kamaji.yaml run --rm \
 		clusterctl generate cluster $(CLUSTER_NAME) \
 		--worker-machine-count 1 \
-		--control-plane-machine-count 1 \
 		--kubernetes-version $(KUBERNETES_VERSION) \
 		--from /templates/cluster-template-kamaji-tenant.yaml \
 		| kubectl --kubeconfig=$(KUBECONFIG) apply -f -
