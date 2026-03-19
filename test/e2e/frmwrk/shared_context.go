@@ -18,6 +18,7 @@ import (
 	"github.com/metal-stack/metal-go/api/client/machine"
 	"github.com/metal-stack/metal-go/api/client/network"
 	"github.com/metal-stack/metal-go/api/models"
+	"github.com/metal-stack/metal-lib/pkg/tag"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -383,9 +384,16 @@ func (ee *E2EContext) TeardownMetalStackProject(ctx context.Context) {
 	Expect(err).ToNot(HaveOccurred(), "failed to list metal networks for project")
 
 	for _, net := range nets.Payload {
-		if label, ok := net.Labels[capmsv1alpha1.TagInfraClusterResource]; !ok || !strings.HasPrefix(label, ee.projectNamespacePrefix()) {
+		label, ok := net.Labels[capmsv1alpha1.TagInfraClusterResource]
+		isTestGenerated := !ok || !strings.HasPrefix(label, ee.projectNamespacePrefix())
+
+		label, ok = net.Labels[tag.ClusterID]
+		isCAPMSManaged := ok && strings.HasPrefix(label, ee.projectNamespacePrefix())
+
+		if !isTestGenerated && !isCAPMSManaged {
 			continue
 		}
+
 		_, err := ee.Environment.Metal.Network().FreeNetwork(network.NewFreeNetworkParamsWithContext(ctx).WithID(*net.ID), nil)
 		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to free metal network %s", *net.ID))
 	}

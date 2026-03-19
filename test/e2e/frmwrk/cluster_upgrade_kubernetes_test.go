@@ -59,7 +59,6 @@ var _ = Describe("Upgrade Kubernetes Cluster Version", Ordered, Label("upgrade")
 		capi_e2e_ClusterUpgradeConformanceSpec(ctx, func() capi_e2e.ClusterUpgradeConformanceSpecInput {
 			Expect(cfg.Variables).NotTo(BeNil(), "E2E config variables map must be initialized")
 			Expect(cfg.Variables).To(HaveKey("CONTROL_PLANE_IP"))
-			Expect(cfg.Variables).To(HaveKey("METAL_NODE_NETWORK_ID"))
 			return capi_e2e.ClusterUpgradeConformanceSpecInput{
 				E2EConfig:                cfg,
 				ClusterctlConfigPath:     e2eCtx.Environment.ClusterctlConfigPath,
