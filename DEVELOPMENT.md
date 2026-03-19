@@ -89,23 +89,54 @@ Create the tenant cluster. This registers the VIP in MetalLB, then applies the c
 make -C capi-lab create-kamaji-tenant
 ```
 
-Retrieve the tenant cluster kubeconfig:
+You should now see metal-stack machines being provisioned. 
+First the firewall machine, then the worker machine. 
+
+Use this command, to see the live status of all relevant cluster resources in the management cluster and the metal machines.
+
+```bash
+watch "kubectl get cluster,metalstackcluster,metalstackfirewalldeployment,metalstackfirewalltemplate,machine,metalstackmachine,metalstackmachinetemplate,kamajicontrolplane,kubeadmconfigs,clusterresourcesets,helmchartproxy -A ; echo ; metalctl ms ls"
+```
+
+Also you should by now be able to reach the VIP we had just created for the tenant control-plane on kind from your host via the `mini_lab_ext` bridge. This allows us to access the tenant cluster API server.
+You can find the IP in the terminal history after we ran the `make -C capi-lab control-plane-ip` command or by running `metalctl network ip list` and looking for the IP with the name `$CLUSTER_NAME-vip`.
+
+```bash
+ping 203.0.113.x
+```
+
+After the firewall and worker machines have phoned home, the MTU needs to be fixed to ensure the workers' connectivity to the VIP.
+This is only necessary because of the virtual network setup of the mini-lab and can be skipped when running on real hardware.
+Only then, KubeADM and the kubelet will be able to reach the API server on the VIP and the cluster will become healthy as soon as the node has joined.
+
+```bash
+make -C capi-lab mtu-fix
+```
+
+We are then ready to retrieve the tenant cluster kubeconfig and use it to access the tenant cluster. 
+The kubeconfig is stored as a secret in the management cluster, which we can retrieve and decode.
+The following make target does exactly that and stores the kubeconfig in the capi-lab directory:
 
 ```bash
 make -C capi-lab tenant-kubeconfig
 ```
 
-The API server in the kubeconfig points to the VIP (`203.0.113.x`), which is routable from your host via the `mini_lab_ext` bridge:
+The API server in the kubeconfig points to the tenant cluster VIP (`203.0.113.x`). 
+We can then use this kubeconfig to access the tenant cluster, e.g. to see the nodes that have joined:
 
 ```bash
 kubectl --kubeconfig capi-lab/.kamaji-tenant-kubeconfig.yaml get nodes
 ```
 
+We could now proceed with installing a CNI, deploying workloads, etc. in the tenant cluster.
+
+
 To recreate the tenant cluster without restarting the whole mini-lab, delete only the cluster resources:
 
 ```bash
 kubectl delete cluster -n default $CLUSTER_NAME
-# wait until all machines are gone, then recreate:
+
+# wait until all machines have been reclaimed, then recreate:
 make -C capi-lab create-kamaji-tenant
 ```
 

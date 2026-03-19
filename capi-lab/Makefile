@@ -35,7 +35,7 @@ DEPLOY_TARGET=deploy-capi
 else ifeq ($(MINI_LAB_FLAVOR),kamaji)
 DEPLOY_TARGET=deploy-kamaji
 ANSIBLE_EXTRA_VARS_FILE=$(shell pwd)/mini-lab-overrides/extra-vars-kamaji.yaml
-KUBERNETES_VERSION = 1.33.5
+KUBERNETES_VERSION = 1.34.1
 # image needs to support ignition
 WORKER_MACHINE_IMAGE ?= capms-ubuntu-$(KUBERNETES_VERSION)
 
