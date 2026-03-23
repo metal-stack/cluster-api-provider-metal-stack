@@ -128,7 +128,15 @@ We can then use this kubeconfig to access the tenant cluster, e.g. to see the no
 kubectl --kubeconfig capi-lab/.kamaji-tenant-kubeconfig.yaml get nodes
 ```
 
-We could now proceed with installing a CNI, deploying workloads, etc. in the tenant cluster.
+When the nodes are ready, a CNI and the metal-ccm need to be deployed to the tenant cluster.
+
+```bash
+// TODO deploy CNI
+make -C capi-lab tenant-deploy-metal-ccm
+```
+
+
+We could now proceed with deploying workloads in the tenant cluster.
 
 
 To recreate the tenant cluster without restarting the whole mini-lab, delete only the cluster resources:

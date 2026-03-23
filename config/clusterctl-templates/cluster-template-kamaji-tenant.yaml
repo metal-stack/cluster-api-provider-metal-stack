@@ -60,6 +60,7 @@ metadata:
 spec:
   projectID: ${METAL_PROJECT_ID}
   partition: ${METAL_PARTITION}
+  nodeNetworkID: ${METAL_NODE_NETWORK_ID:=null}
   controlPlaneIP: ${CONTROL_PLANE_IP}
   controlPlaneEndpoint:
     host: ${CONTROL_PLANE_IP}
@@ -86,7 +87,7 @@ metadata:
 spec:
   image: ${FIREWALL_MACHINE_IMAGE}
   size: ${FIREWALL_MACHINE_SIZE}
-  networks: ${FIREWALL_EXTERNAL_NETWORKS:=["internet"]}
+  networks: ${FIREWALL_EXTERNAL_NETWORKS}
   partition: ${METAL_PARTITION}
   project: ${METAL_PROJECT_ID}
   initialRuleSet:

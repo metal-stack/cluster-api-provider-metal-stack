@@ -40,7 +40,7 @@ KUBERNETES_VERSION = 1.34.1
 WORKER_MACHINE_IMAGE ?= capms-ubuntu-$(KUBERNETES_VERSION)
 
 # Kamaji tenant cluster settings
-CLUSTER_NAMESPACE = kamaji-tenants
+CLUSTER_NAMESPACE = default # TODO make configurable if we want to test with multiple tenant clusters
 CONTROL_PLANE_IP ?=
 PODS_CIDR = 192.168.0.0/16
 SERVICES_CIDR = 10.96.0.0/12
@@ -112,6 +112,7 @@ apply-sample-cluster:
 .PHONY: create-kamaji-tenant
 create-kamaji-tenant:
 	$(eval CONTROL_PLANE_IP = $(shell metalctl network ip list --name "$(CLUSTER_NAME)-vip" -o template --template '{{ .ipaddress }}'))
+	$(eval METAL_NODE_NETWORK_ID = $(shell metalctl network list --project $(METAL_PROJECT_ID) -o template --template '{{ (index . 0).id }}'))
 	# Register the metal-stack VIP in MetalLB so it can be assigned to the tenant API server
 	# LoadBalancer service. The VIP is on the mini_lab_ext subnet (203.0.113.0/24), so MetalLB's
 	# L2 speaker can announce it and make it reachable from Kind pods, the host, and bare-metal workers.
@@ -144,3 +145,8 @@ mtu-fix:
 tenant-kubeconfig:
 	kubectl --kubeconfig=$(KUBECONFIG) get secret $(CLUSTER_NAME)-kubeconfig -o jsonpath='{.data.value}' | base64 -d > .kamaji-tenant-kubeconfig.yaml
 	@echo "Tenant kubeconfig written to .kamaji-tenant-kubeconfig.yaml"
+
+# Deploys the metal-ccm manifest to the tenant cluster.
+.PHONY: tenant-deploy-metal-ccm
+tenant-deploy-metal-ccm:
+	cat ../config/target-cluster/metal-ccm.yaml | envsubst | kubectl --kubeconfig=.kamaji-tenant-kubeconfig.yaml apply -f -
