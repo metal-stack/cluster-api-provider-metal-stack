@@ -64,9 +64,28 @@ The make dev-env command will set up the environment variables needed to access 
 ```bash
 export MINI_LAB_FLAVOR=kamaji
 make -C capi-lab
+```
 
+When everything is up and running, you should see a message like this in between some other informational output in the terminal:
+```
+Your management cluster has been initialized successfully!
+
+You can now create your first workload cluster by running the following:
+
+  clusterctl generate cluster [name] --kubernetes-version [version] | kubectl apply -f -
+```
+
+To access the mini-lab and run commands like `metalctl` and `kubectl`, you need to set up the environment variables by running the following command:
+```bash
 # allows access using metalctl and kubectl
 eval $(make -C capi-lab --silent dev-env)
+```
+
+Before we can create a Kamaji tenant cluster, a fix needs to be applied to ensure the exit container has the correct route back to the KinD node. 
+This route ensures that traffic from the tenant cluster machines (like the firewall and workers) can reach the Kamaji API server VIP, which is hosted by MetalLB on the KinD network (`mini_lab_ext`). Without it, the provisioned nodes cannot communicate with the tenant control-plane, and the cluster will never become healthy.
+
+```bash
+make -C capi-lab workaround-exit-route
 ```
 
 Install the CAPMS provider using the locally built image (useful for development):

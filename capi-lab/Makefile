@@ -150,3 +150,10 @@ tenant-kubeconfig:
 .PHONY: tenant-deploy-metal-ccm
 tenant-deploy-metal-ccm:
 	cat ../config/target-cluster/metal-ccm.yaml | envsubst | kubectl --kubeconfig=.kamaji-tenant-kubeconfig.yaml apply -f -
+
+# Manual workaround for a route not being applied successfully in the exit container. 
+# This is necessary for the tenant cluster workers to be able to reach the tenant cluster API
+# within the Kamaji management cluster on Kind.
+.PHONY: workaround-exit-route
+workaround-exit-route:
+	docker exec -it exit ip route add 203.0.113.128/25 via 203.0.113.128 dev mini_lab_ext
