@@ -56,6 +56,10 @@ kubectl --kubeconfig capi-lab/.capms-cluster-kubeconfig.yaml apply --kustomize c
 That's it!
 
 ## Running the Kamaji flavor of the capi-lab
+The Kamaji flavor runs Kamaji inside Kind as the management cluster and uses the mini-lab VMs as the tenant worker machines via Cluster API infrastructure provider metal-stack.
+Preconditions are the same as for the mini-lab. Kind is expected to use the IP range `172.18.0.0/16`.
+Kamaji is set up based on the [Kamaji on Kind](https://kamaji.clastix.io/getting-started/kamaji-kind/) tutorial.
+
 The steps to run the Kamaji flavor of the capi-lab are similar to the capms flavor.
 
 To run the Kamaji flavor, set the `MINI_LAB_FLAVOR` environment variable to `kamaji` and then run the `make up` command to start the mini-lab:
@@ -81,8 +85,8 @@ To access the mini-lab and run commands like `metalctl` and `kubectl`, you need 
 eval $(make -C capi-lab --silent dev-env)
 ```
 
-Before we can create a Kamaji tenant cluster, a fix needs to be applied to ensure the exit container has the correct route back to the KinD node. 
-This route ensures that traffic from the tenant cluster machines (like the firewall and workers) can reach the Kamaji API server VIP, which is hosted by MetalLB on the KinD network (`mini_lab_ext`). Without it, the provisioned nodes cannot communicate with the tenant control-plane, and the cluster will never become healthy.
+Before we can create a Kamaji tenant cluster, a fix needs to be applied to ensure the exit container has the correct route back to the Kind node. 
+This route ensures that traffic from the tenant cluster machines (like the firewall and workers) can reach the Kamaji API server VIP, which is hosted by MetalLB on the Kind network (`mini_lab_ext`). Without it, the provisioned nodes cannot communicate with the tenant control-plane, and the cluster will never become healthy.
 
 ```bash
 make -C capi-lab workaround-exit-route
