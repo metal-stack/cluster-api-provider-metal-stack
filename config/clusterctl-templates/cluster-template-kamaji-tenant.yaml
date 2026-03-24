@@ -210,3 +210,5 @@ spec:
           kubeletExtraArgs:
             - name: cloud-provider
               value: external
+            - name: feature-gates
+              value: "KubeletCrashLoopBackOffMax=true,KubeletEnsureSecretPulledImages=true"
