@@ -171,10 +171,34 @@ kubectl --kubeconfig capi-lab/.kamaji-tenant-kubeconfig.yaml get nodes
 When the nodes are ready, a CNI and the metal-ccm need to be deployed to the tenant cluster.
 
 ```bash
-// TODO deploy CNI
-make -C capi-lab tenant-deploy-metal-ccm
+# deploy calico as the CNI to the tenant cluster.
+kubectl --kubeconfig=capi-lab/.kamaji-tenant-kubeconfig.yaml create -f https://raw.githubusercontent.com/projectcalico/calico/v3.28.2/manifests/tigera-operator.yaml
+cat <<EOF | kubectl --kubeconfig=capi-lab/.kamaji-tenant-kubeconfig.yaml create -f -
+apiVersion: operator.tigera.io/v1
+kind: Installation
+metadata:
+  name: default
+spec:
+  # Configures Calico networking.
+  calicoNetwork:
+    bgp: Disabled
+    ipPools:
+    - name: default-ipv4-ippool
+      blockSize: 26
+      cidr: 192.168.0.0/16
+      encapsulation: None
+    mtu: 1440
+  cni:
+    ipam:
+      type: HostLocal
+    type: Calico
+EOF
 ```
 
+```bash
+# deploy the metal-ccm to the tenant cluster.
+make -C capi-lab tenant-deploy-metal-ccm
+```
 
 We could now proceed with deploying workloads in the tenant cluster.
 

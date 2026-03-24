@@ -149,7 +149,7 @@ tenant-kubeconfig:
 # Deploys the metal-ccm manifest to the tenant cluster.
 .PHONY: tenant-deploy-metal-ccm
 tenant-deploy-metal-ccm:
-	cat ../config/target-cluster/metal-ccm.yaml | envsubst | kubectl --kubeconfig=.kamaji-tenant-kubeconfig.yaml apply -f -
+	cat ../config/target-cluster/metal-ccm-kamaji.yaml | envsubst | kubectl --kubeconfig=.kamaji-tenant-kubeconfig.yaml apply -f -
 
 # Manual workaround for a route not being applied successfully in the exit container. 
 # This is necessary for the tenant cluster workers to be able to reach the tenant cluster API
