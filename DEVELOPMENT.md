@@ -132,6 +132,23 @@ Only then, KubeADM and the kubelet will be able to reach the API server on the V
 make -C capi-lab mtu-fix
 ```
 
+For the fixes to take effect, FRR needs to be restarted on the worker and firewall machines. 
+You can use the console-machine make target to access the machines' consoles and restart FRR there:
+
+```bash
+# on the firewall
+make -C capi-lab/mini-lab password-machine01
+make -C capi-lab/mini-lab console-machine01
+# login using the metal user and password provided by the password-machine01 make target, then run:
+sudo systemctl restart frr
+
+# on the worker
+make -C capi-lab/mini-lab console-machine02
+sudo systemctl restart frr
+```
+Note: Use `metalctl machine list` to find out the machine IDs if you are unsure which one is the firewall and which one is the worker.
+
+
 We are then ready to retrieve the tenant cluster kubeconfig and use it to access the tenant cluster. 
 The kubeconfig is stored as a secret in the management cluster, which we can retrieve and decode.
 The following make target does exactly that and stores the kubeconfig in the capi-lab directory:
