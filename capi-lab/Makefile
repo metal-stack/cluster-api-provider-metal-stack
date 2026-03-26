@@ -35,10 +35,10 @@ DEPLOY_TARGET=deploy-kubeadm
 else ifeq ($(MINI_LAB_FLAVOR),kamaji)
 DEPLOY_TARGET=deploy-kamaji
 KUBERNETES_VERSION = 1.34.1
-# image needs to support ignition
 WORKER_MACHINE_IMAGE ?= capms-ubuntu-$(KUBERNETES_VERSION)
 # Kamaji tenant cluster settings
-CLUSTER_NAMESPACE = default # TODO make configurable if we want to test with multiple tenant clusters
+# TODO make namespace configurable
+CLUSTER_NAMESPACE = default
 CONTROL_PLANE_IP ?=
 PODS_CIDR = 192.168.0.0/16
 SERVICES_CIDR = 10.96.0.0/12
@@ -94,7 +94,6 @@ controller:
 control-plane-ip:
 	metalctl network ip create --network internet-mini-lab --project $(METAL_PROJECT_ID) --name "$(CLUSTER_NAME)-vip" --type static -o template --template "{{ .ipaddress }}"
 
-
 .PHONY: apply-sample-cluster
 apply-sample-cluster:
 	$(eval CONTROL_PLANE_IP = $(shell metalctl network ip list --name "$(CLUSTER_NAME)-vip" -o template --template '{{ .ipaddress }}'))
@@ -106,8 +105,6 @@ apply-sample-cluster:
 		--kubernetes-version $(KUBERNETES_VERSION) \
 		--from ../config/clusterctl-templates/cluster-template-calico-lab.yaml \
 		| kubectl --kubeconfig=$(KUBECONFIG) apply -f -
-
-
 
 .PHONY: delete-sample-cluster
 delete-sample-cluster:
