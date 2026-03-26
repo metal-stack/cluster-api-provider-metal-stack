@@ -31,7 +31,7 @@ FIREWALL_EXTERNAL_NETWORKS ?= ["internet-mini-lab"]
 IMG ?= ghcr.io/metal-stack/cluster-api-metal-stack-controller:latest
 
 ifeq ($(MINI_LAB_FLAVOR),capms)
-DEPLOY_TARGET=deploy-capi
+DEPLOY_TARGET=deploy-kubeadm
 else ifeq ($(MINI_LAB_FLAVOR),kamaji)
 DEPLOY_TARGET=deploy-kamaji
 KUBERNETES_VERSION = 1.34.1
@@ -53,23 +53,23 @@ up: bake $(DEPLOY_TARGET)
 bake:
 	cd mini-lab && make external_network up # change directory required for gen-certs
 
-.PHONY: deploy-capi
-deploy-capi:
+.PHONY: deploy-kubeadm
+deploy-kubeadm:
 	docker compose run --rm clusterctl init --addon helm
 
 .PHONY: deploy-kamaji
 deploy-kamaji:
-# "--infrastructure metal-stack" can be used to install latest CAPMS provider
-# but we use `make push-to-capi-lab`, as we want to test with the locally built one
+# "--infrastructure metal-stack" can be used to install the latest CAPMS release instead of pushing the local image.
 	docker compose -f compose.yaml -f compose.kamaji.yaml run --rm clusterctl init --addon helm --control-plane kamaji
-# Grant the Kamaji controller manager access to MetalStackCluster resources
+# Grant the Kamaji controller manager access to MetalStackCluster resources.
 	kubectl --kubeconfig=$(KUBECONFIG) apply -f kamaji-rbac.yaml
-# Register MetalStackCluster as a supported dynamic infrastructure cluster in the Kamaji controller manager
-# The following approach is quite dirty as we double the args, 
-# but the last value wins, so we don't need to care about the existing args
-# TODO open a PR in Kamaji to support CAPMS as a dynamic infrastructure cluster without the need for this manual patch
+# Register MetalStackCluster as a supported dynamic infrastructure cluster in the Kamaji controller manager.
+# The following patch is quite dirty as we double the args, but works as the last value in the args list wins for duplicate keys.
+# TODO open a PR in Kamaji to support CAPMS as dynamic infrastructure cluster without the need for a manual patch
 	kubectl --kubeconfig=$(KUBECONFIG) patch deployments.apps -n kamaji-system capi-kamaji-controller-manager --type=json -p='[{"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--feature-gates=DynamicInfrastructureClusterPatch=true,ExternalClusterReference=false,ExternalClusterReferenceCrossNamespace=false,SkipInfraClusterPatch=false"},{"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--dynamic-infrastructure-clusters=MetalStackCluster"}]'
 	kubectl --kubeconfig=$(KUBECONFIG) rollout status deployment -n kamaji-system capi-kamaji-controller-manager
+# workaround for a route not being applied successfully in the exit container.
+	docker exec -it exit ip route add 203.0.113.128/25 via 203.0.113.128 dev mini_lab_ext
 
 .PHONY: cleanup
 cleanup:
@@ -138,6 +138,15 @@ create-kamaji-tenant:
 		--from /templates/cluster-template-kamaji-tenant.yaml \
 		| kubectl --kubeconfig=$(KUBECONFIG) apply -f -
 
+.PHONY: delete-kamaji-tenant
+delete-kamaji-tenant:
+	docker compose -f compose.yaml -f compose.kamaji.yaml run --rm \
+		clusterctl generate cluster $(CLUSTER_NAME) \
+		--worker-machine-count 1 \
+		--kubernetes-version $(KUBERNETES_VERSION) \
+		--from /templates/cluster-template-kamaji-tenant.yaml \
+		| kubectl --kubeconfig=$(KUBECONFIG) delete -f -
+
 .PHONY: kamaji-tenant-kubeconfig
 kamaji-tenant-kubeconfig:
 	kubectl --kubeconfig=$(KUBECONFIG) get secret $(CLUSTER_NAME)-kubeconfig -o jsonpath='{.data.value}' | base64 -d > ../kamaji-tenant.kubeconfig
@@ -146,10 +155,3 @@ kamaji-tenant-kubeconfig:
 .PHONY: kamaji-tenant-deploy-metal-ccm
 kamaji-tenant-deploy-metal-ccm:
 	kustomize build ../config/target-cluster/overlays/kamaji | envsubst | kubectl --kubeconfig=../kamaji-tenant.kubeconfig apply -f -
-
-# Manual workaround for a route not being applied successfully in the exit container. 
-# This is necessary for the tenant cluster workers to be able to reach the tenant cluster API
-# within the Kamaji management cluster on Kind.
-.PHONY: workaround-exit-route
-workaround-exit-route:
-	docker exec -it exit ip route add 203.0.113.128/25 via 203.0.113.128 dev mini_lab_ext

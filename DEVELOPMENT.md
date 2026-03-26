@@ -85,17 +85,7 @@ To access the mini-lab and run commands like `metalctl` and `kubectl`, you need 
 eval $(make -C capi-lab --silent dev-env)
 ```
 
-The conditions in this virtual mini-lab setup unfortunately require a fix to be applied
-to ensure the exit container has the correct route back to the Kind node, which hosts Kamaji's API server.
-This route ensures that traffic from the tenant cluster machines (like the firewall and worker)
-can reach the Kamaji tenant API server, which is available on the Kind network (`mini_lab_ext`). 
-Without that fix, the provisioned nodes can not communicate with their control-plane, and the tenant cluster will never become healthy.
-
-```bash
-make -C capi-lab workaround-exit-route
-```
-
-Now it's time to deploy the `Cluster API metal-stack provider` into the Kamaji management cluster.
+Now it's time to deploy the `ClusterAPI metal-stack provider` into the Kamaji management cluster.
 Install the CAPMS provider using the locally built image via the following make target (useful for development):
 
 ```bash
@@ -113,7 +103,7 @@ export CLUSTER_NAME=kamaji-tenant-test
 make -C capi-lab control-plane-ip
 ```
 
-Now we can finally create a Kamaji tenant cluster.
+Now we can create a Kamaji tenant cluster.
 This registers the just created IP in MetalLB, then applies the cluster template via clusterctl.
 A control plane for the tenant will be created within the Kind cluster and made available via the VIP.
 Kamaji will then use the CAPMS provider to provision the firewall and worker machines in the mini-lab and join them to the tenant cluster's control plane in Kind.
