@@ -121,15 +121,6 @@ Use this command to see the live status of all relevant cluster resources in the
 watch "kubectl get cluster,metalstackcluster,metalstackfirewalldeployment,metalstackfirewalltemplate,machine,metalstackmachine,metalstackmachinetemplate,kamajicontrolplane,kubeadmconfigs,clusterresourcesets,helmchartproxy -A ; echo ; metalctl ms ls"
 ```
 
-Also, you should by now be able to reach the VIP we just created for the tenant control plane on Kind from your host via the `mini_lab_ext` bridge. 
-This allows us to access the tenant cluster API server.
-You can find the IP in the terminal history after we ran the `make -C capi-lab control-plane-ip` command
-or by running `metalctl network ip list` and looking for the IP with the name `$CLUSTER_NAME-vip`.
-
-```bash
-ping 203.0.113.x
-```
-
 After the firewall and worker machines have phoned home, the MTU needs to be fixed to ensure the workers' connectivity to the VIP.
 This is again only necessary because of the virtual network setup of the mini-lab and can be skipped when running on real hardware.
 Only then will kubeadm and the kubelet be able to reach the API server on the VIP, and the cluster will become healthy as soon as the node has joined.
@@ -208,16 +199,6 @@ make -C capi-lab kamaji-tenant-deploy-metal-ccm
 
 All pods in the tenant cluster should now be running and the node should be ready.
 We could now deploy workloads to the tenant cluster and they would be scheduled on the worker machine and have network connectivity.
-
-
-To recreate the tenant cluster without restarting the whole mini-lab, delete only the cluster resources:
-
-```bash
-kubectl delete cluster -n default $CLUSTER_NAME
-
-# wait until all machines have been reclaimed, then recreate:
-make -C capi-lab create-kamaji-tenant
-```
 
 Use `cleanup` to tear down the Kamaji lab.
 
