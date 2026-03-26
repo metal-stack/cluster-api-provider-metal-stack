@@ -39,9 +39,9 @@ make -C capi-lab mtu-fix
 When the control plane node was provisioned, you can obtain the kubeconfig like:
 
 ```bash
-kubectl get secret metal-test-kubeconfig -o jsonpath='{.data.value}' | base64 -d > capi-lab/.capms-cluster-kubeconfig.yaml
+kubectl get secret metal-test-kubeconfig -o jsonpath='{.data.value}' | base64 -d > capms-cluster.kubeconfig
 # alternatively:
-clusterctl get kubeconfig metal-test > capi-lab/.capms-cluster-kubeconfig.yaml
+clusterctl get kubeconfig metal-test > capms-cluster.kubeconfig
 ```
 
 The node's provider ID is provided by the [metal-ccm](https://github.com/metal-stack/metal-ccm), which needs to be deployed into the cluster:
@@ -50,7 +50,7 @@ The node's provider ID is provided by the [metal-ccm](https://github.com/metal-s
 If you want to provide service's of type load balancer through MetalLB by the metal-ccm, you need to deploy MetalLB:
 
 ```bash
-kubectl --kubeconfig capi-lab/.capms-cluster-kubeconfig.yaml apply --kustomize capi-lab/metallb
+kubectl --kubeconfig capms-cluster.kubeconfig apply --kustomize capi-lab/metallb
 ```
 
 That's it!
@@ -174,22 +174,22 @@ The kubeconfig is stored as a secret in the management cluster, which we can ret
 The following make target does exactly that and stores the kubeconfig in the capi-lab directory:
 
 ```bash
-make -C capi-lab tenant-kubeconfig
+make -C capi-lab kamaji-tenant-kubeconfig
 ```
 
 The API server in the kubeconfig points to the tenant cluster VIP (`203.0.113.x`). 
 We can now use the tenant kubeconfig to access the tenant cluster, e.g. to see the nodes that have joined:
 
 ```bash
-kubectl --kubeconfig capi-lab/.kamaji-tenant-kubeconfig.yaml get nodes
+kubectl --kubeconfig kamaji-tenant.kubeconfig get nodes
 ```
 
 When the nodes are ready, a CNI and the metal-ccm need to be deployed to the tenant cluster for it to be fully functional and allow scheduling workloads.
 
 ```bash
 # deploy calico as the CNI to the tenant cluster.
-kubectl --kubeconfig=capi-lab/.kamaji-tenant-kubeconfig.yaml create -f https://raw.githubusercontent.com/projectcalico/calico/v3.28.2/manifests/tigera-operator.yaml
-cat <<EOF | kubectl --kubeconfig=capi-lab/.kamaji-tenant-kubeconfig.yaml create -f -
+kubectl --kubeconfig=kamaji-tenant.kubeconfig create -f https://raw.githubusercontent.com/projectcalico/calico/v3.28.2/manifests/tigera-operator.yaml
+cat <<EOF | kubectl --kubeconfig=kamaji-tenant.kubeconfig create -f -
 apiVersion: operator.tigera.io/v1
 kind: Installation
 metadata:
@@ -213,7 +213,7 @@ EOF
 
 ```bash
 # deploy the metal-ccm to the tenant cluster.
-make -C capi-lab tenant-deploy-metal-ccm
+make -C capi-lab kamaji-tenant-deploy-metal-ccm
 ```
 
 All pods in the tenant cluster should now be running and the node should be ready.
