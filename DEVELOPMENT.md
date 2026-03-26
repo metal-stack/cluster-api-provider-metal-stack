@@ -431,7 +431,7 @@ metalctl machine console --ipmi $control_plane_machine_id
 clusterctl get kubeconfig > capms-cluster.kubeconfig
 
 # metal-ccm
-cat $repo_path/config/target-cluster/metal-ccm.yaml | envsubst | kubectl --kubeconfig capms-cluster.kubeconfig apply -f -
+kustomize build $repo_path/config/target-cluster/overlays/kubeadm | envsubst | kubectl --kubeconfig capms-cluster.kubeconfig apply -f -
 
 # cni
 kubectl --kubeconfig=capms-cluster.kubeconfig create -f https://raw.githubusercontent.com/projectcalico/calico/v3.28.2/manifests/tigera-operator.yaml

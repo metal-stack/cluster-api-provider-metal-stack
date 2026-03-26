@@ -1,0 +1,11 @@
+resources: 
+  - ../../base
+patches:
+  - target:
+      kind: Deployment
+      name: cloud-controller-manager
+    patch: |-
+      - op: add
+        path: /spec/template/spec/nodeSelector
+        value: 
+          node-role.kubernetes.io/control-plane: ""

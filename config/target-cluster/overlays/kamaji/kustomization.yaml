@@ -1,0 +1,13 @@
+resources: 
+  - ../../base
+patches:
+  - target:
+      kind: Deployment
+      name: cloud-controller-manager
+    patch: |-
+      - op: add
+        path: /spec/template/spec/tolerations/-
+        value:
+          effect: NoSchedule
+          key: node.cluster.x-k8s.io/uninitialized
+          operator: Exists

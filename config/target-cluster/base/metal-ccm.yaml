@@ -220,9 +220,6 @@ spec:
         - effect: NoSchedule
           key: node.cloudprovider.kubernetes.io/uninitialized
           value: "true"
-        - effect: NoSchedule
-          key: node.cluster.x-k8s.io/uninitialized
-          operator: Exists
       restartPolicy: Always
       volumes:
         - name: cloud-controller-manager
