@@ -55,22 +55,26 @@ kubectl --kubeconfig capms-cluster.kubeconfig apply --kustomize capi-lab/metallb
 
 That's it!
 
-## Running the Kamaji flavor of the capi-lab
-The Kamaji flavor runs Kamaji inside Kind as the management cluster and uses the mini-lab VMs as tenant cluster worker machines via Cluster API infrastructure provider metal-stack.
+## Running the Kamaji flavor
+The Kamaji flavor runs Kamaji inside Kind as the management cluster and uses mini-lab VMs as tenant cluster worker machines.
+It uses `cluster-api-provider-metal-stack` as the infrastructure provider for the tenant clusters, with the metal-stack control plane also running inside the Kind cluster.
+Kamaji is used as the control plane provider and machines are joined using `CABPK` (the Cluster API Bootstrap Provider Kubeadm) and Ignition.
+
 Requirements are the same as for the [mini-lab](https://github.com/metal-stack/mini-lab/?tab=readme-ov-file#requirements). 
 
 Kamaji is set up based on the [Kamaji on Kind](https://kamaji.clastix.io/getting-started/kamaji-kind/) tutorial.
 Kind is expected to use the IP range `172.18.0.0/16`.
 
-To run the Kamaji flavor, set the `MINI_LAB_FLAVOR` environment variable to `kamaji` and then run the `make up` command to start the mini-lab.
-This runs a container-lab with one Kind cluster as the management cluster and two mini-lab VMs as tenant cluster worker machine and firewall.
+To run the Kamaji flavor, set the `MINI_LAB_FLAVOR` environment variable to `kamaji` and then run the `make -C capi-lab` command to start the mini-lab.
 
 ```bash
 export MINI_LAB_FLAVOR=kamaji
 make -C capi-lab
 ```
 
-When the Ansible playbook has deployed successfully and everything is up and running, you should see a message like this among some other informational output in the terminal:
+The make target runs our Ansible playbook, which sets up the mini-lab and deploys Kamaji into the Kind cluster. 
+The management cluster is initialized with the _Kamaji_ control plane provider, installing all the necessary components for Kamaji to run and manage tenant clusters.
+When the playbook has deployed successfully and everything is up and running, you should see a message like this among some other informational output in the terminal:
 ```
 Your management cluster has been initialized successfully!
 
@@ -85,7 +89,7 @@ To access the mini-lab and run commands like `metalctl` and `kubectl`, you need 
 eval $(make -C capi-lab --silent dev-env)
 ```
 
-Now it's time to deploy the `ClusterAPI metal-stack provider` into the Kamaji management cluster.
+Now it's time to deploy the `cluster-api-provider-metal-stack` into the Kamaji management cluster.
 Install the CAPMS provider using the locally built image via the following make target (useful for development):
 
 ```bash
@@ -93,10 +97,9 @@ make push-to-capi-lab
 ```
 Note: we could also use `--infrastructure metal-stack` flag with `clusterctl init` to install the provider from the latest release.
 
-For the metal-stack machines to be able to reach the Kamaji tenant API server, a virtual IP needs to be created in the `mini_lab_ext` network.
-It will be assigned to the tenant cluster's control plane by MetalLB, which is installed as part of the Ansible playbook when we run `make -C capi-lab`.
-So the next step is to register an IP for the tenant cluster's API server from the `internet-mini-lab` network within metal-stack, 
-which will be used as the control plane endpoint in the cluster configuration.
+For the metal-stack machines to be able to reach the Kamaji tenant API server, a virtual IP needs to be created in the `mini_lab_ext` network (represented in metal-stack by the `internet-mini-lab` network).
+It will be assigned to the tenant cluster's control plane (running in the Kind cluster) by MetalLB.
+This IP will be used as the control plane endpoint in the cluster configuration.
 
 ```bash
 export CLUSTER_NAME=kamaji-tenant-test
@@ -104,9 +107,10 @@ make -C capi-lab control-plane-ip
 ```
 
 Now we can create a Kamaji tenant cluster.
-This registers the just created IP in MetalLB, then applies the cluster template via clusterctl.
+This registers the just created IP in MetalLB, then applies the cluster template via `clusterctl`.
 A control plane for the tenant will be created within the Kind cluster and made available via the VIP.
-Kamaji will then use the CAPMS provider to provision the firewall and worker machines in the mini-lab and join them to the tenant cluster's control plane in Kind.
+Kamaji will then use the CAPMS provider to provision the firewall and worker machines in the mini-lab 
+and join them to the tenant cluster's control plane via CABPK and `kubeadm`.
 
 ```bash
 make -C capi-lab create-kamaji-tenant

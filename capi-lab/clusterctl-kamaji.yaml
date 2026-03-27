@@ -1,9 +1,0 @@
----
-# Registers metal-stack as InfrastructureProvider and Kamaji as ControlPlaneProvider.
-providers:
-  - name: "metal-stack"
-    url: "https://github.com/metal-stack/cluster-api-provider-metal-stack/releases/latest/download/infrastructure-components.yaml"
-    type: InfrastructureProvider
-  - name: "kamaji"
-    url: "https://github.com/clastix/cluster-api-control-plane-provider-kamaji/releases/latest/download/control-plane-components.yaml"
-    type: ControlPlaneProvider
