@@ -56,14 +56,14 @@ kubectl --kubeconfig capms-cluster.kubeconfig apply --kustomize capi-lab/metallb
 That's it!
 
 ## Running the Kamaji flavor
-The Kamaji flavor runs Kamaji inside Kind as the management cluster and uses mini-lab VMs as tenant cluster worker machines.
-It uses `cluster-api-provider-metal-stack` as the infrastructure provider for the tenant clusters, with the metal-stack control plane also running inside the Kind cluster.
+The Kamaji flavor runs Kamaji inside kind as the management cluster and uses mini-lab VMs as tenant cluster worker machines.
+It uses `cluster-api-provider-metal-stack` as the infrastructure provider for the tenant clusters, with the metal-stack control plane also running inside the kind cluster.
 Kamaji is used as the control plane provider and machines are joined using `CABPK` (the Cluster API Bootstrap Provider Kubeadm) and Ignition.
 
 Requirements are the same as for the [mini-lab](https://github.com/metal-stack/mini-lab/?tab=readme-ov-file#requirements). 
 
-Kamaji is set up based on the [Kamaji on Kind](https://kamaji.clastix.io/getting-started/kamaji-kind/) tutorial.
-Kind is expected to use the IP range `172.18.0.0/16`.
+Kamaji is set up based on the [Kamaji on kind](https://kamaji.clastix.io/getting-started/kamaji-kind/) tutorial.
+kind is expected to use the IP range `172.18.0.0/16`.
 
 To run the Kamaji flavor, set the `MINI_LAB_FLAVOR` environment variable to `kamaji` and then run the `make -C capi-lab` command to start the mini-lab.
 
@@ -72,16 +72,8 @@ export MINI_LAB_FLAVOR=kamaji
 make -C capi-lab
 ```
 
-The make target runs our Ansible playbook, which sets up the mini-lab and deploys Kamaji into the Kind cluster. 
+This sets up the mini-lab and deploys Kamaji into the kind cluster. 
 The management cluster is initialized with the _Kamaji_ control plane provider, installing all the necessary components for Kamaji to run and manage tenant clusters.
-When the playbook has deployed successfully and everything is up and running, you should see a message like this among some other informational output in the terminal:
-```
-Your management cluster has been initialized successfully!
-
-You can now create your first workload cluster by running the following:
-
-  clusterctl generate cluster [name] --kubernetes-version [version] | kubectl apply -f -
-```
 
 To access the mini-lab and run commands like `metalctl` and `kubectl`, you need to set up the environment variables by running the following command:
 ```bash
@@ -95,10 +87,9 @@ Install the CAPMS provider using the locally built image via the following make 
 ```bash
 make push-to-capi-lab
 ```
-Note: we could also use `--infrastructure metal-stack` flag with `clusterctl init` to install the provider from the latest release.
 
 For the metal-stack machines to be able to reach the Kamaji tenant API server, a virtual IP needs to be created in the `mini_lab_ext` network (represented in metal-stack by the `internet-mini-lab` network).
-It will be assigned to the tenant cluster's control plane (running in the Kind cluster) by MetalLB.
+It will be assigned to the tenant cluster's control plane (running in the kind cluster) by MetalLB.
 This IP will be used as the control plane endpoint in the cluster configuration.
 
 ```bash
@@ -108,7 +99,7 @@ make -C capi-lab control-plane-ip
 
 Now we can create a Kamaji tenant cluster.
 This registers the just created IP in MetalLB, then applies the cluster template via `clusterctl`.
-A control plane for the tenant will be created within the Kind cluster and made available via the VIP.
+A control plane for the tenant will be created within the kind cluster and made available via the VIP.
 Kamaji will then use the CAPMS provider to provision the firewall and worker machines in the mini-lab 
 and join them to the tenant cluster's control plane via CABPK and `kubeadm`.
 
@@ -118,12 +109,6 @@ make -C capi-lab create-kamaji-tenant
 
 You should now see metal-stack machines being provisioned. 
 First the firewall machine, then the worker machine. 
-
-Use this command to see the live status of all relevant cluster resources in the management cluster and the metal machines.
-
-```bash
-watch "kubectl get cluster,metalstackcluster,metalstackfirewalldeployment,metalstackfirewalltemplate,machine,metalstackmachine,metalstackmachinetemplate,kamajicontrolplane,kubeadmconfigs,clusterresourcesets,helmchartproxy -A ; echo ; metalctl ms ls"
-```
 
 After the firewall and worker machines have phoned home, the MTU needs to be fixed to ensure the workers' connectivity to the VIP.
 This is again only necessary because of the virtual network setup of the mini-lab and can be skipped when running on real hardware.
@@ -149,10 +134,7 @@ make -C capi-lab/mini-lab console-machine02
 sudo systemctl restart frr
 ```
 
-We can then wait until the worker's `kubeadm` and `kubelet` services have reached the API server and the node has joined the cluster.
-This feels a bit like magic, as Kamaji creates the required configurations as secrets and Ignition sets up the machines to launch `kubeadm` and `kubelet` 
-with the correct parameters to reach the tenant control plane on the VIP, and all of that just works without any manual configuration of the tenant cluster machines.
-
+Wait until the worker's `kubeadm` and `kubelet` services have reached the API server and the node has joined the cluster.
 
 It is already possible to retrieve the tenant cluster kubeconfig and use it to access the tenant cluster. 
 The kubeconfig is stored as a secret in the management cluster, which we can retrieve and decode.
