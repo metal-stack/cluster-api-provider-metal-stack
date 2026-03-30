@@ -132,6 +132,7 @@ sudo systemctl restart frr
 # on the worker
 make -C capi-lab/mini-lab console-machine02
 sudo systemctl restart frr
+sudo systemctl restart kubeadm
 ```
 
 Wait until the worker's `kubeadm` and `kubelet` services have reached the API server and the node has joined the cluster.
@@ -155,27 +156,7 @@ When the nodes are ready, a CNI and the [`metal-ccm`](https://github.com/metal-s
 
 ```bash
 # deploy calico as the CNI to the tenant cluster.
-kubectl --kubeconfig=kamaji-tenant.kubeconfig create -f https://raw.githubusercontent.com/projectcalico/calico/v3.28.2/manifests/tigera-operator.yaml
-cat <<EOF | kubectl --kubeconfig=kamaji-tenant.kubeconfig create -f -
-apiVersion: operator.tigera.io/v1
-kind: Installation
-metadata:
-  name: default
-spec:
-  # Configures Calico networking.
-  calicoNetwork:
-    bgp: Disabled
-    ipPools:
-    - name: default-ipv4-ippool
-      blockSize: 26
-      cidr: 192.168.0.0/16
-      encapsulation: None
-    mtu: 1440
-  cni:
-    ipam:
-      type: HostLocal
-    type: Calico
-EOF
+make -C capi-lab kamaji-tenant-deploy-calico
 ```
 
 ```bash

@@ -36,8 +36,7 @@ else ifeq ($(MINI_LAB_FLAVOR),kamaji)
 DEPLOY_TARGET=deploy-kamaji
 KUBERNETES_VERSION = 1.34.1
 WORKER_MACHINE_IMAGE ?= capms-ubuntu-$(KUBERNETES_VERSION)
-# TODO make namespace configurable
-CLUSTER_NAMESPACE = default
+TENANT_NAMESPACE = kamaji-tenants
 CONTROL_PLANE_IP ?=
 PODS_CIDR = 192.168.0.0/16
 SERVICES_CIDR = 10.96.0.0/12
@@ -59,9 +58,9 @@ deploy-kubeadm:
 .PHONY: deploy-kamaji
 deploy-kamaji:
 	docker compose -f compose.yaml -f compose.kamaji.yaml run --rm clusterctl init --addon helm --control-plane kamaji
-# Grant the Kamaji controller manager access to MetalStackCluster resources.
-	kubectl --kubeconfig=$(KUBECONFIG) apply -f kamaji-rbac.yaml
 # TODO: remove once merged: https://github.com/clastix/cluster-api-control-plane-provider-kamaji/pull/323
+# - Grant the Kamaji controller manager access to MetalStackCluster resources.
+	kubectl --kubeconfig=$(KUBECONFIG) apply -f kamaji/kamaji-rbac.yaml
 # - Register MetalStackCluster as a supported dynamic infrastructure cluster in the Kamaji controller manager.
 # - The following patch is quite dirty as we double the args, but works as the last value in the args list wins for duplicate keys.
 	kubectl --kubeconfig=$(KUBECONFIG) patch deployments.apps -n kamaji-system capi-kamaji-controller-manager --type=json -p='[{"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--feature-gates=DynamicInfrastructureClusterPatch=true,ExternalClusterReference=false,ExternalClusterReferenceCrossNamespace=false,SkipInfraClusterPatch=false"},{"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--dynamic-infrastructure-clusters=MetalStackCluster"}]'
@@ -125,9 +124,10 @@ create-kamaji-tenant:
 	$(eval CONTROL_PLANE_IP = $(shell metalctl network ip list --name "$(CLUSTER_NAME)-vip" -o template --template '{{ .ipaddress }}'))
 	$(eval METAL_NODE_NETWORK_ID = $(shell metalctl network list --project $(METAL_PROJECT_ID) -o template --template '{{ (index . 0).id }}'))
 	# let MetalLB assign the IP to the tenant cluster control plane service
-	envsubst < metallb-tenant-pool.yaml | kubectl --kubeconfig=$(KUBECONFIG) apply -f -
+	envsubst < kamaji/metallb-tenant-pool.yaml | kubectl --kubeconfig=$(KUBECONFIG) apply -f -
 	docker compose -f compose.yaml -f compose.kamaji.yaml run --rm \
 		clusterctl generate cluster $(CLUSTER_NAME) \
+		--target-namespace $(TENANT_NAMESPACE) \
 		--worker-machine-count 1 \
 		--kubernetes-version $(KUBERNETES_VERSION) \
 		--from /templates/cluster-template-kamaji-tenant.yaml \
@@ -137,6 +137,7 @@ create-kamaji-tenant:
 delete-kamaji-tenant:
 	docker compose -f compose.yaml -f compose.kamaji.yaml run --rm \
 		clusterctl generate cluster $(CLUSTER_NAME) \
+		--target-namespace $(TENANT_NAMESPACE) \
 		--worker-machine-count 1 \
 		--kubernetes-version $(KUBERNETES_VERSION) \
 		--from /templates/cluster-template-kamaji-tenant.yaml \
@@ -144,8 +145,13 @@ delete-kamaji-tenant:
 
 .PHONY: kamaji-tenant-kubeconfig
 kamaji-tenant-kubeconfig:
-	kubectl --kubeconfig=$(KUBECONFIG) get secret $(CLUSTER_NAME)-kubeconfig -o jsonpath='{.data.value}' | base64 -d > ../kamaji-tenant.kubeconfig
+	kubectl --kubeconfig=$(KUBECONFIG) -n $(TENANT_NAMESPACE) get secret $(CLUSTER_NAME)-kubeconfig -o jsonpath='{.data.value}' | base64 -d > ../kamaji-tenant.kubeconfig
 	@echo "Tenant kubeconfig written to kamaji-tenant.kubeconfig"
+
+.PHONY: kamaji-tenant-deploy-calico
+kamaji-tenant-deploy-calico:
+	kubectl --kubeconfig=../kamaji-tenant.kubeconfig create -f https://raw.githubusercontent.com/projectcalico/calico/v3.28.2/manifests/tigera-operator.yaml || true
+	kubectl --kubeconfig=../kamaji-tenant.kubeconfig apply -f kamaji/calico.yaml
 
 .PHONY: kamaji-tenant-deploy-metal-ccm
 kamaji-tenant-deploy-metal-ccm:
