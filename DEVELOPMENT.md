@@ -55,41 +55,41 @@ kubectl --kubeconfig capms-cluster.kubeconfig apply --kustomize capi-lab/metallb
 
 That's it!
 
-## Running the Kamaji flavor
-The Kamaji flavor runs Kamaji inside kind as the management cluster and uses mini-lab VMs as tenant cluster worker machines.
-It uses `cluster-api-provider-metal-stack` as the infrastructure provider for the tenant clusters, with the metal-stack control plane also running inside the kind cluster.
-Kamaji is used as the control plane provider and machines are joined using `CABPK` (the Cluster API Bootstrap Provider Kubeadm) and Ignition.
+## Running the _Kamaji_ flavor
+The _Kamaji_ flavor runs [_Kamaji_](https://github.com/clastix/kamaji) inside `kind` as the management cluster and uses `mini-lab` VMs as tenant cluster worker machines.
+It uses `cluster-api-provider-metal-stack` as the infrastructure provider for the tenant clusters, with the `metal-stack` control plane also running inside the `kind` cluster.
+_Kamaji_ is used as the control plane provider and machines are joined using [`CABPK`](https://cluster-api.sigs.k8s.io/reference/glossary.html#cabpk) and `Ignition`.
 
-Requirements are the same as for the [mini-lab](https://github.com/metal-stack/mini-lab/?tab=readme-ov-file#requirements). 
+![_Kamaji_ Architecture Overview](./capi-lab/mini-lab/docs/overview-kamaji.drawio.svg)
 
-Kamaji is set up based on the [Kamaji on kind](https://kamaji.clastix.io/getting-started/kamaji-kind/) tutorial.
-kind is expected to use the IP range `172.18.0.0/16`.
+_Kamaji_ is set up based on the [Kamaji on kind](https://kamaji.clastix.io/getting-started/kamaji-kind/) tutorial and the deployed `MetalLB` address pool expects 
+the network `172.18.0.0/16` for `kind`.
 
-To run the Kamaji flavor, set the `MINI_LAB_FLAVOR` environment variable to `kamaji` and then run the `make -C capi-lab` command to start the mini-lab.
+To run the _Kamaji_ flavor, set the `MINI_LAB_FLAVOR` environment variable to `kamaji` and then run the `make -C capi-lab` command to start the `mini-lab`.
 
 ```bash
 export MINI_LAB_FLAVOR=kamaji
 make -C capi-lab
 ```
 
-This sets up the mini-lab and deploys Kamaji into the kind cluster. 
-The management cluster is initialized with the _Kamaji_ control plane provider, installing all the necessary components for Kamaji to run and manage tenant clusters.
+This sets up the `mini-lab` and deploys _Kamaji_ into the `kind` cluster. 
+The management cluster is initialized with the _Kamaji_ control plane provider, installing all the necessary components for _Kamaji_ to run and manage tenant clusters.
 
-To access the mini-lab and run commands like `metalctl` and `kubectl`, you need to set up the environment variables by running the following command:
+To access the `mini-lab` and run commands like `metalctl` and `kubectl`, you need to set up the environment variables by running the following command:
 ```bash
 # allows access using metalctl and kubectl
 eval $(make -C capi-lab --silent dev-env)
 ```
 
-Now it's time to deploy the `cluster-api-provider-metal-stack` into the Kamaji management cluster.
-Install the CAPMS provider using the locally built image via the following make target (useful for development):
+Now it's time to deploy the `cluster-api-provider-metal-stack` into the _Kamaji_ management cluster.
+Install the `CAPMS` provider using the locally built image via the following `make` target (useful for development):
 
 ```bash
 make push-to-capi-lab
 ```
 
-For the metal-stack machines to be able to reach the Kamaji tenant API server, a virtual IP needs to be created in the `mini_lab_ext` network (represented in metal-stack by the `internet-mini-lab` network).
-It will be assigned to the tenant cluster's control plane (running in the kind cluster) by MetalLB.
+For the `metal-stack` machines to be able to reach the _Kamaji_ tenant API server, a virtual IP needs to be created in the `mini_lab_ext` network (represented in `metal-stack` by the `internet-mini-lab` network).
+It will be assigned to the tenant cluster's control plane (running in the `kind` cluster) by `MetalLB`.
 This IP will be used as the control plane endpoint in the cluster configuration.
 
 ```bash
@@ -97,29 +97,29 @@ export CLUSTER_NAME=kamaji-tenant-test
 make -C capi-lab control-plane-ip
 ```
 
-Now we can create a Kamaji tenant cluster.
-This registers the just created IP in MetalLB, then applies the cluster template via `clusterctl`.
-A control plane for the tenant will be created within the kind cluster and made available via the VIP.
-Kamaji will then use the CAPMS provider to provision the firewall and worker machines in the mini-lab 
-and join them to the tenant cluster's control plane via CABPK and `kubeadm`.
+Now we can create a _Kamaji_ tenant cluster.
+This registers the just created IP in `MetalLB`, then applies the cluster template via `clusterctl`.
+A control plane for the tenant will be created within the `kind` cluster and made available via the VIP.
+_Kamaji_ will then use the `CAPMS` provider to provision the firewall and worker machines in the `mini-lab` 
+and join them to the tenant cluster's control plane via [`CABPK`](https://cluster-api.sigs.k8s.io/reference/glossary.html#cabpk) and `kubeadm`.
 
 ```bash
 make -C capi-lab create-kamaji-tenant
 ```
 
-You should now see metal-stack machines being provisioned. 
+You should now see `metal-stack` machines being provisioned. 
 First the firewall machine, then the worker machine. 
 
 After the firewall and worker machines have phoned home, the MTU needs to be fixed to ensure the workers' connectivity to the VIP.
-This is again only necessary because of the virtual network setup of the mini-lab and can be skipped when running on real hardware.
-Only then will kubeadm and the kubelet be able to reach the API server on the VIP, and the cluster will become healthy as soon as the node has joined.
+This is again only necessary because of the virtual network setup of the `mini-lab` and can be skipped when running on real hardware.
+Only then will `kubeadm` and the `kubelet` be able to reach the API server on the VIP, and the cluster will become healthy as soon as the node has joined.
 
 ```bash
 make -C capi-lab mtu-fix
 ```
 
-For the fixes to take effect, FRR needs to be restarted on the worker and firewall machines. 
-You can use the `console-machine` make target to access the machines' consoles and restart FRR there.
+For the fixes to take effect, `FRR` needs to be restarted on the worker and firewall machines. 
+You can use the `console-machine` `make` target to access the machines' consoles and restart `FRR` there.
 Use `metalctl machine list` to find out the machine IDs if you are unsure which one is the firewall and which one is the worker.
 
 ```bash
@@ -138,7 +138,7 @@ Wait until the worker's `kubeadm` and `kubelet` services have reached the API se
 
 It is already possible to retrieve the tenant cluster kubeconfig and use it to access the tenant cluster. 
 The kubeconfig is stored as a secret in the management cluster, which we can retrieve and decode.
-The following make target does exactly that and stores the kubeconfig in the capi-lab directory:
+The following `make` target does exactly that and stores the kubeconfig in the `capi-lab` directory:
 
 ```bash
 make -C capi-lab kamaji-tenant-kubeconfig
@@ -151,7 +151,7 @@ We can now use the tenant kubeconfig to access the tenant cluster, e.g. to see t
 kubectl --kubeconfig kamaji-tenant.kubeconfig get nodes
 ```
 
-When the nodes are ready, a CNI and the metal-ccm need to be deployed to the tenant cluster for it to be fully functional and allow scheduling workloads.
+When the nodes are ready, a CNI and the [`metal-ccm`](https://github.com/metal-stack/metal-ccm) need to be deployed to the tenant cluster for it to be fully functional and allow scheduling workloads.
 
 ```bash
 # deploy calico as the CNI to the tenant cluster.
@@ -186,7 +186,7 @@ make -C capi-lab kamaji-tenant-deploy-metal-ccm
 All pods in the tenant cluster should now be running and the node should be ready.
 We could now deploy workloads to the tenant cluster and they would be scheduled on the worker machine and have network connectivity.
 
-Use `cleanup` to tear down the Kamaji lab.
+Use `cleanup` to tear down the _Kamaji_ lab.
 
 ```bash
 make -C capi-lab cleanup
