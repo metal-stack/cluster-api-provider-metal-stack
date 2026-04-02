@@ -1,0 +1,21 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: capi-kamaji-metalstackcluster-access
+rules:
+- apiGroups: ["infrastructure.cluster.x-k8s.io"]
+  resources: ["metalstackclusters"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: capi-kamaji-metalstackcluster-access
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: capi-kamaji-metalstackcluster-access
+subjects:
+- kind: ServiceAccount
+  name: capi-kamaji-controller-manager
+  namespace: kamaji-system

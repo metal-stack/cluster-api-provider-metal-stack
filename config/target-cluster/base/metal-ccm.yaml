@@ -211,8 +211,6 @@ spec:
             requests:
               cpu: 100m
               memory: 64Mi
-      nodeSelector:
-        node-role.kubernetes.io/control-plane: ""
       hostNetwork: true
       serviceAccountName: cloud-controller-manager
       tolerations:
