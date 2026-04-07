@@ -58,13 +58,6 @@ deploy-kubeadm:
 .PHONY: deploy-kamaji
 deploy-kamaji:
 	docker compose -f compose.yaml -f compose.kamaji.yaml run --rm clusterctl init --addon helm --control-plane kamaji
-	# TODO: remove once merged: https://github.com/clastix/cluster-api-control-plane-provider-kamaji/pull/323
-	# - Grant the Kamaji controller manager access to MetalStackCluster resources.
-	kubectl --kubeconfig=$(KUBECONFIG) apply -f kamaji/kamaji-rbac.yaml
-	# - Register MetalStackCluster as a supported dynamic infrastructure cluster in the Kamaji controller manager.
-	# - The following patch is quite dirty as we double the args, but works as the last value in the args list wins for duplicate keys.
-	kubectl --kubeconfig=$(KUBECONFIG) patch deployments.apps -n kamaji-system capi-kamaji-controller-manager --type=json -p='[{"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--feature-gates=DynamicInfrastructureClusterPatch=true,ExternalClusterReference=false,ExternalClusterReferenceCrossNamespace=false,SkipInfraClusterPatch=false"},{"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--dynamic-infrastructure-clusters=MetalStackCluster"}]'
-	kubectl --kubeconfig=$(KUBECONFIG) rollout status deployment -n kamaji-system capi-kamaji-controller-manager
 	
 	# workaround for a route not being applied successfully in the exit container.
 	docker exec -it exit ip route add 203.0.113.128/25 via 203.0.113.128 dev mini_lab_ext
