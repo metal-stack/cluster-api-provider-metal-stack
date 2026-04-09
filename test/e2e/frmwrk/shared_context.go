@@ -19,6 +19,7 @@ import (
 	"github.com/metal-stack/metal-go/api/client/network"
 	"github.com/metal-stack/metal-go/api/models"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	clusterctlconfig "sigs.k8s.io/cluster-api/cmd/clusterctl/client/config"
@@ -338,6 +339,15 @@ func (ee *E2EContext) TeardownMetalStackProject(ctx context.Context) {
 			framework.DeleteNamespace(ctx, framework.DeleteNamespaceInput{
 				Deleter: ee.Environment.Bootstrap.GetClient(),
 				Name:    ns.Name,
+			})
+
+			By(fmt.Sprintf("Waiting for namespace %s to be deleted", ns.Name))
+			Eventually(func() bool {
+				namespace := &corev1.Namespace{}
+				key := client.ObjectKeyFromObject(&ns)
+				return apierrors.IsNotFound(ee.Environment.Bootstrap.GetClient().Get(ctx, key, namespace))
+			}).Should(BeTrue(), func() string {
+				return fmt.Sprintf("timed out waiting for namespace %s to be deleted", ns.Name)
 			})
 		}
 	}
