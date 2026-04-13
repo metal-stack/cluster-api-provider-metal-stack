@@ -99,11 +99,12 @@ make -C capi-lab control-plane-ip
 
 Now we can create a _Kamaji_ tenant cluster.
 This registers the just created IP in `MetalLB`, then applies the cluster template via `clusterctl`.
-A control plane for the tenant will be created within the `kind` cluster and made available via the VIP.
+A control plane for the tenant will be created within the `kind` cluster in the `TENANT_NAMESPACE` and made available via the VIP.
 _Kamaji_ will then use the `CAPMS` provider to provision the firewall and worker machines in the `mini-lab` 
 and join them to the tenant cluster's control plane via [`CABPK`](https://cluster-api.sigs.k8s.io/reference/glossary.html#cabpk) and `kubeadm`.
 
 ```bash
+export TENANT_NAMESPACE=kamaji-tenant-test
 make -C capi-lab create-kamaji-tenant
 ```
 
@@ -122,16 +123,23 @@ For the fixes to take effect, `FRR` needs to be restarted on the worker and fire
 You can use the `console-machine` `make` target to access the machines' consoles and restart `FRR` there.
 Use `metalctl machine list` to find out the machine IDs if you are unsure which one is the firewall and which one is the worker.
 
+**On the firewall machine:**
 ```bash
-# on the firewall
 make -C capi-lab/mini-lab password-machine01
 make -C capi-lab/mini-lab console-machine01
 # login using the metal user and password provided by the password-machine01 make target, then run:
 sudo systemctl restart frr
+```
 
-# on the worker
+**On the worker machine:**
+```bash
 make -C capi-lab/mini-lab console-machine02
 sudo systemctl restart frr
+
+# worker should have routes now
+ip r
+
+# kubeadm can now reach the API server
 sudo systemctl restart kubeadm
 ```
 

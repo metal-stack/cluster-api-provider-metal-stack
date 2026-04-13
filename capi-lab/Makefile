@@ -36,7 +36,7 @@ else ifeq ($(MINI_LAB_FLAVOR),kamaji)
 DEPLOY_TARGET=deploy-kamaji
 KUBERNETES_VERSION = 1.34.1
 WORKER_MACHINE_IMAGE ?= capms-ubuntu-$(KUBERNETES_VERSION)
-TENANT_NAMESPACE = kamaji-tenants
+TENANT_NAMESPACE ?= kamaji-tenants
 CONTROL_PLANE_IP ?=
 PODS_CIDR = 192.168.0.0/16
 SERVICES_CIDR = 10.96.0.0/12
@@ -117,6 +117,7 @@ mtu-fix:
 create-kamaji-tenant:
 	$(eval CONTROL_PLANE_IP = $(shell metalctl network ip list --name "$(CLUSTER_NAME)-vip" -o template --template '{{ .ipaddress }}'))
 	$(eval METAL_NODE_NETWORK_ID = $(shell metalctl network list --project $(METAL_PROJECT_ID) -o template --template '{{ (index . 0).id }}'))
+	kubectl --kubeconfig=$(KUBECONFIG) create namespace $(TENANT_NAMESPACE) --dry-run=client -o yaml | kubectl --kubeconfig=$(KUBECONFIG) apply -f -
 	# let MetalLB assign the IP to the tenant cluster control plane service
 	envsubst < kamaji/metallb-tenant-pool.yaml | kubectl --kubeconfig=$(KUBECONFIG) apply -f -
 	docker compose -f compose.yaml -f compose.kamaji.yaml run --rm \
