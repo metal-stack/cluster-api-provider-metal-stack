@@ -140,14 +140,14 @@ delete-kamaji-tenant:
 
 .PHONY: kamaji-tenant-kubeconfig
 kamaji-tenant-kubeconfig:
-	kubectl --kubeconfig=$(KUBECONFIG) -n $(TENANT_NAMESPACE) get secret $(CLUSTER_NAME)-kubeconfig -o jsonpath='{.data.value}' | base64 -d > ../kamaji-tenant.kubeconfig
-	@echo "Tenant kubeconfig written to kamaji-tenant.kubeconfig"
+	kubectl --kubeconfig=$(KUBECONFIG) -n $(TENANT_NAMESPACE) get secret $(CLUSTER_NAME)-kubeconfig -o jsonpath='{.data.value}' | base64 -d > ../$(CLUSTER_NAME).kubeconfig
+	@echo "Tenant kubeconfig written to $(CLUSTER_NAME).kubeconfig"
 
 .PHONY: kamaji-tenant-deploy-calico
 kamaji-tenant-deploy-calico:
-	kubectl --kubeconfig=../kamaji-tenant.kubeconfig create -f https://raw.githubusercontent.com/projectcalico/calico/v3.28.2/manifests/tigera-operator.yaml || true
-	kubectl --kubeconfig=../kamaji-tenant.kubeconfig apply -f kamaji/calico.yaml
+	kubectl --kubeconfig=../$(CLUSTER_NAME).kubeconfig create -f https://raw.githubusercontent.com/projectcalico/calico/v3.28.2/manifests/tigera-operator.yaml || true
+	kubectl --kubeconfig=../$(CLUSTER_NAME).kubeconfig apply -f kamaji/calico.yaml
 
 .PHONY: kamaji-tenant-deploy-metal-ccm
 kamaji-tenant-deploy-metal-ccm:
-	kustomize build ../config/target-cluster/overlays/kamaji | envsubst | kubectl --kubeconfig=../kamaji-tenant.kubeconfig apply -f -
+	kustomize build ../config/target-cluster/overlays/kamaji | envsubst | kubectl --kubeconfig=../$(CLUSTER_NAME).kubeconfig apply -f -

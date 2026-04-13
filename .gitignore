@@ -13,8 +13,7 @@ Dockerfile.cross
 
 infrastructure-metal-stack
 infrastructure-components.yaml
-capms-cluster.kubeconfig
-kamaji-tenant.kubeconfig
+*.kubeconfig
 
 # Test binary, built with `go test -c`
 *.test

@@ -157,7 +157,7 @@ The API server in the kubeconfig points to the tenant cluster VIP (`203.0.113.x`
 We can now use the tenant kubeconfig to access the tenant cluster, e.g. to see the nodes that have joined:
 
 ```bash
-kubectl --kubeconfig kamaji-tenant.kubeconfig get nodes
+kubectl --kubeconfig ${CLUSTER_NAME}.kubeconfig get nodes
 ```
 
 When the nodes are ready, a CNI and the [`metal-ccm`](https://github.com/metal-stack/metal-ccm) need to be deployed to the tenant cluster for it to be fully functional and allow scheduling workloads.
