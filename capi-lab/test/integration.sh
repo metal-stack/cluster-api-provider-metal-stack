@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 set -e
-export ANSIBLE_DISPLAY_SKIPPED_HOSTS=false
 
 echo "Starting capi-lab"
 make -C capi-lab
