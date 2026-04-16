@@ -44,13 +44,6 @@ jobs:
       with:
         submodules: true
 
-    # - name: Resolve mini-lab image tags from submodule commit
-    #   run: |
-    #     SUBMODULE_SHA=$(git -C capi-lab/mini-lab rev-parse --short=8 HEAD)
-
-    #     echo "MINI_LAB_VM_IMAGE=ghcr.io/metal-stack/mini-lab-vms:${SUBMODULE_SHA}" >> $GITHUB_ENV
-    #     echo "MINI_LAB_SONIC_IMAGE=ghcr.io/metal-stack/mini-lab-sonic:${SUBMODULE_SHA}" >> $GITHUB_ENV
-
     - name: Run integration tests
       shell: bash
       run: |
