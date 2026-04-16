@@ -1,0 +1,64 @@
+---
+name: Lab Integration Test
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+jobs:
+  test:
+    name: Run tests
+    runs-on: self-hosted
+
+    continue-on-error: true
+    strategy:
+      matrix:
+        flavors:
+          - name: kamaji
+
+    steps:
+    - name: Gain back workspace permissions # https://github.com/actions/checkout/issues/211
+      run: |
+        [ -d "${GITHUB_WORKSPACE}" ] && sudo chown -R $USER:$USER ${GITHUB_WORKSPACE}
+
+    - name: Setup Containerlab
+      run: |
+        bash -c "$(curl -sL https://get.containerlab.dev)"
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # set if required:
+        # DESIRED_VERSION: v0.59.0
+
+    - name: Log in to the container registry
+      uses: docker/login-action@v3
+      with:
+        registry: r.metal-stack.io
+        username: ${{ secrets.R_METALSTACK_IO_READ_USER }}
+        password: ${{ secrets.R_METALSTACK_IO_READ_PASSWORD }}
+
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        submodules: true
+
+    # - name: Resolve mini-lab image tags from submodule commit
+    #   run: |
+    #     SUBMODULE_SHA=$(git -C capi-lab/mini-lab rev-parse --short=8 HEAD)
+
+    #     echo "MINI_LAB_VM_IMAGE=ghcr.io/metal-stack/mini-lab-vms:${SUBMODULE_SHA}" >> $GITHUB_ENV
+    #     echo "MINI_LAB_SONIC_IMAGE=ghcr.io/metal-stack/mini-lab-sonic:${SUBMODULE_SHA}" >> $GITHUB_ENV
+
+    - name: Run integration tests
+      shell: bash
+      run: |
+        eval $(make -C capi-lab --silent dev-env)
+        ./capi-lab/test/ci-cleanup.sh
+        ./capi-lab/test/integration.sh
+      env:
+        MINI_LAB_FLAVOR: ${{ matrix.flavors.name }}
+        DOCKER_HUB_USER: ${{ secrets.DOCKER_HUB_USER }}
+        DOCKER_HUB_TOKEN: ${{ secrets.DOCKER_HUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

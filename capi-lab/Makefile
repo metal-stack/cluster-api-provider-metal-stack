@@ -30,6 +30,11 @@ FIREWALL_EXTERNAL_NETWORKS ?= ["internet-mini-lab"]
 
 IMG ?= ghcr.io/metal-stack/cluster-api-metal-stack-controller:latest
 
+# use specific mini-lab image versions matching the submodule commit to avoid breakage due to incompatible changes in mini-lab
+SUBMODULE_SHA=$(shell git -C mini-lab rev-parse --short=8 HEAD)
+MINI_LAB_VM_IMAGE := $(or $(MINI_LAB_VM_IMAGE),ghcr.io/metal-stack/mini-lab-vms:$(SUBMODULE_SHA))
+MINI_LAB_SONIC_IMAGE := $(or $(MINI_LAB_SONIC_IMAGE),ghcr.io/metal-stack/mini-lab-sonic:$(SUBMODULE_SHA))
+
 ifeq ($(MINI_LAB_FLAVOR),capms)
 DEPLOY_TARGET=deploy-kubeadm
 else ifeq ($(MINI_LAB_FLAVOR),kamaji)
