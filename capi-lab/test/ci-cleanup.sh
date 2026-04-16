@@ -14,7 +14,7 @@ if [ ! -z "$running_containers" ]; then
     done
 fi
 
-make cleanup
+make -C capi-lab cleanup
 
 echo "Remove containers from previous runs"
 
