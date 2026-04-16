@@ -70,7 +70,8 @@ if [ "$MINI_LAB_FLAVOR" = "kamaji" ]; then
         echo "Nodes have joined the cluster and are ready"
     elif kubectl --kubeconfig ${CLUSTER_NAME}.kubeconfig get nodes | grep -e "No resources found"; then
         echo "Nodes have not joined yet"
-        # TODO network issues can't be fixed by this test, so we shouldn't fail the test if the nodes haven't joined yet
+        # TODO network issues can't be fixed by this test,
+        # so we shouldn't fail the test if the nodes haven't joined yet
         # exit 1
     fi
 
