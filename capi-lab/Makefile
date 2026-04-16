@@ -49,6 +49,13 @@ else
 $(error Unknown flavor $(MINI_LAB_FLAVOR))
 endif
 
+ifeq ($(CI),true)
+  DOCKER_COMPOSE_RUN_ARG=--no-TTY --rm
+else
+  DOCKER_COMPOSE_RUN_ARG=--rm
+endif
+
+
 .PHONY: up
 up: bake $(DEPLOY_TARGET)
 
@@ -88,11 +95,11 @@ controller:
 
 .PHONY: control-plane-ip
 control-plane-ip:
-	metalctl network ip create --network internet-mini-lab --project $(METAL_PROJECT_ID) --name "$(CLUSTER_NAME)-vip" --type static -o template --template "{{ .ipaddress }}"
+	docker compose -f mini-lab/compose.yaml run $(DOCKER_COMPOSE_RUN_ARG) metalctl network ip create --network internet-mini-lab --project $(METAL_PROJECT_ID) --name "$(CLUSTER_NAME)-vip" --type static -o template --template "{{ .ipaddress }}"
 
 .PHONY: apply-sample-cluster
 apply-sample-cluster:
-	$(eval CONTROL_PLANE_IP = $(shell metalctl network ip list --name "$(CLUSTER_NAME)-vip" -o template --template '{{ .ipaddress }}'))
+	$(eval CONTROL_PLANE_IP = $(shell docker compose -f mini-lab/compose.yaml run $(DOCKER_COMPOSE_RUN_ARG) metalctl network ip list --name "$(CLUSTER_NAME)-vip" -o template --template '{{ .ipaddress }}'))
 	echo  $(CLUSTER_NAME)
 	clusterctl generate cluster $(CLUSTER_NAME) \
 		--kubeconfig=$(KUBECONFIG) \
@@ -104,7 +111,7 @@ apply-sample-cluster:
 
 .PHONY: delete-sample-cluster
 delete-sample-cluster:
-	$(eval CONTROL_PLANE_IP = $(shell metalctl network ip list --name "$(CLUSTER_NAME)-vip" -o template --template '{{ .ipaddress }}'))
+	$(eval CONTROL_PLANE_IP = $(shell docker compose -f mini-lab/compose.yaml run $(DOCKER_COMPOSE_RUN_ARG) metalctl network ip list --name "$(CLUSTER_NAME)-vip" -o template --template '{{ .ipaddress }}'))
 	clusterctl generate cluster $(CLUSTER_NAME) \
 		--kubeconfig=$(KUBECONFIG) \
 		--worker-machine-count 1 \
@@ -120,12 +127,12 @@ mtu-fix:
 
 .PHONY: create-kamaji-tenant
 create-kamaji-tenant:
-	$(eval CONTROL_PLANE_IP = $(shell metalctl network ip list --name "$(CLUSTER_NAME)-vip" -o template --template '{{ .ipaddress }}'))
-	$(eval METAL_NODE_NETWORK_ID = $(shell metalctl network list --project $(METAL_PROJECT_ID) -o template --template '{{ (index . 0).id }}'))
+	$(eval CONTROL_PLANE_IP = $(shell docker compose -f mini-lab/compose.yaml run $(DOCKER_COMPOSE_RUN_ARG) metalctl network ip list --name "$(CLUSTER_NAME)-vip" -o template --template '{{ .ipaddress }}'))
+	$(eval METAL_NODE_NETWORK_ID = $(shell docker compose -f mini-lab/compose.yaml run $(DOCKER_COMPOSE_RUN_ARG) metalctl network list --project $(METAL_PROJECT_ID) -o template --template '{{ (index . 0).id }}'))
 	kubectl --kubeconfig=$(KUBECONFIG) create namespace $(TENANT_NAMESPACE) --dry-run=client -o yaml | kubectl --kubeconfig=$(KUBECONFIG) apply -f -
 	# let MetalLB assign the IP to the tenant cluster control plane service
 	envsubst < kamaji/metallb-tenant-pool.yaml | kubectl --kubeconfig=$(KUBECONFIG) apply -f -
-	docker compose -f compose.yaml -f compose.kamaji.yaml run --rm \
+	docker compose -f compose.yaml -f compose.kamaji.yaml run $(DOCKER_COMPOSE_RUN_ARG) \
 		clusterctl generate cluster $(CLUSTER_NAME) \
 		--target-namespace $(TENANT_NAMESPACE) \
 		--worker-machine-count 1 \
@@ -135,7 +142,7 @@ create-kamaji-tenant:
 
 .PHONY: delete-kamaji-tenant
 delete-kamaji-tenant:
-	docker compose -f compose.yaml -f compose.kamaji.yaml run --rm \
+	docker compose -f compose.yaml -f compose.kamaji.yaml run $(DOCKER_COMPOSE_RUN_ARG) \
 		clusterctl generate cluster $(CLUSTER_NAME) \
 		--target-namespace $(TENANT_NAMESPACE) \
 		--worker-machine-count 1 \
