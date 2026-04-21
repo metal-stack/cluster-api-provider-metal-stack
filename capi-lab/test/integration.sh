@@ -24,9 +24,48 @@ echo "$waiting/$minWaiting machines are waiting"
 
 make push-to-capi-lab
 
+if [ "$MINI_LAB_FLAVOR" = "capms_dell_sonic" ] || [ "$MINI_LAB_FLAVOR" = "capms_sonic" ]; then
+
+    if [ "$MINI_LAB_FLAVOR" = "capms_dell_sonic" ]; then
+        2>&1 echo "Starting capms dell sonic flavor tests"
+    else
+        2>&1 echo "Starting capms sonic flavor tests"
+    fi
+
+    echo "Creating control plane IP"
+    make -C capi-lab control-plane-ip
+
+    echo "Applying sample cluster"
+    make -C capi-lab apply-sample-cluster
+
+    echo "Waiting for control-plane to get to Phoned Home state"
+    phoned=$(docker compose -f capi-lab/mini-lab/compose.yaml run --no-TTY --rm metalctl machine ls | grep Phoned | wc -l)
+    minPhoned=2
+    declare -i attempts=0
+    until [ "$phoned" -ge $minPhoned ]
+    do
+        if [ "$attempts" -ge 120 ]; then
+            echo "not enough machines phoned home - timeout reached"
+            exit 1
+        fi
+        echo "$phoned/$minPhoned machines have phoned home"
+        sleep 5
+        phoned=$(docker compose -f capi-lab/mini-lab/compose.yaml run --no-TTY --rm metalctl machine ls | grep Phoned | wc -l)
+        attempts+=1
+    done
+    echo "$phoned/$minPhoned machines have phoned home"
+
+    echo "Applying mtu fix"
+    make -C capi-lab mtu-fix
+
+    # TODO further checks
+
+fi
+
+
 if [ "$MINI_LAB_FLAVOR" = "kamaji" ]; then
 
-    echo "Starting kamaji tests"
+    echo "Starting kamaji flavor tests"
 
     echo "Creating control plane IP"
     export CLUSTER_NAME=kamaji-tenant-test
