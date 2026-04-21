@@ -127,6 +127,16 @@ mtu-fix:
 	cd mini-lab && ssh -F files/ssh/config leaf01 'ip link set dev vtep-1001 mtu 9100 && echo done'
 	cd mini-lab && ssh -F files/ssh/config leaf02 'ip link set dev vtep-1001 mtu 9100 && echo done'
 
+.PHONY: sample-cluster-kubeconfig
+sample-cluster-kubeconfig:
+	kubectl --kubeconfig=$(KUBECONFIG) get secret $(CLUSTER_NAME)-kubeconfig -o jsonpath='{.data.value}' | base64 -d > ../$(CLUSTER_NAME).kubeconfig
+	@echo "Sample cluster kubeconfig written to $(CLUSTER_NAME).kubeconfig"
+
+.PHONY: sample-cluster-deploy-metal-ccm
+sample-cluster-deploy-metal-ccm:
+	$(eval METAL_NODE_NETWORK_ID = $(shell docker compose -f mini-lab/compose.yaml run $(DOCKER_COMPOSE_RUN_ARG) metalctl network list --project $(METAL_PROJECT_ID) -o template --template '{{ (index . 0).id }}'))
+	kubectl kustomize ../config/target-cluster/overlays/kubeadm | envsubst | kubectl --kubeconfig=../$(CLUSTER_NAME).kubeconfig apply -f -
+
 .PHONY: create-kamaji-tenant
 create-kamaji-tenant:
 	$(eval CONTROL_PLANE_IP = $(shell docker compose -f mini-lab/compose.yaml run $(DOCKER_COMPOSE_RUN_ARG) metalctl network ip list --name "$(CLUSTER_NAME)-vip" -o template --template '{{ .ipaddress }}'))
@@ -164,4 +174,4 @@ kamaji-tenant-deploy-calico:
 
 .PHONY: kamaji-tenant-deploy-metal-ccm
 kamaji-tenant-deploy-metal-ccm:
-	kustomize build ../config/target-cluster/overlays/kamaji | envsubst | kubectl --kubeconfig=../$(CLUSTER_NAME).kubeconfig apply -f -
+	kubectl kustomize ../config/target-cluster/overlays/kamaji | envsubst | kubectl --kubeconfig=../$(CLUSTER_NAME).kubeconfig apply -f -
