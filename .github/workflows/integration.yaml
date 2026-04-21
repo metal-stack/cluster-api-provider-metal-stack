@@ -13,7 +13,7 @@ jobs:
     name: Run tests
     runs-on: ubuntu-latest
     # TODO should we run on self-hosted?
-    
+
     strategy:
       fail-fast: false
       matrix:
@@ -49,6 +49,7 @@ jobs:
 
     - name: Run integration tests
       shell: bash
+      timeout-minutes: 45
       run: |
         eval $(make -C capi-lab --silent dev-env)
         ./capi-lab/test/ci-cleanup.sh
