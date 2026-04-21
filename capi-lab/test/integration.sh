@@ -18,7 +18,7 @@ do
     echo "$waiting/$minWaiting machines are waiting"
     sleep 5
     waiting=$(docker compose -f capi-lab/mini-lab/compose.yaml run --no-TTY --rm metalctl machine ls | grep Waiting | wc -l)
-    attempts=$attempts+1
+    attempts+=1
 done
 echo "$waiting/$minWaiting machines are waiting"
 
@@ -27,9 +27,9 @@ make push-to-capi-lab
 if [ "$MINI_LAB_FLAVOR" = "capms_dell_sonic" ] || [ "$MINI_LAB_FLAVOR" = "capms_sonic" ]; then
 
     if [ "$MINI_LAB_FLAVOR" = "capms_dell_sonic" ]; then
-        2>&1 echo "Starting capms dell sonic flavor tests"
+        echo "Starting capms dell sonic flavor tests"
     else
-        2>&1 echo "Starting capms sonic flavor tests"
+        echo "Starting capms sonic flavor tests"
     fi
 
     echo "Creating control plane IP"

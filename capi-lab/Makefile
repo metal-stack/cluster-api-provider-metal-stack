@@ -105,11 +105,10 @@ apply-sample-cluster:
 	echo  $(CLUSTER_NAME)
 	docker compose -f compose.yaml run $(DOCKER_COMPOSE_RUN_ARG) \
 	  clusterctl generate cluster $(CLUSTER_NAME) \
-	    --kubeconfig=$(KUBECONFIG) \
 	    --worker-machine-count 1 \
 	    --control-plane-machine-count 1 \
 	    --kubernetes-version $(KUBERNETES_VERSION) \
-	    --from ../config/clusterctl-templates/cluster-template-calico-lab.yaml \
+	    --from /templates/cluster-template-calico-lab.yaml \
 	  | kubectl --kubeconfig=$(KUBECONFIG) apply -f -
 
 .PHONY: delete-sample-cluster
@@ -117,11 +116,10 @@ delete-sample-cluster:
 	$(eval CONTROL_PLANE_IP = $(shell docker compose -f mini-lab/compose.yaml run $(DOCKER_COMPOSE_RUN_ARG) metalctl network ip list --name "$(CLUSTER_NAME)-vip" -o template --template '{{ .ipaddress }}'))
 	docker compose -f compose.yaml run $(DOCKER_COMPOSE_RUN_ARG) \
 	  clusterctl generate cluster $(CLUSTER_NAME) \
-	    --kubeconfig=$(KUBECONFIG) \
 	    --worker-machine-count 1 \
 	    --control-plane-machine-count 1 \
 	    --kubernetes-version $(KUBERNETES_VERSION) \
-	    --from ../config/clusterctl-templates/cluster-template-calico-lab.yaml \
+	    --from /templates/cluster-template-calico-lab.yaml \
 	  | kubectl --kubeconfig=$(KUBECONFIG) delete -f -
 
 .PHONY: mtu-fix
