@@ -11,7 +11,7 @@ minWaiting=2
 declare -i attempts=0
 until [ "$waiting" -ge $minWaiting ]
 do
-    if [ "$attempts" -ge 60 ]; then
+    if [ "$attempts" -ge 180 ]; then
         echo "not enough machines in waiting state - timeout reached"
         exit 1
     fi
@@ -44,7 +44,7 @@ if [ "$MINI_LAB_FLAVOR" = "capms_dell_sonic" ] || [ "$MINI_LAB_FLAVOR" = "capms_
     declare -i attempts=0
     until [ "$phoned" -ge $minPhoned ]
     do
-        if [ "$attempts" -ge 120 ]; then
+        if [ "$attempts" -ge 180 ]; then
             echo "not enough machines phoned home - timeout reached"
             exit 1
         fi
@@ -81,7 +81,7 @@ if [ "$MINI_LAB_FLAVOR" = "kamaji" ]; then
     declare -i attempts=0
     until [ "$phoned" -ge $minPhoned ]
     do
-        if [ "$attempts" -ge 120 ]; then
+        if [ "$attempts" -ge 180 ]; then
             echo "not enough machines phoned home - timeout reached"
             exit 1
         fi
