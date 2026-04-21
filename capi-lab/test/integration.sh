@@ -32,6 +32,8 @@ if [ "$MINI_LAB_FLAVOR" = "capms_dell_sonic" ] || [ "$MINI_LAB_FLAVOR" = "capms_
         echo "Starting capms sonic flavor tests"
     fi
 
+    export CLUSTER_NAME=metal-test
+
     echo "Creating control plane IP"
     make -C capi-lab control-plane-ip
 
@@ -58,7 +60,42 @@ if [ "$MINI_LAB_FLAVOR" = "capms_dell_sonic" ] || [ "$MINI_LAB_FLAVOR" = "capms_
     echo "Applying mtu fix"
     make -C capi-lab mtu-fix
 
-    # TODO further checks
+    echo "Waiting for cluster to be provisioned"
+    declare -i attempts=0
+    until kubectl --kubeconfig ${KUBECONFIG} get cluster ${CLUSTER_NAME} -o jsonpath='{.status.phase}' 2>/dev/null | grep -q "Provisioned"
+    do
+        if [ "$attempts" -ge 180 ]; then
+            echo "cluster was not provisioned - timeout reached"
+            kubectl --kubeconfig ${KUBECONFIG} get cluster ${CLUSTER_NAME} -o yaml || true
+            exit 1
+        fi
+        echo "cluster ${CLUSTER_NAME} is not yet provisioned"
+        sleep 5
+        attempts+=1
+    done
+    echo "Cluster ${CLUSTER_NAME} is provisioned"
+
+    echo "Generating kubeconfig for sample cluster"
+    make -C capi-lab sample-cluster-kubeconfig
+
+    echo "Deploying metal-ccm to sample cluster"
+    make -C capi-lab sample-cluster-deploy-metal-ccm
+
+    echo "Waiting for nodes to become Ready"
+    declare -i attempts=0
+    until kubectl --kubeconfig ${CLUSTER_NAME}.kubeconfig get nodes --no-headers 2>/dev/null | awk '{ print $2 }' | grep -q "^Ready$"
+    do
+        if [ "$attempts" -ge 180 ]; then
+            echo "no nodes became Ready - timeout reached"
+            kubectl --kubeconfig ${CLUSTER_NAME}.kubeconfig get nodes || true
+            exit 1
+        fi
+        echo "no nodes are Ready yet"
+        sleep 5
+        attempts+=1
+    done
+    echo "At least one node is Ready"
+    kubectl --kubeconfig ${CLUSTER_NAME}.kubeconfig get nodes
 
 fi
 
