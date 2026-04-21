@@ -12,9 +12,10 @@ jobs:
   test:
     name: Run tests
     runs-on: ubuntu-latest
-
-    continue-on-error: true
+    # TODO should we run on self-hosted?
+    
     strategy:
+      fail-fast: false
       matrix:
         flavors:
           - name: capms_dell_sonic
