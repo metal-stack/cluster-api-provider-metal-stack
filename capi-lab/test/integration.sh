@@ -46,7 +46,7 @@ if [ "$MINI_LAB_FLAVOR" = "capms_dell_sonic" ] || [ "$MINI_LAB_FLAVOR" = "capms_
     declare -i attempts=0
     until [ "$phoned" -ge $minPhoned ]
     do
-        if [ "$attempts" -ge 180 ]; then
+        if [ "$attempts" -ge 240 ]; then
             echo "not enough machines phoned home - timeout reached"
             exit 1
         fi
