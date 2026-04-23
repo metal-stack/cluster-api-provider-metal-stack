@@ -134,13 +134,13 @@ sample-cluster-kubeconfig:
 
 .PHONY: sample-cluster-deploy-metal-ccm
 sample-cluster-deploy-metal-ccm:
-	$(eval METAL_NODE_NETWORK_ID = $(shell docker compose -f mini-lab/compose.yaml run $(DOCKER_COMPOSE_RUN_ARG) metalctl network list --project $(METAL_PROJECT_ID) -o template --template '{{ (index . 0).id }}'))
+	$(eval METAL_NODE_NETWORK_ID = $(shell docker compose -f mini-lab/compose.yaml run $(DOCKER_COMPOSE_RUN_ARG) metalctl network list --project $(METAL_PROJECT_ID) -o json | jq -r '.[0].id'))
 	kubectl kustomize ../config/target-cluster/overlays/kubeadm | envsubst | kubectl --kubeconfig=../$(CLUSTER_NAME).kubeconfig apply -f -
 
 .PHONY: create-kamaji-tenant
 create-kamaji-tenant:
 	$(eval CONTROL_PLANE_IP = $(shell docker compose -f mini-lab/compose.yaml run $(DOCKER_COMPOSE_RUN_ARG) metalctl network ip list --name "$(CLUSTER_NAME)-vip" -o template --template '{{ .ipaddress }}'))
-	$(eval METAL_NODE_NETWORK_ID = $(shell docker compose -f mini-lab/compose.yaml run $(DOCKER_COMPOSE_RUN_ARG) metalctl network list --project $(METAL_PROJECT_ID) -o template --template '{{ (index . 0).id }}'))
+	$(eval METAL_NODE_NETWORK_ID = $(shell docker compose -f mini-lab/compose.yaml run $(DOCKER_COMPOSE_RUN_ARG) metalctl network list --project $(METAL_PROJECT_ID) -o json | jq -r '.[0].id'))
 	kubectl --kubeconfig=$(KUBECONFIG) create namespace $(TENANT_NAMESPACE) --dry-run=client -o yaml | kubectl --kubeconfig=$(KUBECONFIG) apply -f -
 	# let MetalLB assign the IP to the tenant cluster control plane service
 	envsubst < kamaji/metallb-tenant-pool.yaml | kubectl --kubeconfig=$(KUBECONFIG) apply -f -

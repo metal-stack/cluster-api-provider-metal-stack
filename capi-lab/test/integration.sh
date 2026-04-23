@@ -40,9 +40,9 @@ if [ "$MINI_LAB_FLAVOR" = "capms_dell_sonic" ] || [ "$MINI_LAB_FLAVOR" = "capms_
     echo "Applying sample cluster"
     make -C capi-lab apply-sample-cluster
 
-    echo "Waiting for control-plane to get to Phoned Home state"
+    echo "Waiting for firewall, control-plane and worker to get to Phoned Home state"
     phoned=$(docker compose -f capi-lab/mini-lab/compose.yaml run --no-TTY --rm metalctl machine ls | grep Phoned | wc -l)
-    minPhoned=2
+    minPhoned=3
     declare -i attempts=0
     until [ "$phoned" -ge $minPhoned ]
     do
@@ -78,23 +78,41 @@ if [ "$MINI_LAB_FLAVOR" = "capms_dell_sonic" ] || [ "$MINI_LAB_FLAVOR" = "capms_
     echo "Generating kubeconfig for sample cluster"
     make -C capi-lab sample-cluster-kubeconfig
 
-    echo "Deploying metal-ccm to sample cluster"
-    make -C capi-lab sample-cluster-deploy-metal-ccm
-
-    echo "Waiting for nodes to become Ready"
+    echo "Waiting for tenant API server to be reachable"
     declare -i attempts=0
-    until kubectl --kubeconfig ${CLUSTER_NAME}.kubeconfig get nodes --no-headers 2>/dev/null | awk '{ print $2 }' | grep -q "^Ready$"
+    until kubectl --kubeconfig ${CLUSTER_NAME}.kubeconfig version >/dev/null 2>&1
     do
         if [ "$attempts" -ge 180 ]; then
-            echo "no nodes became Ready - timeout reached"
-            kubectl --kubeconfig ${CLUSTER_NAME}.kubeconfig get nodes || true
+            echo "tenant API server not reachable - timeout reached"
+            kubectl --kubeconfig ${CLUSTER_NAME}.kubeconfig version || true
             exit 1
         fi
-        echo "no nodes are Ready yet"
+        echo "tenant API server not reachable yet"
         sleep 5
         attempts+=1
     done
-    echo "At least one node is Ready"
+    echo "Tenant API server is reachable"
+
+    echo "Deploying metal-ccm to sample cluster"
+    make -C capi-lab sample-cluster-deploy-metal-ccm
+
+    echo "Waiting for control-plane and worker node to become Ready"
+    minReady=2
+    ready=0
+    declare -i attempts=0
+    until [ "$ready" -ge $minReady ]
+    do
+        if [ "$attempts" -ge 180 ]; then
+            echo "not enough nodes became Ready - timeout reached"
+            kubectl --kubeconfig ${CLUSTER_NAME}.kubeconfig get nodes || true
+            exit 1
+        fi
+        echo "$ready/$minReady nodes are Ready"
+        sleep 5
+        ready=$(kubectl --kubeconfig ${CLUSTER_NAME}.kubeconfig get nodes --no-headers 2>/dev/null | awk '{ print $2 }' | grep -c "^Ready$" || true)
+        attempts+=1
+    done
+    echo "$ready/$minReady nodes are Ready"
     kubectl --kubeconfig ${CLUSTER_NAME}.kubeconfig get nodes
 
 fi
