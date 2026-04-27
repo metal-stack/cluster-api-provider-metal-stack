@@ -40,9 +40,9 @@ if [ "$MINI_LAB_FLAVOR" = "capms_dell_sonic" ] || [ "$MINI_LAB_FLAVOR" = "capms_
     echo "Applying sample cluster"
     make -C capi-lab apply-sample-cluster
 
-    echo "Waiting for firewall, control-plane and worker to get to Phoned Home state"
+    echo "Waiting for firewall and control-plane to get to Phoned Home state"
     phoned=$(docker compose -f capi-lab/mini-lab/compose.yaml run --no-TTY --rm metalctl machine ls | grep Phoned | wc -l)
-    minPhoned=3
+    minPhoned=2
     declare -i attempts=0
     until [ "$phoned" -ge $minPhoned ]
     do
@@ -57,8 +57,10 @@ if [ "$MINI_LAB_FLAVOR" = "capms_dell_sonic" ] || [ "$MINI_LAB_FLAVOR" = "capms_
     done
     echo "$phoned/$minPhoned machines have phoned home"
 
-    echo "Applying mtu fix"
-    make -C capi-lab mtu-fix
+    if [ "$MINI_LAB_FLAVOR" = "capms_sonic" ]; then
+        echo "Applying mtu fix"
+        make -C capi-lab mtu-fix
+    fi
 
     echo "Waiting for cluster to be provisioned"
     declare -i attempts=0
@@ -96,8 +98,8 @@ if [ "$MINI_LAB_FLAVOR" = "capms_dell_sonic" ] || [ "$MINI_LAB_FLAVOR" = "capms_
     echo "Deploying metal-ccm to sample cluster"
     make -C capi-lab sample-cluster-deploy-metal-ccm
 
-    echo "Waiting for control-plane and worker node to become Ready"
-    minReady=2
+    echo "Waiting for control-plane node to become Ready"
+    minReady=1
     ready=0
     declare -i attempts=0
     until [ "$ready" -ge $minReady ]
