@@ -14,6 +14,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
+	clusterctlconfig "sigs.k8s.io/cluster-api/cmd/clusterctl/client/config"
 	"sigs.k8s.io/cluster-api/test/framework/clusterctl"
 )
 
@@ -54,11 +55,19 @@ var _ = Describe("Basic Cluster", Ordered, Label("basic"), func() {
 			It("move from bootstrap to workload cluster", Label("basic", "move"), func() {
 				Expect(ec).NotTo(BeNil(), "e2e cluster required")
 
+				var infraProviders []string
+
+				if e2eCtx.Environment.providerVersion != "" {
+					infraProviders = []string{fmt.Sprintf("%s:%s", clusterctlconfigMetalStackProviderName, e2eCtx.Environment.providerVersion)}
+				} else {
+					infraProviders = e2eCtx.E2EConfig.InfrastructureProviders()
+				}
+
 				clusterctl.InitManagementClusterAndWatchControllerLogs(ctx, clusterctl.InitManagementClusterAndWatchControllerLogsInput{
 					ClusterProxy:            ec.Refs.Workload,
 					ClusterctlConfigPath:    e2eCtx.Environment.ClusterctlConfigPath,
-					InfrastructureProviders: e2eCtx.E2EConfig.InfrastructureProviders(),
-					AddonProviders:          e2eCtx.E2EConfig.AddonProviders(),
+					InfrastructureProviders: infraProviders,
+					AddonProviders:          e2eCtx.E2EConfig.GetProviderLatestVersionsByContract(e2eCtx.Environment.providerContractUpgradeFrom, clusterctlconfig.HelmAddonProviderName),
 					LogFolder:               path.Join(e2eCtx.Environment.artifactsPath, "clusters", ec.ClusterName, "init"),
 				})
 
