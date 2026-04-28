@@ -5,7 +5,7 @@ ANSIBLE_EXTRA_VARS_FILE=$(shell pwd)/mini-lab-overrides/extra-vars.yaml
 KIND_EXPERIMENTAL_DOCKER_NETWORK=mini_lab_ext
 KUBECONFIG := $(shell pwd)/mini-lab/.kubeconfig
 
-MINI_LAB_FLAVOR := $(or $(MINI_LAB_FLAVOR),capms)
+MINI_LAB_FLAVOR := $(or $(MINI_LAB_FLAVOR),capms_sonic)
 
 CLUSTER_NAME ?= metal-test
 KUBERNETES_VERSION ?= 1.33.5
@@ -35,7 +35,9 @@ SUBMODULE_SHA=$(shell git -C mini-lab rev-parse --short=8 HEAD)
 MINI_LAB_VM_IMAGE := $(or $(MINI_LAB_VM_IMAGE),ghcr.io/metal-stack/mini-lab-vms:$(SUBMODULE_SHA))
 MINI_LAB_SONIC_IMAGE := $(or $(MINI_LAB_SONIC_IMAGE),ghcr.io/metal-stack/mini-lab-sonic:$(SUBMODULE_SHA))
 
-ifeq ($(MINI_LAB_FLAVOR),capms)
+ifeq ($(MINI_LAB_FLAVOR),capms_sonic)
+DEPLOY_TARGET=deploy-kubeadm
+else ifeq ($(MINI_LAB_FLAVOR),capms_dell_sonic)
 DEPLOY_TARGET=deploy-kubeadm
 else ifeq ($(MINI_LAB_FLAVOR),kamaji)
 DEPLOY_TARGET=deploy-kamaji
@@ -101,54 +103,64 @@ control-plane-ip:
 apply-sample-cluster:
 	$(eval CONTROL_PLANE_IP = $(shell docker compose -f mini-lab/compose.yaml run $(DOCKER_COMPOSE_RUN_ARG) metalctl network ip list --name "$(CLUSTER_NAME)-vip" -o template --template '{{ .ipaddress }}'))
 	echo  $(CLUSTER_NAME)
-	clusterctl generate cluster $(CLUSTER_NAME) \
-		--kubeconfig=$(KUBECONFIG) \
-		--worker-machine-count 1 \
-		--control-plane-machine-count 1 \
-		--kubernetes-version $(KUBERNETES_VERSION) \
-		--from ../config/clusterctl-templates/cluster-template-calico-lab.yaml \
-		| kubectl --kubeconfig=$(KUBECONFIG) apply -f -
+	docker compose -f compose.yaml run $(DOCKER_COMPOSE_RUN_ARG) \
+	  clusterctl generate cluster $(CLUSTER_NAME) \
+	    --worker-machine-count 1 \
+	    --control-plane-machine-count 1 \
+	    --kubernetes-version $(KUBERNETES_VERSION) \
+	    --from /templates/cluster-template-calico-lab.yaml \
+	  | kubectl --kubeconfig=$(KUBECONFIG) apply -f -
 
 .PHONY: delete-sample-cluster
 delete-sample-cluster:
 	$(eval CONTROL_PLANE_IP = $(shell docker compose -f mini-lab/compose.yaml run $(DOCKER_COMPOSE_RUN_ARG) metalctl network ip list --name "$(CLUSTER_NAME)-vip" -o template --template '{{ .ipaddress }}'))
-	clusterctl generate cluster $(CLUSTER_NAME) \
-		--kubeconfig=$(KUBECONFIG) \
-		--worker-machine-count 1 \
-		--control-plane-machine-count 1 \
-		--kubernetes-version $(KUBERNETES_VERSION) \
-		--from ../config/clusterctl-templates/cluster-template-calico-lab.yaml \
-		| kubectl --kubeconfig=$(KUBECONFIG) delete -f -
+	docker compose -f compose.yaml run $(DOCKER_COMPOSE_RUN_ARG) \
+	  clusterctl generate cluster $(CLUSTER_NAME) \
+	    --worker-machine-count 1 \
+	    --control-plane-machine-count 1 \
+	    --kubernetes-version $(KUBERNETES_VERSION) \
+	    --from /templates/cluster-template-calico-lab.yaml \
+	  | kubectl --kubeconfig=$(KUBECONFIG) delete -f -
 
 .PHONY: mtu-fix
 mtu-fix:
 	cd mini-lab && ssh -F files/ssh/config leaf01 'ip link set dev vtep-1001 mtu 9100 && echo done'
 	cd mini-lab && ssh -F files/ssh/config leaf02 'ip link set dev vtep-1001 mtu 9100 && echo done'
 
+.PHONY: sample-cluster-kubeconfig
+sample-cluster-kubeconfig:
+	kubectl --kubeconfig=$(KUBECONFIG) get secret $(CLUSTER_NAME)-kubeconfig -o jsonpath='{.data.value}' | base64 -d > ../$(CLUSTER_NAME).kubeconfig
+	@echo "Sample cluster kubeconfig written to $(CLUSTER_NAME).kubeconfig"
+
+.PHONY: sample-cluster-deploy-metal-ccm
+sample-cluster-deploy-metal-ccm:
+	$(eval METAL_NODE_NETWORK_ID = $(shell docker compose -f mini-lab/compose.yaml run $(DOCKER_COMPOSE_RUN_ARG) metalctl network list --project $(METAL_PROJECT_ID) -o json | jq -r '.[0].id'))
+	kubectl kustomize ../config/target-cluster/overlays/kubeadm | envsubst | kubectl --kubeconfig=../$(CLUSTER_NAME).kubeconfig apply -f -
+
 .PHONY: create-kamaji-tenant
 create-kamaji-tenant:
 	$(eval CONTROL_PLANE_IP = $(shell docker compose -f mini-lab/compose.yaml run $(DOCKER_COMPOSE_RUN_ARG) metalctl network ip list --name "$(CLUSTER_NAME)-vip" -o template --template '{{ .ipaddress }}'))
-	$(eval METAL_NODE_NETWORK_ID = $(shell docker compose -f mini-lab/compose.yaml run $(DOCKER_COMPOSE_RUN_ARG) metalctl network list --project $(METAL_PROJECT_ID) -o template --template '{{ (index . 0).id }}'))
+	$(eval METAL_NODE_NETWORK_ID = $(shell docker compose -f mini-lab/compose.yaml run $(DOCKER_COMPOSE_RUN_ARG) metalctl network list --project $(METAL_PROJECT_ID) -o json | jq -r '.[0].id'))
 	kubectl --kubeconfig=$(KUBECONFIG) create namespace $(TENANT_NAMESPACE) --dry-run=client -o yaml | kubectl --kubeconfig=$(KUBECONFIG) apply -f -
 	# let MetalLB assign the IP to the tenant cluster control plane service
 	envsubst < kamaji/metallb-tenant-pool.yaml | kubectl --kubeconfig=$(KUBECONFIG) apply -f -
 	docker compose -f compose.yaml -f compose.kamaji.yaml run $(DOCKER_COMPOSE_RUN_ARG) \
-		clusterctl generate cluster $(CLUSTER_NAME) \
-		--target-namespace $(TENANT_NAMESPACE) \
-		--worker-machine-count 1 \
-		--kubernetes-version $(KUBERNETES_VERSION) \
-		--from /templates/cluster-template-kamaji-tenant.yaml \
-		| kubectl --kubeconfig=$(KUBECONFIG) apply -f -
+	  clusterctl generate cluster $(CLUSTER_NAME) \
+	    --target-namespace $(TENANT_NAMESPACE) \
+	    --worker-machine-count 1 \
+	    --kubernetes-version $(KUBERNETES_VERSION) \
+	    --from /templates/cluster-template-kamaji-tenant.yaml \
+	  | kubectl --kubeconfig=$(KUBECONFIG) apply -f -
 
 .PHONY: delete-kamaji-tenant
 delete-kamaji-tenant:
 	docker compose -f compose.yaml -f compose.kamaji.yaml run $(DOCKER_COMPOSE_RUN_ARG) \
-		clusterctl generate cluster $(CLUSTER_NAME) \
-		--target-namespace $(TENANT_NAMESPACE) \
-		--worker-machine-count 1 \
-		--kubernetes-version $(KUBERNETES_VERSION) \
-		--from /templates/cluster-template-kamaji-tenant.yaml \
-		| kubectl --kubeconfig=$(KUBECONFIG) delete -f -
+	  clusterctl generate cluster $(CLUSTER_NAME) \
+	    --target-namespace $(TENANT_NAMESPACE) \
+	    --worker-machine-count 1 \
+	    --kubernetes-version $(KUBERNETES_VERSION) \
+	    --from /templates/cluster-template-kamaji-tenant.yaml \
+	  | kubectl --kubeconfig=$(KUBECONFIG) delete -f -
 
 .PHONY: kamaji-tenant-kubeconfig
 kamaji-tenant-kubeconfig:
@@ -162,4 +174,4 @@ kamaji-tenant-deploy-calico:
 
 .PHONY: kamaji-tenant-deploy-metal-ccm
 kamaji-tenant-deploy-metal-ccm:
-	kustomize build ../config/target-cluster/overlays/kamaji | envsubst | kubectl --kubeconfig=../$(CLUSTER_NAME).kubeconfig apply -f -
+	kubectl kustomize ../config/target-cluster/overlays/kamaji | envsubst | kubectl --kubeconfig=../$(CLUSTER_NAME).kubeconfig apply -f -
