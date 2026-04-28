@@ -559,6 +559,11 @@ data:
             - effect: NoSchedule
               key: node.cloudprovider.kubernetes.io/uninitialized
               value: "true"
+            - effect: NoSchedule
+              key: node.cluster.x-k8s.io/uninitialized
+              operator: Exists
+            - key: node.kubernetes.io/not-ready
+              operator: Exists
           restartPolicy: Always
           volumes:
             - name: cloud-controller-manager

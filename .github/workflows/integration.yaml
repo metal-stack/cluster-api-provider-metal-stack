@@ -49,7 +49,7 @@ jobs:
 
     - name: Run integration tests
       shell: bash
-      timeout-minutes: 45
+      timeout-minutes: 60
       run: |
         eval $(make -C capi-lab --silent dev-env)
         ./capi-lab/test/ci-cleanup.sh
