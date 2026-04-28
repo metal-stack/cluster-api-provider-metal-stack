@@ -84,9 +84,14 @@ if [ "$MINI_LAB_FLAVOR" = "capms_dell_sonic" ] || [ "$MINI_LAB_FLAVOR" = "capms_
     declare -i attempts=0
     until [ "$phoned" -ge $minPhoned ]
     do
-        if [ "$attempts" -ge 360 ]; then
+        if [ "$attempts" -ge 480 ]; then
             echo "not enough machines phoned home - timeout reached"
+            docker compose -f capi-lab/mini-lab/compose.yaml run --no-TTY --rm metalctl machine ls || true
             exit 1
+        fi
+        if [ $((attempts % 60)) -eq 0 ] && [ "$attempts" -gt 0 ]; then
+            echo "machine states after $attempts attempts:"
+            docker compose -f capi-lab/mini-lab/compose.yaml run --no-TTY --rm metalctl machine ls || true
         fi
         echo "$phoned/$minPhoned machines have phoned home"
         sleep 5
