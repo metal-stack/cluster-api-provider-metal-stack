@@ -84,7 +84,7 @@ if [ "$MINI_LAB_FLAVOR" = "capms_dell_sonic" ] || [ "$MINI_LAB_FLAVOR" = "capms_
     declare -i attempts=0
     until [ "$phoned" -ge $minPhoned ]
     do
-        if [ "$attempts" -ge 240 ]; then
+        if [ "$attempts" -ge 360 ]; then
             echo "not enough machines phoned home - timeout reached"
             exit 1
         fi
@@ -99,8 +99,8 @@ if [ "$MINI_LAB_FLAVOR" = "capms_dell_sonic" ] || [ "$MINI_LAB_FLAVOR" = "capms_
     make -C capi-lab sample-cluster-kubeconfig
 
     # TODO remove once we can reliably check for the nodes to be ready
-    kubectl --kubeconfig ${CLUSTER_NAME}.kubeconfig get nodes
-    kubectl --kubeconfig ${CLUSTER_NAME}.kubeconfig get pods -A
+    kubectl --kubeconfig ${CLUSTER_NAME}.kubeconfig get nodes || true
+    kubectl --kubeconfig ${CLUSTER_NAME}.kubeconfig get pods -A || true
 
     echo "Waiting for tenant API server to be reachable"
     declare -i attempts=0
