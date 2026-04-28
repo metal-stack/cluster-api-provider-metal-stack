@@ -23,6 +23,15 @@ jobs:
           - name: kamaji
 
     steps:
+    - name: Free disk space
+      # ubuntu-latest only has ~14GB free; kind + QEMU VMs + containerlab + Docker images exhaust it.
+      # Remove preinstalled SDKs/toolchains we don't need to recover ~10-12GB.
+      # apt-get clean removes cached .deb files (~few hundred MB).
+      run: |
+        sudo rm -rf /usr/local/lib/android /usr/share/dotnet /usr/share/swift /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL
+        sudo apt-get clean
+        df -h
+
     - name: Gain back workspace permissions # https://github.com/actions/checkout/issues/211
       run: |
         [ -d "${GITHUB_WORKSPACE}" ] && sudo chown -R $USER:$USER ${GITHUB_WORKSPACE}
