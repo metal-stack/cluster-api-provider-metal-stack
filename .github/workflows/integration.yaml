@@ -12,11 +12,14 @@ jobs:
   test:
     name: Run tests
     runs-on: ubuntu-latest
+    # TODO should we run on self-hosted?
 
-    continue-on-error: true
     strategy:
+      fail-fast: false
       matrix:
         flavors:
+          - name: capms_dell_sonic
+          - name: capms_sonic
           - name: kamaji
 
     steps:
@@ -46,6 +49,7 @@ jobs:
 
     - name: Run integration tests
       shell: bash
+      timeout-minutes: 60
       run: |
         eval $(make -C capi-lab --silent dev-env)
         ./capi-lab/test/ci-cleanup.sh
