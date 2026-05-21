@@ -99,7 +99,7 @@ if [ "$MINI_LAB_FLAVOR" = "capms_dell_sonic" ]; then
 
     echo "Waiting for tenant API server to be reachable"
     declare -i attempts=0
-    until kubectl --kubeconfig ${CLUSTER_NAME}.kubeconfig version >/dev/null 2>&1
+    until kubectl --kubeconfig ${CLUSTER_NAME}.kubeconfig version 2>&1 | grep -q "Server Version"
     do
         if [ "$attempts" -ge 180 ]; then
             echo "tenant API server not reachable - timeout reached"
