@@ -5,7 +5,7 @@ ANSIBLE_EXTRA_VARS_FILE=$(shell pwd)/mini-lab-overrides/extra-vars.yaml
 KIND_EXPERIMENTAL_DOCKER_NETWORK=mini_lab_ext
 KUBECONFIG := $(shell pwd)/mini-lab/.kubeconfig
 
-MINI_LAB_FLAVOR := $(or $(MINI_LAB_FLAVOR),capms_sonic)
+MINI_LAB_FLAVOR := $(or $(MINI_LAB_FLAVOR),capms_dell_sonic)
 
 CLUSTER_NAME ?= metal-test
 KUBERNETES_VERSION ?= 1.33.5
@@ -35,9 +35,7 @@ SUBMODULE_SHA=$(shell git -C mini-lab rev-parse --short=8 HEAD)
 MINI_LAB_VM_IMAGE := $(or $(MINI_LAB_VM_IMAGE),ghcr.io/metal-stack/mini-lab-vms:$(SUBMODULE_SHA))
 MINI_LAB_SONIC_IMAGE := $(or $(MINI_LAB_SONIC_IMAGE),ghcr.io/metal-stack/mini-lab-sonic:$(SUBMODULE_SHA))
 
-ifeq ($(MINI_LAB_FLAVOR),capms_sonic)
-DEPLOY_TARGET=deploy-kubeadm
-else ifeq ($(MINI_LAB_FLAVOR),capms_dell_sonic)
+ifeq ($(MINI_LAB_FLAVOR),capms_dell_sonic)
 DEPLOY_TARGET=deploy-kubeadm
 else ifeq ($(MINI_LAB_FLAVOR),kamaji)
 DEPLOY_TARGET=deploy-kamaji
