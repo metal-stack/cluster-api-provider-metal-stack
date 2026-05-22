@@ -123,6 +123,11 @@ if [ "$MINI_LAB_FLAVOR" = "capms_dell_sonic" ]; then
             kubectl --kubeconfig ${CLUSTER_NAME}.kubeconfig get nodes || true
             exit 1
         fi
+        if [ $((attempts % 60)) -eq 0 ] && [ "$attempts" -gt 0 ]; then
+            echo "node states after $attempts attempts:"
+            kubectl --kubeconfig ${CLUSTER_NAME}.kubeconfig get nodes || true
+            kubectl --kubeconfig ${CLUSTER_NAME}.kubeconfig get pods -A || true
+        fi
         echo "$ready/$minReady nodes are Ready"
         sleep 5
         ready=$(kubectl --kubeconfig ${CLUSTER_NAME}.kubeconfig get nodes --no-headers 2>/dev/null | awk '{ print $2 }' | grep -c "^Ready$" || true)
