@@ -54,6 +54,11 @@ jobs:
       with:
         submodules: true
 
+    - name: Setup Go
+      uses: actions/setup-go@v5
+      with:
+        go-version-file: go.mod
+
     - name: Run integration tests
       shell: bash
       timeout-minutes: 150
