@@ -18,6 +18,7 @@ jobs:
       matrix:
         flavors:
           - name: capms_dell_sonic
+          - name: capms_sonic
           - name: kamaji
 
     steps:

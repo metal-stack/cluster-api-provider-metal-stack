@@ -24,8 +24,13 @@ echo "$waiting/$minWaiting machines are waiting"
 
 make push-to-capi-lab
 
-if [ "$MINI_LAB_FLAVOR" = "capms_dell_sonic" ]; then
-    echo "Starting capms dell sonic flavor tests"
+if [ "$MINI_LAB_FLAVOR" = "capms_dell_sonic" ] || [ "$MINI_LAB_FLAVOR" = "capms_sonic" ]; then
+
+    if [ "$MINI_LAB_FLAVOR" = "capms_dell_sonic" ]; then
+        echo "Starting capms dell sonic flavor tests"
+    else
+        echo "Starting capms sonic flavor tests"
+    fi
 
     export CLUSTER_NAME=metal-test
 
@@ -67,6 +72,11 @@ if [ "$MINI_LAB_FLAVOR" = "capms_dell_sonic" ]; then
         attempts+=1
     done
     echo "$phoned/$minPhoned machines have phoned home"
+
+    if [ "$MINI_LAB_FLAVOR" = "capms_sonic" ]; then
+        echo "Applying mtu fix"
+        make -C capi-lab mtu-fix
+    fi
 
     echo "Waiting for worker to get to Phoned Home state"
     phoned=$(docker compose -f capi-lab/mini-lab/compose.yaml run --no-TTY --rm metalctl machine ls | grep Phoned | wc -l)
