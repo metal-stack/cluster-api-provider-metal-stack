@@ -152,14 +152,14 @@ func (r *MetalStackMachineReconciler) Reconcile(ctx context.Context, req ctrl.Re
 			Status:  metav1.ConditionTrue,
 			Type:    clusterv1.PausedCondition,
 			Reason:  clusterv1.PausedReason,
-			Message: "Reconciliation is paused",
+			Message: conditionMessageReconciliationPaused,
 		})
 	} else {
 		conditions.Set(infraMachine, metav1.Condition{
 			Status:  metav1.ConditionFalse,
 			Type:    clusterv1.PausedCondition,
 			Reason:  clusterv1.NotPausedReason,
-			Message: "Reconciliation is not paused",
+			Message: conditionMessageReconciliationNotPaused,
 		})
 	}
 
@@ -359,7 +359,7 @@ func (r *machineReconciler) reconcile() (ctrl.Result, error) {
 			conditions.Set(r.infraMachine, metav1.Condition{
 				Status:  metav1.ConditionFalse,
 				Type:    v1alpha1.ProviderMachineCreated,
-				Reason:  "InternalError",
+				Reason:  conditionMessageInternalError,
 				Message: err.Error(),
 			})
 			return ctrl.Result{}, err
@@ -370,7 +370,7 @@ func (r *machineReconciler) reconcile() (ctrl.Result, error) {
 			conditions.Set(r.infraMachine, metav1.Condition{
 				Status:  metav1.ConditionFalse,
 				Type:    v1alpha1.ProviderMachineCreated,
-				Reason:  "InternalError",
+				Reason:  conditionMessageInternalError,
 				Message: err.Error(),
 			})
 			return ctrl.Result{}, fmt.Errorf("unable to create machine at provider: %w", err)
@@ -594,7 +594,7 @@ func (r *machineReconciler) findProviderMachine() (*models.V1MachineResponse, er
 		conditions.Set(r.infraMachine, metav1.Condition{
 			Status:  metav1.ConditionFalse,
 			Type:    v1alpha1.ProviderMachineCreated,
-			Reason:  "InternalError",
+			Reason:  conditionMessageInternalError,
 			Message: err.Error(),
 		})
 		return nil, err
