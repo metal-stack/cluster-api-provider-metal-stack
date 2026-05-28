@@ -133,8 +133,6 @@ spec:
   kubeadmConfigSpec:
     format: ignition
     clusterConfiguration:
-      apiServer:
-        extraArgs: {}
       controllerManager:
         extraArgs:
           cloud-provider: external
@@ -258,8 +256,6 @@ spec:
     spec:
       format: ignition
       clusterConfiguration:
-        apiServer:
-          extraArgs: {}
         controllerManager:
           extraArgs:
             cloud-provider: external
