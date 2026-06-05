@@ -138,14 +138,14 @@ func (r *MetalStackFirewallDeploymentReconciler) Reconcile(ctx context.Context, 
 			Status:  metav1.ConditionTrue,
 			Type:    clusterv1.PausedCondition,
 			Reason:  clusterv1.PausedReason,
-			Message: "Reconciliation is paused",
+			Message: conditionMessageReconciliationPaused,
 		})
 	} else {
 		conditions.Set(fwdeploy, metav1.Condition{
 			Status:  metav1.ConditionFalse,
 			Type:    clusterv1.PausedCondition,
 			Reason:  clusterv1.PausedReason,
-			Message: "Reconciliation is not paused",
+			Message: conditionMessageReconciliationNotPaused,
 		})
 	}
 
@@ -278,7 +278,7 @@ func (r *firewallDeploymentReconciler) reconcile() error {
 		conditions.Set(r.infraCluster, metav1.Condition{
 			Type:    v1alpha1.ClusterFirewallDeploymentEnsured,
 			Status:  metav1.ConditionFalse,
-			Reason:  "InternalError",
+			Reason:  conditionMessageInternalError,
 			Message: err.Error(),
 		})
 		return fmt.Errorf("unable to ensure firewall deployment: %w", err)
