@@ -120,14 +120,14 @@ func (r *MetalStackClusterReconciler) Reconcile(ctx context.Context, req ctrl.Re
 			Status:  metav1.ConditionTrue,
 			Type:    clusterv1.PausedCondition,
 			Reason:  clusterv1.PausedReason,
-			Message: "Reconciliation is paused",
+			Message: conditionMessageReconciliationPaused,
 		})
 	} else {
 		conditions.Set(infraCluster, metav1.Condition{
 			Status:  metav1.ConditionFalse,
 			Type:    clusterv1.PausedCondition,
 			Reason:  clusterv1.NotPausedReason,
-			Message: "Reconciliation is not paused",
+			Message: conditionMessageReconciliationNotPaused,
 		})
 	}
 
@@ -314,7 +314,7 @@ func (r *clusterReconciler) reconcile() error {
 		conditions.Set(r.infraCluster, metav1.Condition{
 			Type:    v1alpha1.ClusterNodeNetworkEnsured,
 			Status:  metav1.ConditionFalse,
-			Reason:  "InternalError",
+			Reason:  conditionMessageInternalError,
 			Message: err.Error(),
 		})
 		return fmt.Errorf("unable to ensure node network: %w", err)
@@ -335,7 +335,7 @@ func (r *clusterReconciler) reconcile() error {
 			conditions.Set(r.infraCluster, metav1.Condition{
 				Status:  metav1.ConditionFalse,
 				Type:    v1alpha1.ClusterFirewallDeploymentEnsured,
-				Reason:  "InternalError",
+				Reason:  conditionMessageInternalError,
 				Message: err.Error(),
 			})
 			return fmt.Errorf("unable to ensure firewall deployment: %w", err)
@@ -356,7 +356,7 @@ func (r *clusterReconciler) reconcile() error {
 			conditions.Set(r.infraCluster, metav1.Condition{
 				Status:  metav1.ConditionFalse,
 				Type:    v1alpha1.ClusterControlPlaneIPEnsured,
-				Reason:  "InternalError",
+				Reason:  conditionMessageInternalError,
 				Message: err.Error(),
 			})
 			return fmt.Errorf("unable to ensure control plane ip: %w", err)
