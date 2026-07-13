@@ -1,5 +1,5 @@
 ---
-# Source https://kamaji.clastix.io/cluster-api/control-plane-provider/
+# Source https://github.com/clastix/cluster-api-control-plane-provider-kamaji/blob/master/docs/providers-metal-stack.md
 kind: Cluster
 apiVersion: cluster.x-k8s.io/v1beta2
 metadata:
@@ -24,10 +24,9 @@ spec:
     kind: MetalStackCluster
     name: ${CLUSTER_NAME}
 ---
-# Source https://kamaji.clastix.io/cluster-api/control-plane-provider/
 # Defines the control plane of a Tenant Cluster.
 kind: KamajiControlPlane
-apiVersion: controlplane.cluster.x-k8s.io/v1alpha1
+apiVersion: controlplane.cluster.x-k8s.io/v1alpha2
 metadata:
   name: '${CLUSTER_NAME}'
   namespace: '${TENANT_NAMESPACE}'

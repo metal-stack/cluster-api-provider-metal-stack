@@ -70,7 +70,7 @@ deploy-kubeadm:
 .PHONY: deploy-kamaji
 deploy-kamaji:
 	docker compose -f compose.yaml -f compose.kamaji.yaml run --rm clusterctl init --addon helm --control-plane kamaji
-	
+
 	# workaround for a route not being applied successfully in the exit container.
 	docker exec exit ip route add 203.0.113.128/25 via 203.0.113.128 dev mini_lab_ext
 
