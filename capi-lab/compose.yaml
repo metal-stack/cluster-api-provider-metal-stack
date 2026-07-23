@@ -5,8 +5,24 @@ services:
     environment:
       - EXP_KUBEADM_BOOTSTRAP_FORMAT_IGNITION=true
       - KUBECONFIG=/kubeconfig
-    image: registry.k8s.io/cluster-api/clusterctl:v1.9.5
+      - METAL_API_HMAC=${METAL_API_HMAC}
+      - METAL_API_URL=${METAL_API_URL}
+      - METAL_API_HMAC_AUTH_TYPE=${METAL_API_HMAC_AUTH_TYPE}
+      - CLUSTER_NAME=${CLUSTER_NAME}
+      - KUBERNETES_VERSION=${KUBERNETES_VERSION}
+      - CONTROL_PLANE_IP=${CONTROL_PLANE_IP}
+      - METAL_PARTITION=${METAL_PARTITION}
+      - METAL_PROJECT_ID=${METAL_PROJECT_ID}
+      - CONTROL_PLANE_MACHINE_IMAGE=${CONTROL_PLANE_MACHINE_IMAGE}
+      - CONTROL_PLANE_MACHINE_SIZE=${CONTROL_PLANE_MACHINE_SIZE}
+      - WORKER_MACHINE_IMAGE=${WORKER_MACHINE_IMAGE}
+      - WORKER_MACHINE_SIZE=${WORKER_MACHINE_SIZE}
+      - FIREWALL_MACHINE_IMAGE=${FIREWALL_MACHINE_IMAGE}
+      - FIREWALL_MACHINE_SIZE=${FIREWALL_MACHINE_SIZE}
+      - FIREWALL_EXTERNAL_NETWORKS=${FIREWALL_EXTERNAL_NETWORKS}
+    image: registry.k8s.io/cluster-api/clusterctl:v1.11.4
     network_mode: host
     user: root
     volumes:
       - ${KUBECONFIG}:/kubeconfig:ro
+      - ../config/clusterctl-templates:/templates:ro
