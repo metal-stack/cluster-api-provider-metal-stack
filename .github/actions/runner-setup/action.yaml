@@ -8,4 +8,4 @@ runs:
     - name: Create k8s Kind Cluster
       uses: helm/kind-action@v1
       with:
-        install_only: true
+        cluster_name: kind
