@@ -25,7 +25,7 @@ jobs:
     with:
       build-command: make build
       test-command: make test
-      image-name: ${{ github.repository }}-controller
+      image-name: ${{ github.event.repository.name }}/cluster-api-metal-stack-controller
 
   test-e2e-controller:
     uses: metal-stack/actions-common/.github/workflows/go-test.yaml@v1
