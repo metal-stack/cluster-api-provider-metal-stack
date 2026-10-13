@@ -1,0 +1,33 @@
+---
+name: metal-stack component release
+
+on:
+  pull_request:
+    branches:
+      - main
+  release:
+    types:
+      - published
+  push:
+    branches:
+      - main
+
+jobs:
+  draft:
+    uses: metal-stack/actions-common/.github/workflows/release-drafter.yaml@v1
+
+  spell-check:
+    uses: metal-stack/actions-common/.github/workflows/spell-check.yaml@v1
+
+  go-build:
+    uses: metal-stack/actions-common/.github/workflows/go-build.yaml@v1
+    secrets: inherit
+    with:
+      build-command: make build
+      test-command: make test
+      image-name: ${{ github.repository_owner }}/cluster-api-metal-stack-controller
+
+  test-e2e-controller:
+    uses: metal-stack/actions-common/.github/workflows/go-test.yaml@v1
+    with:
+      test-command: make test-e2e-controller
