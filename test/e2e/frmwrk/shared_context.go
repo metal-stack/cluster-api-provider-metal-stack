@@ -33,8 +33,6 @@ import (
 
 const (
 	e2eMetalStackProjectIDLabel = "e2e-metal-stack-project-id"
-	// TODO: CAPI v1.12 migration remove this constant and use clusterctlconfig.MetalStackProviderName
-	clusterctlconfigMetalStackProviderName = "metal-stack"
 )
 
 type Option func(*E2EContext)
@@ -226,12 +224,12 @@ func (ee *E2EContext) InitManagementCluster(ctx context.Context) {
 	)
 
 	if ee.Environment.providerVersion != "" {
-		infraProviders = []string{fmt.Sprintf("%s:%s", clusterctlconfigMetalStackProviderName, ee.Environment.providerVersion)}
+		infraProviders = []string{fmt.Sprintf("%s:%s", clusterctlconfig.MetalStackProviderName, ee.Environment.providerVersion)}
 	} else {
-		infraProviders = ee.E2EConfig.GetProviderLatestVersionsByContract(ee.Environment.providerContract, clusterctlconfigMetalStackProviderName)
+		infraProviders = ee.E2EConfig.GetProviderLatestVersionsByContract(ee.Environment.providerContract, clusterctlconfig.MetalStackProviderName)
 	}
 
-	initInfraProviders = ee.E2EConfig.GetProviderLatestVersionsByContract(ee.Environment.providerContractUpgradeFrom, clusterctlconfigMetalStackProviderName)
+	initInfraProviders = ee.E2EConfig.GetProviderLatestVersionsByContract(ee.Environment.providerContractUpgradeFrom, clusterctlconfig.MetalStackProviderName)
 
 	By("Init Management Cluster with " + ee.Environment.providerContractUpgradeFrom)
 	clusterctl.InitManagementClusterAndWatchControllerLogs(ctx, clusterctl.InitManagementClusterAndWatchControllerLogsInput{

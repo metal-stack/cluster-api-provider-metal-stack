@@ -84,9 +84,11 @@ type MetalStackFirewallDeploymentRef struct {
 // APIEndpoint represents a reachable Kubernetes API endpoint.
 type APIEndpoint struct {
 	// Host is the hostname on which the API server is serving.
+	// +optional
 	Host string `json:"host"`
 
 	// Port is the port on which the API server is serving.
+	// +optional
 	Port int `json:"port"`
 }
 

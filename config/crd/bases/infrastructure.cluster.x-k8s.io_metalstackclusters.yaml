@@ -81,9 +81,6 @@ spec:
                   port:
                     description: Port is the port on which the API server is serving.
                     type: integer
-                required:
-                - host
-                - port
                 type: object
               controlPlaneIP:
                 description: |-
